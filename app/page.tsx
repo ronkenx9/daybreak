@@ -195,6 +195,9 @@ export default function Landing() {
             <Wordmark />
             <p>Built for curious people.<br />A circle that feels like you.</p>
             <div className="db-dawn-social">
+              <a href="https://x.com/Daybreakcircles" target="_blank" rel="noreferrer" aria-label="Daybreak on X">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" /></svg>
+              </a>
               <a href="https://github.com/ronkenx9/daybreak" target="_blank" rel="noreferrer" aria-label="Daybreak on GitHub"><Github size={18} /></a>
             </div>
           </div>
