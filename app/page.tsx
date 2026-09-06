@@ -83,7 +83,7 @@ export default function Landing() {
         <CharacterCrew className="db-landing-crew" />
       </section>
 
-      <section className="db-proof">
+      <section className="db-proof db-band-blue">
         <div className="db-shell db-proof-row" data-reveal>
           {PROOF.map((item, i) => (
             <div
@@ -129,7 +129,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="circles" className="db-section db-section-tint">
+      <section id="circles" className="db-section db-band-blue">
         <div className="db-shell db-split">
           <div className="db-section-head" data-reveal>
             <h2>
