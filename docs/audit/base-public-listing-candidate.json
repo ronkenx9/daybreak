@@ -1,0 +1,87 @@
+{
+  "sourceUrl": "https://brand.base.org/stocks",
+  "checkedAt": "2026-09-05T23:24:05.296Z",
+  "scope": "Coinbase tokenized stocks listed by Base; not every stock-like token on the chain",
+  "tokens": [
+    {
+      "chainId": 8453,
+      "address": "0xb20000000000000000000078ee7ce2fe4908108c",
+      "symbol": "NVDAc",
+      "ticker": "NVDA",
+      "issuer": "Coinbase",
+      "sourceUrl": "https://brand.base.org/stocks"
+    },
+    {
+      "chainId": 8453,
+      "address": "0xb2000000000000000000008bc8786b856e61707c",
+      "symbol": "METAc",
+      "ticker": "META",
+      "issuer": "Coinbase",
+      "sourceUrl": "https://brand.base.org/stocks"
+    },
+    {
+      "chainId": 8453,
+      "address": "0xb200000000000000000000c2e324d24d7eecd1fb",
+      "symbol": "AAPLc",
+      "ticker": "AAPL",
+      "issuer": "Coinbase",
+      "sourceUrl": "https://brand.base.org/stocks"
+    },
+    {
+      "chainId": 8453,
+      "address": "0xb2000000000000000000002d0ba3164cc74f58b7",
+      "symbol": "GOOGLc",
+      "ticker": "GOOGL",
+      "issuer": "Coinbase",
+      "sourceUrl": "https://brand.base.org/stocks"
+    },
+    {
+      "chainId": 8453,
+      "address": "0xb200000000000000000000d9192b6b456483c2e8",
+      "symbol": "AMZNc",
+      "ticker": "AMZN",
+      "issuer": "Coinbase",
+      "sourceUrl": "https://brand.base.org/stocks"
+    },
+    {
+      "chainId": 8453,
+      "address": "0xb200000000000000000000ab99cfa739e253872b",
+      "symbol": "MSFTc",
+      "ticker": "MSFT",
+      "issuer": "Coinbase",
+      "sourceUrl": "https://brand.base.org/stocks"
+    },
+    {
+      "chainId": 8453,
+      "address": "0xb2000000000000000000004884b426556b92883d",
+      "symbol": "MSTRc",
+      "ticker": "MSTR",
+      "issuer": "Coinbase",
+      "sourceUrl": "https://brand.base.org/stocks"
+    },
+    {
+      "chainId": 8453,
+      "address": "0xb200000000000000000000397293cb8cda9a10c5",
+      "symbol": "SNDKc",
+      "ticker": "SNDK",
+      "issuer": "Coinbase",
+      "sourceUrl": "https://brand.base.org/stocks"
+    },
+    {
+      "chainId": 8453,
+      "address": "0xb2000000000000000000007b9fcbd005511acbd5",
+      "symbol": "SPCXc",
+      "ticker": "SPCX",
+      "issuer": "Coinbase",
+      "sourceUrl": "https://brand.base.org/stocks"
+    },
+    {
+      "chainId": 8453,
+      "address": "0xb2000000000000000000001e800a7f5189430cd0",
+      "symbol": "TSLAc",
+      "ticker": "TSLA",
+      "issuer": "Coinbase",
+      "sourceUrl": "https://brand.base.org/stocks"
+    }
+  ]
+}

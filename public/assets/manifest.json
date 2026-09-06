@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "id": "dayworld-mark",
+      "file": "dayworld-mark.svg",
+      "origin": "Original SVG construction for this planning pack",
+      "status": "direction-study",
+      "licenseReview": "Confirm final brand/name clearance before public release",
+      "sha256": "4c94e7c82a6e60a2d2239d94240f6652456f1d80133d4a4353628cdfb1ae2073"
+    }
+  ],
+  "requiredFieldsForProduction": [
+    "id",
+    "file",
+    "sourceUrlOrOriginal",
+    "creator",
+    "license",
+    "modifications",
+    "sha256",
+    "reviewer",
+    "dimensionsOrTriangles"
+  ]
+}

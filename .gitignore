@@ -1,0 +1,21 @@
+node_modules/
+.next/
+out/
+.vercel/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+*.log
+.DS_Store
+coverage/
+playwright-report/
+test-results/
+*.pem
+*.key
+# Local working notes and agent handoffs
+STATE.md
+tasks.json
+docs/CONTINUE-DAYBREAK.md
+docs/FIX-ALL-CONTINUATION.md
+docs/REDESIGN-QA.md

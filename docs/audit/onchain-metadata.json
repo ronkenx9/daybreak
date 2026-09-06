@@ -1,0 +1,136 @@
+{
+  "blockNumber": "50934962",
+  "checkedAt": "2026-09-06T01:47:52.721Z",
+  "rows": [
+    {
+      "ticker": "AAPL",
+      "expectedSymbol": "AAPLc",
+      "reads": [
+        "AAPLc",
+        "8",
+        "1000000000000000000",
+        "Coinbase AAPL"
+      ]
+    },
+    {
+      "ticker": "AMZN",
+      "expectedSymbol": "AMZNc",
+      "reads": [
+        "AMZNc",
+        "8",
+        "1000000000000000000",
+        "Coinbase AMZN"
+      ]
+    },
+    {
+      "ticker": "GOOGL",
+      "expectedSymbol": "GOOGLc",
+      "reads": [
+        "GOOGLc",
+        "8",
+        "1000000000000000000",
+        "Coinbase GOOGL"
+      ]
+    },
+    {
+      "ticker": "NVDA",
+      "expectedSymbol": "NVDAc",
+      "reads": [
+        "NVDAc",
+        "8",
+        "1000000000000000000",
+        "Coinbase NVDA"
+      ]
+    },
+    {
+      "ticker": "TSLA",
+      "expectedSymbol": "TSLAc",
+      "reads": [
+        "TSLAc",
+        "8",
+        "1000000000000000000",
+        "Coinbase TSLA"
+      ]
+    },
+    {
+      "ticker": "META",
+      "expectedSymbol": "METAc",
+      "reads": [
+        "METAc",
+        "8",
+        "1000000000000000000",
+        "Coinbase META"
+      ]
+    },
+    {
+      "ticker": "MSFT",
+      "expectedSymbol": "MSFTc",
+      "reads": [
+        "MSFTc",
+        "8",
+        "1000000000000000000",
+        "Coinbase MSFT"
+      ]
+    },
+    {
+      "ticker": "COIN",
+      "expectedSymbol": "COINc",
+      "reads": [
+        "COINc",
+        "8",
+        "1000000000000000000",
+        "Coinbase COIN"
+      ]
+    },
+    {
+      "ticker": "CRCL",
+      "expectedSymbol": "CRCLc",
+      "reads": [
+        "CRCLc",
+        "8",
+        "1000000000000000000",
+        "Coinbase CRCL"
+      ]
+    },
+    {
+      "ticker": "INTC",
+      "expectedSymbol": "INTCc",
+      "reads": [
+        "INTCc",
+        "8",
+        "1000000000000000000",
+        "Coinbase INTC"
+      ]
+    },
+    {
+      "ticker": "MSTR",
+      "expectedSymbol": "MSTRc",
+      "reads": [
+        "MSTRc",
+        "8",
+        "1000000000000000000",
+        "Coinbase MSTR"
+      ]
+    },
+    {
+      "ticker": "SNDK",
+      "expectedSymbol": "SNDKc",
+      "reads": [
+        "SNDKc",
+        "8",
+        "1000000000000000000",
+        "Coinbase SNDK"
+      ]
+    },
+    {
+      "ticker": "SPCX",
+      "expectedSymbol": "SPCXc",
+      "reads": [
+        "SPCXc",
+        "8",
+        "1000000000000000000",
+        "Coinbase SPCX"
+      ]
+    }
+  ]
+}

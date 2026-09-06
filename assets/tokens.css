@@ -1,0 +1,35 @@
+/* DAYWORLD v0.1 — proposed primitives → semantic → component tokens. */
+:root {
+  --dw-porcelain: #f5f3ee; --dw-paper: #fffefa; --dw-ink: #19242d;
+  --dw-slate: #53616c; --dw-blue: #245cc5; --dw-blue-pressed: #18499e;
+  --dw-apricot: #f3bb87; --dw-meadow: #dde6d5; --dw-green: #236447; --dw-brick: #ad3038;
+  --dw-space-1: 4px; --dw-space-2: 8px; --dw-space-3: 12px; --dw-space-4: 16px;
+  --dw-space-5: 20px; --dw-space-6: 24px; --dw-space-8: 32px; --dw-space-12: 48px;
+  --dw-radius-sm: 12px; --dw-radius-md: 16px; --dw-radius-lg: 24px; --dw-radius-xl: 32px;
+  --dw-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --dw-type-body: 16px; --dw-type-support: 14px; --dw-type-title: 28px;
+  --dw-duration-press: 140ms; --dw-duration-panel: 280ms; --dw-duration-place: 380ms;
+  --dw-ease: cubic-bezier(.2,.75,.25,1);
+  --color-background: var(--dw-porcelain); --color-surface: var(--dw-paper);
+  --color-text: var(--dw-ink); --color-text-secondary: var(--dw-slate);
+  --color-action: var(--dw-blue); --color-focus: var(--dw-blue);
+  --color-success: var(--dw-green); --color-error: var(--dw-brick);
+  --surface-glass: rgb(255 254 250 / .78); --surface-tray: rgb(255 254 250 / .88);
+  --surface-story: rgb(255 254 250 / .96); --surface-review: var(--dw-paper);
+  --edge-glass: rgb(255 255 255 / .85); --edge-hairline: rgb(25 36 45 / .14);
+  --shadow-float: 0 12px 32px rgb(25 36 45 / .09), inset 0 1px 0 rgb(255 255 255 / .7);
+  --button-bg: var(--color-action); --button-fg: var(--dw-paper);
+  --button-bg-pressed: var(--dw-blue-pressed); --button-height: 48px;
+  --button-radius: var(--dw-radius-md); --button-padding-x: var(--dw-space-5);
+  --sheet-bg: var(--surface-story); --sheet-radius: var(--dw-radius-lg);
+  --sheet-padding: var(--dw-space-5); --nav-bg: var(--surface-glass);
+  --nav-blur: 20px; --nav-radius: var(--dw-radius-lg); --touch-target: 44px;
+}
+.dw-glass { background: var(--nav-bg); border: 1px solid var(--edge-glass); border-radius: var(--nav-radius); box-shadow: var(--shadow-float); -webkit-backdrop-filter: blur(var(--nav-blur)); backdrop-filter: blur(var(--nav-blur)); }
+.dw-primary { min-height: var(--button-height); padding: 0 var(--button-padding-x); border-radius: var(--button-radius); background: var(--button-bg); color: var(--button-fg); border: 0; font: 600 var(--dw-type-body)/1.3 var(--dw-font); }
+.dw-primary:active { background: var(--button-bg-pressed); }
+:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 4px; }
+[data-reduce-transparency="true"] { --surface-glass: var(--dw-paper); --surface-tray: var(--dw-paper); --surface-story: var(--dw-paper); --nav-blur: 0px; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { :root { --surface-glass: var(--dw-paper); --surface-tray: var(--dw-paper); --surface-story: var(--dw-paper); } }
+@media (prefers-reduced-transparency: reduce) { :root { --surface-glass: var(--dw-paper); --surface-tray: var(--dw-paper); --surface-story: var(--dw-paper); --nav-blur: 0px; } }
+@media (prefers-reduced-motion: reduce) { :root { --dw-duration-press: 0ms; --dw-duration-panel: 0ms; --dw-duration-place: 0ms; } }

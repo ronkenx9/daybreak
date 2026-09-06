@@ -1,0 +1,205 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* DAYWORLD Design Tokens */
+:root {
+  --dw-porcelain: #f5f3ee;
+  --dw-paper: #fffefa;
+  --dw-ink: #19242d;
+  --dw-slate: #53616c;
+  --dw-blue: #245cc5;
+  --dw-blue-pressed: #18499e;
+  --dw-apricot: #f3bb87;
+  --dw-meadow: #dde6d5;
+  --dw-green: #236447;
+  --dw-brick: #ad3038;
+
+  --dw-space-1: 4px;
+  --dw-space-2: 8px;
+  --dw-space-3: 12px;
+  --dw-space-4: 16px;
+  --dw-space-5: 20px;
+  --dw-space-6: 24px;
+  --dw-space-8: 32px;
+  --dw-space-12: 48px;
+
+  --dw-radius-sm: 12px;
+  --dw-radius-md: 16px;
+  --dw-radius-lg: 24px;
+  --dw-radius-xl: 32px;
+
+  --dw-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --dw-type-body: 16px;
+  --dw-type-support: 14px;
+  --dw-type-title: 28px;
+
+  --dw-duration-press: 140ms;
+  --dw-duration-panel: 280ms;
+  --dw-duration-place: 380ms;
+  --dw-ease: cubic-bezier(0.2, 0.75, 0.25, 1);
+
+  --color-background: var(--dw-porcelain);
+  --color-surface: var(--dw-paper);
+  --color-text: var(--dw-ink);
+  --color-text-secondary: var(--dw-slate);
+  --color-action: var(--dw-blue);
+  --color-focus: var(--dw-blue);
+  --color-success: var(--dw-green);
+  --color-error: var(--dw-brick);
+
+  --surface-glass: rgba(255, 254, 250, 0.78);
+  --surface-tray: rgba(255, 254, 250, 0.88);
+  --surface-story: rgba(255, 254, 250, 0.96);
+  --surface-review: var(--dw-paper);
+
+  --edge-glass: rgba(255, 255, 255, 0.85);
+  --edge-hairline: rgba(25, 36, 45, 0.12);
+  --shadow-float: 0 12px 32px rgba(25, 36, 45, 0.09), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+
+  --button-bg: var(--color-action);
+  --button-fg: var(--dw-paper);
+  --button-bg-pressed: var(--dw-blue-pressed);
+  --button-height: 48px;
+  --button-radius: var(--dw-radius-md);
+  --button-padding-x: var(--dw-space-5);
+
+  --sheet-bg: var(--surface-story);
+  --sheet-radius: var(--dw-radius-lg);
+  --sheet-padding: var(--dw-space-5);
+
+  --nav-bg: var(--surface-glass);
+  --nav-blur: 20px;
+  --nav-radius: var(--dw-radius-lg);
+  --touch-target: 44px;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--dw-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+  min-height: 100dvh;
+}
+
+/* Glass material utility */
+.dw-glass {
+  background: var(--nav-bg);
+  border: 1px solid var(--edge-glass);
+  border-radius: var(--nav-radius);
+  box-shadow: var(--shadow-float);
+  -webkit-backdrop-filter: blur(var(--nav-blur));
+  backdrop-filter: blur(var(--nav-blur));
+}
+
+.dw-tray-glass {
+  background: var(--surface-tray);
+  border: 1px solid var(--edge-glass);
+  border-radius: var(--dw-radius-xl);
+  box-shadow: var(--shadow-float);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+.dw-story-glass {
+  background: var(--surface-story);
+  border: 1px solid var(--edge-glass);
+  box-shadow: 0 -12px 40px rgba(25, 36, 45, 0.12);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+
+/* Primary Button */
+.dw-primary {
+  min-height: var(--button-height);
+  padding: 0 var(--button-padding-x);
+  border-radius: var(--button-radius);
+  background-color: var(--button-bg);
+  color: var(--button-fg);
+  font-weight: 600;
+  font-size: var(--dw-type-body);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  transition: background-color var(--dw-duration-press) var(--dw-ease), transform var(--dw-duration-press) var(--dw-ease);
+  touch-action: manipulation;
+}
+
+.dw-primary:hover {
+  background-color: var(--dw-blue-pressed);
+}
+
+.dw-primary:active {
+  transform: scale(0.98);
+}
+
+.dw-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Secondary Button */
+.dw-secondary {
+  min-height: var(--button-height);
+  padding: 0 var(--button-padding-x);
+  border-radius: var(--button-radius);
+  background-color: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--edge-hairline);
+  font-weight: 550;
+  font-size: var(--dw-type-body);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color var(--dw-duration-press) var(--dw-ease);
+}
+
+.dw-secondary:hover {
+  background-color: rgba(25, 36, 45, 0.05);
+}
+
+/* Focus visibility for accessibility */
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+/* Reduced transparency overrides */
+[data-reduce-transparency="true"] {
+  --surface-glass: var(--dw-paper);
+  --surface-tray: var(--dw-paper);
+  --surface-story: var(--dw-paper);
+  --nav-blur: 0px;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --surface-glass: var(--dw-paper);
+    --surface-tray: var(--dw-paper);
+    --surface-story: var(--dw-paper);
+    --nav-blur: 0px;
+  }
+}
+
+/* Reduced motion overrides */
+[data-reduce-motion="true"] * {
+  transition-duration: 0.001ms !important;
+  animation-duration: 0.001ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dw-duration-press: 0ms;
+    --dw-duration-panel: 0ms;
+    --dw-duration-place: 0ms;
+  }
+}
