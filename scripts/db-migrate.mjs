@@ -20,7 +20,15 @@ try {
   await migrate(drizzle(sql), { migrationsFolder: 'drizzle' });
   console.log('Daybreak database migrations applied.');
 } catch (error) {
-  console.error(`Migration failed: ${error instanceof Error ? error.name : 'Unknown database error'}.`);
+  const details = [];
+  let current = error;
+  while (current && typeof current === 'object' && details.length < 3) {
+    const code = typeof current.code === 'string' ? ` (${current.code})` : '';
+    const message = current instanceof Error ? current.message : 'Unknown database error';
+    details.push(`${message}${code}`);
+    current = current.cause;
+  }
+  console.error(`Migration failed: ${details.join(' → ')}`);
   process.exitCode = 1;
 } finally {
   await sql.end({ timeout: 5 });
