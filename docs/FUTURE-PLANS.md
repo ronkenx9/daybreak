@@ -43,3 +43,7 @@ Private by default: users choose which lists or discoveries to share. Circle mem
 Start with a few curated circles and enough useful shared lists/discoveries to make each worth revisiting. Evaluate saves, meaningful contributions and repeat visits; avoid rewarding trading volume, wealth or raw meme virality. Do not automatically label popularity as investment quality.
 
 Detailed account foundation: [Account and login plan](ACCOUNT-AND-LOGIN-PLAN.md).
+
+## Bankr integration
+
+Bankr integration is the selected direction for stock-paired community token discovery, native execution, token launching, circle intelligence and later fee/payment infrastructure. Implementation sequence, verified provider findings, wallet decisions and release gates: [Daybreak × Bankr integration plan](BANKR-INTEGRATION-PLAN.md).

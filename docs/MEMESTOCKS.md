@@ -21,3 +21,12 @@ Real, culturally on-theme, actively traded, and only for companies that have a t
 
 ## Not done / hardening
 Real scam/honeypot screening (GoPlus / Honeypot.is) beyond liquidity+volume floors; GeckoTerminal fallback when DexScreener rate-limits; detecting fee-routing-into-underlying mechanics (the deeper thesis linkage). This supersedes the earlier FUTURE-PLANS "cultural memes, not memecoin pairs" note.
+
+
+## Discover restructure (2026-09-06, afternoon)
+Owner: memestocks were too hidden behind a stock's detail tab. Reworked Discover into two top-level tabs, **Stocks** and **Memestocks** (replacing the old category chips + dual lists).
+- **Stocks** tab: only Base tokenized stocks (13) — dropped Sony/Netflix/Starbucks (not on Base). Cards carry real brand logos, live price, bookmark (keyed by ticker) and open the stock sheet.
+- **Memestocks** tab: `TrendingMemestocks` — one ranked feed across all stocks via `GET /api/memecoins/trending` (`fetchTrending` queries each stock token individually and merges; the multi-address DexScreener call caps at ~30 pairs and gets crowded out by USDC pools, so per-token + merge is required). Each row is tagged with its parent stock; tapping opens the shared in-app `MemestockDetail`.
+- Logos: fetched brand-colored SVGs from Simple Icons for GOOGL/NVDA/TSLA/META/COIN/INTC/SPCX/CRCL/MSTR (+ existing AAPL/AMZN); Microsoft hand-built (4-square, Simple Icons removed it); AMZN kept existing; SanDisk stays monogram. `LOGO_TICKERS` in Identity.tsx updated.
+- Bookmarks now key by ticker; Holdings "saved companies" reads from TOKENS.
+Verified in-browser: Stocks grid with logos, Memestocks feed (BOX·AMZN $2M, BLUECHIP·NVDA, Moonbase·SPCX, BLUESCREEN·MSFT…), in-app detail from the feed, no console errors. tsc + build pass.

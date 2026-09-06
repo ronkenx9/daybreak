@@ -15,6 +15,6 @@ export function CharacterCrew({className=''}:{className?:string}){return <div cl
 // Only these tickers ship a logo SVG. For every other tokenized name we draw a
 // two-letter monogram — deciding up front avoids the broken-image flash you get
 // from an SSR <img> that 404s before React can attach an onError handler.
-const LOGO_TICKERS=new Set(['AAPL','AMZN','NFLX','NVDA','SBUX','SONY']);
+const LOGO_TICKERS=new Set(['AAPL','AMZN','NFLX','NVDA','SBUX','SONY','GOOGL','TSLA','META','MSFT','COIN','INTC','SPCX','CRCL','MSTR']);
 export function StockIcon({ticker,size=44}:{ticker:string;size?:number}){const hasLogo=LOGO_TICKERS.has(ticker);return <span className={`db-token db-token-${ticker}`} style={{width:size,height:size}}>{hasLogo?<img src={`/assets/stock/${ticker}.svg`} alt={`${ticker} logo`} width={size*.54} height={size*.54}/>:<span className="db-token-mono" style={{fontSize:size*.34}}>{ticker.slice(0,2)}</span>}</span>}
 export function AvatarStack(){return <span className="db-avatar-stack" aria-label="Illustrated community avatars">{[0,1,2,3].map(i=><Avatar key={i} seed={i} size={36}/>)}</span>}

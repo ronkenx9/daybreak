@@ -86,3 +86,26 @@ export async function fetchMemeTokens(ticker: string): Promise<MemeToken[]> {
   }
   return out.sort((a, b) => b.volume24Usd - a.volume24Usd).slice(0, 12);
 }
+
+// ---- Trending feed: per-token queries merged and ranked ----
+export interface TrendingMeme extends MemeToken { parentTicker: string; parentSymbol: string }
+
+// The multi-address endpoint caps its response, so the stocks' own USDC pools
+// crowd out the memestocks. Query each stock token on its own and merge.
+export async function fetchTrending(): Promise<TrendingMeme[]> {
+  const results = await Promise.allSettled(
+    TOKENS.map(async (t) => {
+      const memes = await fetchMemeTokens(t.ticker);
+      return memes.map((m): TrendingMeme => ({ ...m, parentTicker: t.ticker, parentSymbol: t.onchainSymbol }));
+    }),
+  );
+  const best = new Map<string, TrendingMeme>();
+  for (const r of results) {
+    if (r.status !== 'fulfilled') continue;
+    for (const m of r.value) {
+      const prev = best.get(m.address);
+      if (!prev || m.volume24Usd > prev.volume24Usd) best.set(m.address, m);
+    }
+  }
+  return [...best.values()].sort((a, b) => b.volume24Usd - a.volume24Usd).slice(0, 24);
+}
