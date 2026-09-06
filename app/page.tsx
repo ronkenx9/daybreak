@@ -45,7 +45,7 @@ export default function Landing() {
       <section className="db-hero">
         <div className="db-shell">
           <nav className="db-site-nav">
-            <Wordmark light />
+            <Wordmark />
             <div className="db-site-links">
               <a href="#discover">The experience</a>
               <a href="#circles">Find your people</a>

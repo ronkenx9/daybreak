@@ -520,3 +520,19 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
   .db-dawn-copy{flex-direction:column;align-items:flex-start;gap:6px;padding-top:26px}
   .db-dawn-poster img{min-height:260px}
 }
+
+/* Hero recolor: white ground, blue type. */
+.db-hero{background:#fff;color:var(--db-blue)}
+.db-hero:after{display:none}
+.db-hero .db-site-links{color:#52617a}
+.db-hero .db-site-links a:hover{color:var(--db-blue)}
+.db-hero .db-nav-cta{color:var(--db-blue);background:#fff;border-color:#c9d3f2}
+.db-hero .db-nav-cta:hover{background:#f5f7fe;border-color:#0210ef66}
+.db-hero .db-micro-light{color:var(--db-muted)}
+.db-hero-copy h1{color:var(--db-blue)}
+.db-hero-copy p{color:#52617a}
+.db-hero .db-caption{color:var(--db-muted)}
+.db-hero .db-white-button{background:var(--db-blue);color:#fff;box-shadow:0 1px 0 #ffffff45 inset}
+.db-hero .db-white-button:hover{background:#192af6}
+.db-hero .db-ghost-button{color:var(--db-blue);border-color:#c9d3f2}
+.db-hero .db-ghost-button:hover{background:#f5f7fe;border-color:#0210ef66}
