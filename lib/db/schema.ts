@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, boolean, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 // One internal user per verified Privy identity. We key on the Privy DID, never
 // on email or wallet address (those can change or be shared).
@@ -94,3 +94,103 @@ export const watchlistItems = pgTable('watchlist_items', {
   companyId: text('company_id').notNull(),
   addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({ uniqItem: uniqueIndex('watchlist_items_list_company').on(t.watchlistId, t.companyId) }));
+
+// ---- Bankr integration: durable operation ledger + market state (Phase B) ----
+// Financial amounts are raw integer strings with explicit decimals — never floats.
+
+export const walletConnections = pgTable('wallet_connections', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  provider: text('provider').notNull(), // e.g. 'bankr'
+  chain: text('chain').notNull().default('base'),
+  address: text('address').notNull(),
+  providerWalletRef: text('provider_wallet_ref'),
+  verifiedAt: timestamp('verified_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniqBinding: uniqueIndex('wallet_connections_provider_chain_address').on(t.provider, t.chain, t.address) }));
+
+// One row per user action. idempotencyKey is unique per user and binds to an
+// immutable intentHash so a retry can never double-broadcast.
+export const operations = pgTable('operations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  kind: text('kind').notNull(), // 'swap' | 'launch'
+  idempotencyKey: text('idempotency_key').notNull(),
+  intentHash: text('intent_hash').notNull(),
+  status: text('status').notNull().default('draft'), // draft|quoted|awaiting_confirmation|submitted|confirmed|failed|unknown
+  providerRef: text('provider_ref'),
+  txHash: text('tx_hash'),
+  errorClass: text('error_class'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniqIdem: uniqueIndex('operations_user_idempotency').on(t.userId, t.idempotencyKey) }));
+
+export const communityTokens = pgTable('community_tokens', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  chain: text('chain').notNull().default('base'),
+  address: text('address').notNull(),
+  stockAddress: text('stock_address'),
+  companyId: text('company_id'),
+  circleId: uuid('circle_id').references(() => circles.id, { onDelete: 'set null' }),
+  source: text('source'),
+  verificationStatus: text('verification_status').notNull().default('unverified'), // verified|unverified_reference|unavailable|stale|provider_error
+  observedAt: timestamp('observed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniqToken: uniqueIndex('community_tokens_chain_address').on(t.chain, t.address) }));
+
+export const tokenPools = pgTable('token_pools', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  chain: text('chain').notNull().default('base'),
+  protocol: text('protocol').notNull(),
+  poolRef: text('pool_ref').notNull(),
+  token0: text('token0').notNull(),
+  token1: text('token1').notNull(),
+  liquidityUsd: text('liquidity_usd'),
+  observedAt: timestamp('observed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniqPool: uniqueIndex('token_pools_chain_protocol_ref').on(t.chain, t.protocol, t.poolRef) }));
+
+export const tradeQuotes = pgTable('trade_quotes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  walletAddress: text('wallet_address').notNull(),
+  sellToken: text('sell_token').notNull(),
+  buyToken: text('buy_token').notNull(),
+  sellAmountRaw: text('sell_amount_raw').notNull(),
+  buyAmountRaw: text('buy_amount_raw').notNull(),
+  sellDecimals: integer('sell_decimals').notNull(),
+  buyDecimals: integer('buy_decimals').notNull(),
+  minBuyAmountRaw: text('min_buy_amount_raw').notNull(),
+  feeBps: integer('fee_bps'),
+  providerRef: text('provider_ref'), // quoteId
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const tokenLaunches = pgTable('token_launches', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  operationId: uuid('operation_id').references(() => operations.id, { onDelete: 'set null' }),
+  creatorUserId: uuid('creator_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  circleId: uuid('circle_id').references(() => circles.id, { onDelete: 'set null' }),
+  quoteAsset: text('quote_asset'),
+  supply: text('supply'),
+  allocation: text('allocation'),
+  feeRecipient: text('fee_recipient'),
+  simulationFingerprint: text('simulation_fingerprint'),
+  tokenAddress: text('token_address'),
+  poolRef: text('pool_ref'),
+  status: text('status').notNull().default('draft'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const feeObservations = pgTable('fee_observations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  launchId: uuid('launch_id').notNull().references(() => tokenLaunches.id, { onDelete: 'cascade' }),
+  recipient: text('recipient').notNull(),
+  amountRaw: text('amount_raw').notNull(),
+  asset: text('asset'),
+  claimed: boolean('claimed').notNull().default(false),
+  claimableRaw: text('claimable_raw'),
+  observedAt: timestamp('observed_at', { withTimezone: true }).notNull().defaultNow(),
+});
