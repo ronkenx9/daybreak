@@ -1,5 +1,6 @@
 import 'server-only';
 import { TOKENS, tokenForTicker } from './tokens';
+import { isAddress } from 'viem';
 
 // "Memestocks": meme tokens that put up liquidity DIRECTLY AGAINST a real
 // tokenized-stock (B20) token on Base. We detect them by reading the equity
@@ -35,10 +36,22 @@ interface DexPair {
   url?: string;
 }
 
+export class MemeProviderError extends Error {
+  constructor(message = 'Memestock provider unavailable') { super(message); this.name = 'MemeProviderError'; }
+}
+
 function isImpersonator(symbol: string, name: string): boolean {
   const s = symbol.toLowerCase();
   const n = name.toLowerCase();
   return s.includes('b20') || n.includes('b20');
+}
+
+function dexUrl(value: string | undefined, address: string): string {
+  try {
+    const url = new URL(value ?? '');
+    if (url.protocol === 'https:' && (url.hostname === 'dexscreener.com' || url.hostname.endsWith('.dexscreener.com'))) return url.toString();
+  } catch {}
+  return `https://dexscreener.com/base/${address}`;
 }
 
 export async function fetchMemeTokens(ticker: string): Promise<MemeToken[]> {
@@ -48,43 +61,54 @@ export async function fetchMemeTokens(ticker: string): Promise<MemeToken[]> {
 
   let pairs: DexPair[] = [];
   try {
-    const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tok.token}`, { headers: { accept: 'application/json' } });
-    if (!r.ok) return [];
+    const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tok.token}`, {
+      headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!r.ok) throw new MemeProviderError(`Memestock provider returned ${r.status}`);
     const data = (await r.json()) as { pairs?: DexPair[] };
     pairs = data.pairs ?? [];
-  } catch {
-    return [];
+  } catch (error) {
+    if (error instanceof MemeProviderError) throw error;
+    throw new MemeProviderError();
   }
 
-  const seen = new Set<string>();
-  const out: MemeToken[] = [];
+  const found = new Map<string, MemeToken>();
   for (const p of pairs) {
     if (p.chainId !== 'base') continue;
     // the side of the pool that isn't the equity token
     const baseIsStock = p.baseToken?.address?.toLowerCase() === stockAddr;
+    const quoteIsStock = p.quoteToken?.address?.toLowerCase() === stockAddr;
+    if (!baseIsStock && !quoteIsStock) continue;
     const other = baseIsStock ? p.quoteToken : p.baseToken;
     const address = other?.address?.toLowerCase() ?? '';
     const symbol = other?.symbol ?? '?';
     const name = other?.name ?? '';
-    if (!address || seen.has(address)) continue;
+    if (!isAddress(address)) continue;
     if (QUOTE.has(symbol.toUpperCase())) continue; // standard liquidity, not a memestock
     if (STOCK_ADDRS.has(address) || isImpersonator(symbol, name)) continue;
-    const liquidityUsd = Math.round(p.liquidity?.usd ?? 0);
-    const volume24Usd = Math.round(p.volume?.h24 ?? 0);
+    const liquidityUsd = Math.round(Number(p.liquidity?.usd ?? 0));
+    const volume24Usd = Math.round(Number(p.volume?.h24 ?? 0));
+    if (!Number.isFinite(liquidityUsd) || !Number.isFinite(volume24Usd) || liquidityUsd < 0 || volume24Usd < 0) continue;
     if (liquidityUsd < MIN_LIQUIDITY || volume24Usd < MIN_VOLUME_24) continue;
-    seen.add(address);
-    out.push({
+    const reportedPrice = p.priceUsd === undefined ? null : Number(p.priceUsd);
+    // DexScreener's priceUsd is the base token's USD price. When the stock is
+    // the base side it cannot safely be assigned to the quote-side meme token.
+    const priceUsd = baseIsStock || reportedPrice === null || !Number.isFinite(reportedPrice) || reportedPrice < 0 ? null : reportedPrice;
+    const candidate = {
       symbol,
       name: name.slice(0, 40),
       address,
-      priceUsd: p.priceUsd ? Number(p.priceUsd) : null,
+      priceUsd,
       liquidityUsd,
       volume24Usd,
-      url: p.url ?? `https://dexscreener.com/base/${address}`,
+      url: dexUrl(p.url, address),
       lowLiquidity: liquidityUsd < 25_000,
-    });
+    };
+    const previous = found.get(address);
+    if (!previous || candidate.volume24Usd > previous.volume24Usd) found.set(address, candidate);
   }
-  return out.sort((a, b) => b.volume24Usd - a.volume24Usd).slice(0, 12);
+  return [...found.values()].sort((a, b) => b.volume24Usd - a.volume24Usd).slice(0, 12);
 }
 
 // ---- Trending feed: per-token queries merged and ranked ----
@@ -93,12 +117,14 @@ export interface TrendingMeme extends MemeToken { parentTicker: string; parentSy
 // The multi-address endpoint caps its response, so the stocks' own USDC pools
 // crowd out the memestocks. Query each stock token on its own and merge.
 export async function fetchTrending(): Promise<TrendingMeme[]> {
-  const results = await Promise.allSettled(
-    TOKENS.map(async (t) => {
+  const results: PromiseSettledResult<TrendingMeme[]>[] = [];
+  for (let i = 0; i < TOKENS.length; i += 4) {
+    results.push(...await Promise.allSettled(TOKENS.slice(i, i + 4).map(async (t) => {
       const memes = await fetchMemeTokens(t.ticker);
       return memes.map((m): TrendingMeme => ({ ...m, parentTicker: t.ticker, parentSymbol: t.onchainSymbol }));
-    }),
-  );
+    })));
+  }
+  if (!results.some((result) => result.status === 'fulfilled')) throw new MemeProviderError();
   const best = new Map<string, TrendingMeme>();
   for (const r of results) {
     if (r.status !== 'fulfilled') continue;

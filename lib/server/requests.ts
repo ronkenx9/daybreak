@@ -11,3 +11,16 @@ export function createRequestCache<T>(ttl:number,maxEntries=128,maxConcurrent=8)
  };
 }
 export function createRateLimit(max=120,windowMs=60000){let start=Date.now(),count=0;return()=>{if(Date.now()-start>=windowMs){count=0;start=Date.now()}return ++count<=max}}
+
+// Per-identity protection for authenticated mutations. Entries expire and the
+// map is capped so arbitrary keys cannot grow server memory without bound.
+export function createKeyedRateLimit(max=60,windowMs=60000,maxKeys=5000){
+ const buckets=new Map<string,{start:number;count:number}>();
+ return(key:string)=>{
+  const now=Date.now();let bucket=buckets.get(key);
+  if(!bucket||now-bucket.start>=windowMs){bucket={start:now,count:0};buckets.set(key,bucket)}
+  bucket.count++;
+  if(buckets.size>maxKeys){for(const [k,v] of buckets){if(now-v.start>=windowMs)buckets.delete(k);if(buckets.size<=maxKeys)break}if(buckets.size>maxKeys)buckets.delete(buckets.keys().next().value!)}
+  return bucket.count<=max;
+ };
+}

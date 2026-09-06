@@ -1,11 +1,15 @@
 import 'server-only';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, sql } from 'drizzle-orm';
 import { getDb } from './client';
 import { users, profiles, bookmarks, circles, circleMemberships, migrationImports } from './schema';
 import { CIRCLES, CIRCLE_SLUGS } from './circles';
+import { DISCOVERY_CATALOG } from '@/lib/catalog';
+import { TOKENS } from '@/lib/base/tokens';
 
 const COMPANY_ID = /^[a-z0-9_.-]{1,64}$/i;
-export const isValidCompanyId = (s: unknown): s is string => typeof s === 'string' && COMPANY_ID.test(s);
+const SAVABLE_COMPANY_IDS = new Set([...TOKENS.map((t) => t.ticker), ...DISCOVERY_CATALOG.map((item) => item.id)]);
+const MAX_BOOKMARKS = 100;
+export const isValidCompanyId = (s: unknown): s is string => typeof s === 'string' && COMPANY_ID.test(s) && SAVABLE_COMPANY_IDS.has(s);
 
 let circlesSeeded = false;
 async function ensureCircles() {
@@ -64,7 +68,15 @@ export async function updateProfile(
 
 export async function addBookmark(userId: string, companyId: string) {
   const db = getDb();
-  await db.insert(bookmarks).values({ userId, companyId }).onConflictDoNothing();
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`daybreak-bookmarks:${userId}`}))`);
+    const [existing] = await tx.select({ id: bookmarks.id }).from(bookmarks).where(and(eq(bookmarks.userId, userId), eq(bookmarks.companyId, companyId))).limit(1);
+    if (existing) return { ok: true as const };
+    const [total] = await tx.select({ value: count() }).from(bookmarks).where(eq(bookmarks.userId, userId));
+    if (Number(total?.value ?? 0) >= MAX_BOOKMARKS) return { ok: false as const, reason: 'limit' as const };
+    await tx.insert(bookmarks).values({ userId, companyId }).onConflictDoNothing();
+    return { ok: true as const };
+  });
 }
 export async function removeBookmark(userId: string, companyId: string) {
   const db = getDb();
@@ -94,26 +106,36 @@ export async function importLocal(
   version: string,
 ) {
   const db = getDb();
-  const [already] = await db.select().from(migrationImports).where(and(eq(migrationImports.userId, userId), eq(migrationImports.version, version))).limit(1);
-  if (already) return { alreadyImported: true as const, importedBookmarks: 0, importedMemberships: 0 };
-
   const cleanBm = [...new Set((data.bookmarks ?? []).filter(isValidCompanyId))] as string[];
-  if (cleanBm.length) await db.insert(bookmarks).values(cleanBm.map((companyId) => ({ userId, companyId }))).onConflictDoNothing();
+  if (cleanBm.length > MAX_BOOKMARKS) throw new Error('Import exceeds bookmark limit');
 
   await ensureCircles();
   const slugs = [...new Set((data.memberships ?? []).filter((s): s is string => typeof s === 'string' && (CIRCLE_SLUGS as readonly string[]).includes(s)))];
-  if (slugs.length) {
-    const cs = await db.select().from(circles).where(inArray(circles.slug, slugs));
-    if (cs.length) await db.insert(circleMemberships).values(cs.map((c) => ({ circleId: c.id, userId }))).onConflictDoNothing();
-  }
-
-  if (typeof data.displayName === 'string' || typeof data.avatar === 'number') {
-    const patch: Record<string, unknown> = { updatedAt: new Date() };
-    if (typeof data.displayName === 'string') patch.displayName = data.displayName.slice(0, 24);
-    if (typeof data.avatar === 'number') patch.avatar = Math.abs(Math.trunc(data.avatar)) % 6;
-    await db.update(profiles).set(patch).where(eq(profiles.userId, userId));
-  }
-
-  await db.insert(migrationImports).values({ userId, version }).onConflictDoNothing();
-  return { alreadyImported: false as const, importedBookmarks: cleanBm.length, importedMemberships: slugs.length };
+  return db.transaction(async (tx) => {
+    // Claim first inside the transaction. A concurrent duplicate waits for this
+    // transaction, then observes the unique conflict and performs no writes.
+    const claimed = await tx.insert(migrationImports).values({ userId, version }).onConflictDoNothing().returning({ id: migrationImports.id });
+    if (!claimed.length) return { alreadyImported: true as const, importedBookmarks: 0, importedMemberships: 0 };
+    let importedBookmarks = 0;
+    if (cleanBm.length) {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`daybreak-bookmarks:${userId}`}))`);
+      const current = await tx.select({ companyId: bookmarks.companyId }).from(bookmarks).where(eq(bookmarks.userId, userId));
+      const existing = new Set(current.map((row) => row.companyId));
+      const additions = cleanBm.filter((companyId) => !existing.has(companyId));
+      if (current.length + additions.length > MAX_BOOKMARKS) throw new Error('Import exceeds bookmark limit');
+      if (additions.length) await tx.insert(bookmarks).values(additions.map((companyId) => ({ userId, companyId }))).onConflictDoNothing();
+      importedBookmarks = additions.length;
+    }
+    if (slugs.length) {
+      const cs = await tx.select().from(circles).where(inArray(circles.slug, slugs));
+      if (cs.length) await tx.insert(circleMemberships).values(cs.map((c) => ({ circleId: c.id, userId }))).onConflictDoNothing();
+    }
+    if (typeof data.displayName === 'string' || typeof data.avatar === 'number') {
+      const patch: Record<string, unknown> = { updatedAt: new Date(), version: sql`${profiles.version} + 1` };
+      if (typeof data.displayName === 'string') patch.displayName = data.displayName.slice(0, 24);
+      if (typeof data.avatar === 'number') patch.avatar = Math.abs(Math.trunc(data.avatar)) % 6;
+      await tx.update(profiles).set(patch).where(eq(profiles.userId, userId));
+    }
+    return { alreadyImported: false as const, importedBookmarks, importedMemberships: slugs.length };
+  });
 }
