@@ -25,7 +25,7 @@ Date 2026-09-06. Stack per owner: Privy + Next.js API routes + Supabase Postgres
 
 ## To switch it on (owner prerequisites)
 1. **Privy** (already integrated client-side): set `NEXT_PUBLIC_PRIVY_APP_ID`, and add server verification secret `PRIVY_APP_SECRET` (from the Privy dashboard). Enable Google/Apple/passkey/wallet + allowed origins.
-2. **Supabase**: create a project; put the pooled connection string in `DATABASE_URL` (server env; never client). Run `npx drizzle-kit migrate` (or `push`) to apply `drizzle/` to the database.
+2. **Supabase**: put the pooled connection string in `DATABASE_URL` (server env; never client). Run `npm run db:preflight`, `npm run db:migrate`, and `npm run db:verify`. The migration enables RLS and revokes direct Data API access; Daybreak private data is authorized through its verified Privy API routes.
 3. Restart. Sign in → `/api/me` provisions the user + profile → bookmarks/memberships/profile persist and sync across devices; use "Import this device" once to bring local saves in.
 
 ## Not in this milestone

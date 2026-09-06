@@ -21,22 +21,24 @@ export async function resolveUser(privyDid: string) {
   const db = getDb();
   await db.insert(users).values({ privyDid }).onConflictDoNothing({ target: users.privyDid });
   const [user] = await db.select().from(users).where(eq(users.privyDid, privyDid)).limit(1);
+  if (!user) throw new Error('Unable to resolve the authenticated user');
   await db.insert(profiles).values({ userId: user.id }).onConflictDoNothing({ target: profiles.userId });
   return user;
 }
 
 export async function getAccount(userId: string) {
   const db = getDb();
+  const [user] = await db.select({ onboardingCompletedAt: users.onboardingCompletedAt }).from(users).where(eq(users.id, userId)).limit(1);
   const [profile] = await db.select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
   const bm = await db.select({ c: bookmarks.companyId }).from(bookmarks).where(eq(bookmarks.userId, userId));
   const mem = await db
     .select({ slug: circles.slug })
     .from(circleMemberships)
     .innerJoin(circles, eq(circleMemberships.circleId, circles.id))
-    .where(eq(circleMemberships.userId, userId));
+    .where(and(eq(circleMemberships.userId, userId), eq(circleMemberships.status, 'active')));
   return {
     profile: profile
-      ? { displayName: profile.displayName, avatar: profile.avatar, handle: profile.handle, bio: profile.bio, version: profile.version, onboardingCompleted: false }
+      ? { displayName: profile.displayName, avatar: profile.avatar, handle: profile.handle, bio: profile.bio, version: profile.version, onboardingCompleted: Boolean(user?.onboardingCompletedAt) }
       : null,
     bookmarks: bm.map((x) => x.c),
     memberships: mem.map((x) => x.slug),

@@ -72,10 +72,12 @@ You can start with an empty `.env.local`. Discovery uses a public Base RPC, news
 | `DATABASE_URL` | Account database connection | Server only |
 | `BASE_RPC_URL` | Optional dedicated Base RPC | Server only |
 
-4. Apply the committed migrations. The Drizzle config reads `DATABASE_URL` from the process environment; load your local environment explicitly:
+4. Apply the committed migrations, then verify every Daybreak table and its RLS protection:
 
 ```sh
-node --env-file=.env.local ./node_modules/drizzle-kit/bin.cjs migrate
+npm run db:preflight
+npm run db:migrate
+npm run db:verify
 ```
 
 5. Restart the app. Sign in and use **Import this device** to explicitly import existing local saves.
@@ -83,6 +85,7 @@ node --env-file=.env.local ./node_modules/drizzle-kit/bin.cjs migrate
 Private API requests use verified Privy bearer tokens. The server derives the acting user from that token. Profile writes use version checks; bookmark and membership updates operate on individual records. Cross-device refresh happens on focus and at intervals, rather than through live push.
 
 See [account milestone notes](docs/ACCOUNTS-MILESTONE-1.md) for validation details and remaining acceptance checks.
+For the deployment sequence and authorization model, see [Supabase database setup](docs/SUPABASE-DATABASE.md).
 
 ## Architecture
 

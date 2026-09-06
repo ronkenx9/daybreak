@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "test": "node scripts/audit-core.cjs"
+    "test": "node scripts/audit-core.cjs",
+    "db:generate": "drizzle-kit generate",
+    "db:preflight": "node --env-file-if-exists=.env.local scripts/db-preflight.mjs",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs",
+    "db:verify": "node --env-file-if-exists=.env.local scripts/db-verify.mjs"
   },
   "dependencies": {
     "@base-org/account": "^2.5.10",

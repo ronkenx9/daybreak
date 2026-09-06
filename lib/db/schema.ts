@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, boolean, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { index, pgTable, uuid, text, integer, boolean, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 // One internal user per verified Privy identity. We key on the Privy DID, never
 // on email or wallet address (those can change or be shared).
@@ -50,7 +50,10 @@ export const circleMemberships = pgTable('circle_memberships', {
   role: text('role').notNull().default('member'),
   status: text('status').notNull().default('active'),
   joinedAt: timestamp('joined_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({ uniqMember: uniqueIndex('circle_memberships_circle_user').on(t.circleId, t.userId) }));
+}, (t) => ({
+  uniqMember: uniqueIndex('circle_memberships_circle_user').on(t.circleId, t.userId),
+  userLookup: index('circle_memberships_user_idx').on(t.userId),
+}));
 
 // Records that a device's local profile was imported, so it happens once.
 export const migrationImports = pgTable('migration_imports', {
@@ -77,7 +80,10 @@ export const linkedWallets = pgTable('linked_wallets', {
   namespace: text('namespace').notNull().default('eip155'),
   visibility: text('visibility').notNull().default('private'),
   verifiedAt: timestamp('verified_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({ uniqWallet: uniqueIndex('linked_wallets_namespace_address').on(t.namespace, t.address) }));
+}, (t) => ({
+  uniqWallet: uniqueIndex('linked_wallets_namespace_address').on(t.namespace, t.address),
+  userLookup: index('linked_wallets_user_idx').on(t.userId),
+}));
 
 export const watchlists = pgTable('watchlists', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -86,7 +92,10 @@ export const watchlists = pgTable('watchlists', {
   visibility: text('visibility').notNull().default('private'),
   circleId: uuid('circle_id').references(() => circles.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => ({
+  ownerLookup: index('watchlists_owner_user_idx').on(t.ownerUserId),
+  circleLookup: index('watchlists_circle_idx').on(t.circleId),
+}));
 
 export const watchlistItems = pgTable('watchlist_items', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -107,7 +116,10 @@ export const walletConnections = pgTable('wallet_connections', {
   providerWalletRef: text('provider_wallet_ref'),
   verifiedAt: timestamp('verified_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({ uniqBinding: uniqueIndex('wallet_connections_provider_chain_address').on(t.provider, t.chain, t.address) }));
+}, (t) => ({
+  uniqBinding: uniqueIndex('wallet_connections_provider_chain_address').on(t.provider, t.chain, t.address),
+  userLookup: index('wallet_connections_user_idx').on(t.userId),
+}));
 
 // One row per user action. idempotencyKey is unique per user and binds to an
 // immutable intentHash so a retry can never double-broadcast.
@@ -136,7 +148,11 @@ export const communityTokens = pgTable('community_tokens', {
   verificationStatus: text('verification_status').notNull().default('unverified'), // verified|unverified_reference|unavailable|stale|provider_error
   observedAt: timestamp('observed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({ uniqToken: uniqueIndex('community_tokens_chain_address').on(t.chain, t.address) }));
+}, (t) => ({
+  uniqToken: uniqueIndex('community_tokens_chain_address').on(t.chain, t.address),
+  circleLookup: index('community_tokens_circle_idx').on(t.circleId),
+  companyLookup: index('community_tokens_company_idx').on(t.companyId),
+}));
 
 export const tokenPools = pgTable('token_pools', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -148,7 +164,11 @@ export const tokenPools = pgTable('token_pools', {
   liquidityUsd: text('liquidity_usd'),
   observedAt: timestamp('observed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({ uniqPool: uniqueIndex('token_pools_chain_protocol_ref').on(t.chain, t.protocol, t.poolRef) }));
+}, (t) => ({
+  uniqPool: uniqueIndex('token_pools_chain_protocol_ref').on(t.chain, t.protocol, t.poolRef),
+  token0Lookup: index('token_pools_token0_idx').on(t.token0),
+  token1Lookup: index('token_pools_token1_idx').on(t.token1),
+}));
 
 export const tradeQuotes = pgTable('trade_quotes', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -182,7 +202,11 @@ export const tokenLaunches = pgTable('token_launches', {
   status: text('status').notNull().default('draft'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => ({
+  operationLookup: index('token_launches_operation_idx').on(t.operationId),
+  creatorLookup: index('token_launches_creator_idx').on(t.creatorUserId),
+  circleLookup: index('token_launches_circle_idx').on(t.circleId),
+}));
 
 export const feeObservations = pgTable('fee_observations', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -193,4 +217,4 @@ export const feeObservations = pgTable('fee_observations', {
   claimed: boolean('claimed').notNull().default(false),
   claimableRaw: text('claimable_raw'),
   observedAt: timestamp('observed_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => ({ launchLookup: index('fee_observations_launch_idx').on(t.launchId) }));
