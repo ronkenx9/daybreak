@@ -18,3 +18,6 @@ Three editorial posters extend the same plush/chrome/enamel art direction: inter
 LandingStories adds three sections: community globe with four surrounding character heads; three editorial feature posters; six-look wardrobe lineup linking to profile. The globe has no real-user location markers. Planned shared watchlists and meme discovery are explicitly described as upcoming, with links to existing pages.
 
 Poster pass validation: final production build passes after correcting the client-component boundary. Browser visually confirms all three posters and the restored globe with four heads. Latest expanded preview: http://127.0.0.1:3020/. Existing transitive build warnings remain unchanged.
+
+## Dawn footer poster — 2026-09-06
+`public/assets/posters/daybreak-dawn.png`: original generated landscape based on the existing interest poster characters and owner footer references. Plush cobalt hills, white sunrise, glass orbit, three ceramic heads. Footer lettering and navigation remain real HTML. Responsive footer links use existing product routes and the public GitHub repository; no placeholder subscription or legal links were added.

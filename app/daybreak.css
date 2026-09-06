@@ -496,3 +496,27 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 /* Trending memestock feed: parent-stock badge */
 .db-meme-parent{font-weight:600;color:var(--db-blue)}
 .db-trending>.db-small-note{margin-bottom:6px}
+
+/* Dawn footer: Opnest-style navigation above the brand landscape (no text over the poster). */
+.db-dawn-footer{background:#f7faff;overflow:hidden;color:#17223a;padding-top:72px}
+.db-dawn-top{display:grid;grid-template-columns:1.7fr 1fr 1fr 1fr;gap:56px;position:relative;z-index:1}
+.db-dawn-brand>p{font-size:15px;line-height:1.65;color:#52617a;margin:18px 0 20px;max-width:30ch}
+.db-dawn-social{display:flex;gap:12px}
+.db-dawn-social a{display:grid;place-items:center;width:38px;height:38px;border:1px solid #e2e8f4;border-radius:11px;color:#52617a;transition:color .2s,border-color .2s,transform .2s}
+.db-dawn-social a:hover{color:var(--db-blue);border-color:#c9d3f2;transform:translateY(-2px)}
+.db-dawn-col{display:flex;flex-direction:column;align-items:flex-start;gap:14px;padding-top:4px}
+.db-dawn-col h3{font-size:14px;font-weight:600;margin:0 0 6px;color:#17223a}
+.db-dawn-col a{font-size:14px;color:#52617a;display:inline-flex;align-items:center;gap:5px;text-decoration:none;transition:color .2s}
+.db-dawn-col a:hover{color:var(--db-blue)}
+.db-dawn-copy{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:34px 0 26px;font-size:12px;color:#64728b}
+.db-dawn-footer a:focus-visible{outline:3px solid #6b82ff;outline-offset:4px;border-radius:6px}
+.db-dawn-poster{position:relative;width:100%;isolation:isolate;background:#0210ef}
+.db-dawn-poster:before{content:"";position:absolute;inset:0 0 auto;height:24%;background:linear-gradient(#f7faff,transparent);z-index:1;pointer-events:none}
+.db-dawn-poster img{display:block;width:100%;height:auto;min-height:340px;object-fit:cover;object-position:center 42%}
+@media(max-width:760px){
+  .db-dawn-footer{padding-top:44px}
+  .db-dawn-top{grid-template-columns:1fr 1fr;gap:30px 22px}
+  .db-dawn-brand{grid-column:1/-1}
+  .db-dawn-copy{flex-direction:column;align-items:flex-start;gap:6px;padding-top:26px}
+  .db-dawn-poster img{min-height:260px}
+}

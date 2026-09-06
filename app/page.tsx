@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import LandingStories from '@/components/daybreak/LandingStories';
-import { ArrowUpRight, ArrowRight, Compass, Layers, Sun } from 'lucide-react';
+import { ArrowUpRight, ArrowRight, Compass, Layers, Sun, Github } from 'lucide-react';
 import ShareRedirect from '@/components/daybreak/ShareRedirect';
 import { Wordmark, AvatarStack, StockIcon, Avatar, CharacterCrew } from '@/components/daybreak/Identity';
 
@@ -189,41 +189,40 @@ export default function Landing() {
         </div>
       </section>
 
-      <footer className="db-site-footer">
-        <div className="db-shell db-footer-grid" data-reveal>
-          <div className="db-footer-brand">
+      <footer className="db-dawn-footer">
+        <div className="db-shell db-dawn-top">
+          <div className="db-dawn-brand">
             <Wordmark />
-            <p>Discovery first. Investment decisions are yours.</p>
-            <span className="db-footer-status">
-              <i /> Local product preview
-            </span>
+            <p>Built for curious people.<br />A circle that feels like you.</p>
+            <div className="db-dawn-social">
+              <a href="https://github.com/ronkenx9/daybreak" target="_blank" rel="noreferrer" aria-label="Daybreak on GitHub"><Github size={18} /></a>
+            </div>
           </div>
-
-          <div className="db-footer-col">
-            <span className="db-micro">Product</span>
-            <Link href="/app">Discover</Link>
-            <Link href="/app/groups">Circles</Link>
-            <Link href="/app/holdings">Holdings</Link>
-            <Link href="/app/world">The room</Link>
-          </div>
-
-          <div className="db-footer-col">
-            <span className="db-micro">About</span>
-            <Link href="/references">Design references</Link>
-            <Link href="/app/profile">Your profile</Link>
-          </div>
-
-          <div className="db-footer-col">
-            <span className="db-micro">Network</span>
-            <span>Base · chain 8453</span>
-            <span>Six sourced companies</span>
-          </div>
+          <nav aria-label="Explore" className="db-dawn-col">
+            <h3>Explore</h3>
+            <Link href="/app">Discover companies</Link>
+            <Link href="/app/groups">Find a circle</Link>
+            <Link href="/app/holdings">Your holdings</Link>
+            <Link href="/app/profile">Make it yours</Link>
+          </nav>
+          <nav aria-label="Learn" className="db-dawn-col">
+            <h3>Learn</h3>
+            <Link href="/references">Design direction</Link>
+            <Link href="/app/world">Explore the room</Link>
+            <a href="https://github.com/ronkenx9/daybreak/blob/main/docs/FUTURE-PLANS.md" target="_blank" rel="noreferrer">Our roadmap <ArrowUpRight size={12} /></a>
+          </nav>
+          <nav aria-label="Project" className="db-dawn-col">
+            <h3>Project</h3>
+            <a href="https://github.com/ronkenx9/daybreak" target="_blank" rel="noreferrer">GitHub <ArrowUpRight size={12} /></a>
+            <a href="https://www.base.org" target="_blank" rel="noreferrer">Built on Base <ArrowUpRight size={12} /></a>
+          </nav>
         </div>
-        <div className="db-shell">
-          <small>
-            Local product preview. Live trading and community verification are not connected. Avatars,
-            circles and holder rankings are labeled samples.
-          </small>
+        <div className="db-shell db-dawn-copy">
+          <span>© {new Date().getFullYear()} Daybreak</span>
+          <span>Discovery first. Investment decisions are yours.</span>
+        </div>
+        <div className="db-dawn-poster">
+          <img src="/assets/posters/daybreak-dawn.png" alt="Plush Daybreak characters nestled in blue hills beneath a rising sun and glass orbit" width="1983" height="793" loading="lazy" />
         </div>
       </footer>
     </main>
