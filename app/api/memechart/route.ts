@@ -35,8 +35,17 @@ async function topPool(token: string): Promise<Resolved | null> {
   return { pool, side: 'base', oriented: false };
 }
 
-async function ohlcv(pool: string, side: 'base' | 'quote'): Promise<Point[]> {
-  const r = await fetch(`${GT}/pools/${pool}/ohlcv/hour?aggregate=1&limit=48&currency=usd&token=${side}`, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(10_000) });
+// Whitelisted timeframes → GeckoTerminal (timeframe, aggregate, limit). Provider
+// coverage caps the interval; we never fabricate candles beyond what it returns.
+const TF: Record<string, { timeframe: 'hour' | 'day'; aggregate: number; limit: number }> = {
+  '1H': { timeframe: 'hour', aggregate: 1, limit: 72 },
+  '4H': { timeframe: 'hour', aggregate: 4, limit: 90 },
+  '1D': { timeframe: 'day', aggregate: 1, limit: 90 },
+};
+
+async function ohlcv(pool: string, side: 'base' | 'quote', tf: string): Promise<Point[]> {
+  const { timeframe, aggregate, limit } = TF[tf] ?? TF['1H'];
+  const r = await fetch(`${GT}/pools/${pool}/ohlcv/${timeframe}?aggregate=${aggregate}&limit=${limit}&currency=usd&token=${side}`, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(10_000) });
   if (!r.ok) throw new Error(`ohlcv ${r.status}`);
   const json = (await r.json()) as { data?: { attributes?: { ohlcv_list?: number[][] } } };
   return (json.data?.attributes?.ohlcv_list ?? [])
@@ -47,18 +56,20 @@ async function ohlcv(pool: string, side: 'base' | 'quote'): Promise<Point[]> {
 
 export async function GET(request: Request) {
   if (!allowed()) return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '60' } });
-  const token = (new URL(request.url).searchParams.get('token') || '').toLowerCase();
+  const params = new URL(request.url).searchParams;
+  const token = (params.get('token') || '').toLowerCase();
+  const tf = TF[params.get('tf') || ''] ? (params.get('tf') as string) : '1H';
   if (!/^0x[0-9a-f]{40}$/.test(token)) return NextResponse.json({ error: 'Invalid token address.' }, { status: 400 });
   try {
-    const result = await cached(token, async () => {
+    const result = await cached(`${token}:${tf}`, async () => {
       const resolved = await topPool(token);
-      if (!resolved) return { points: [], meta: { token, pool: null, resolvedSide: null, oriented: false } };
-      const points = await ohlcv(resolved.pool, resolved.side);
+      if (!resolved) return { points: [], meta: { token, pool: null, resolvedSide: null, oriented: false, tf } };
+      const points = await ohlcv(resolved.pool, resolved.side, tf);
       return {
         points,
         meta: {
           token, pool: resolved.pool, resolvedSide: resolved.side, oriented: resolved.oriented,
-          quote: 'usd', interval: 'hour', source: 'geckoterminal', generatedAt: Date.now(),
+          quote: 'usd', tf, interval: TF[tf].timeframe, source: 'geckoterminal', generatedAt: Date.now(),
         },
       };
     });

@@ -788,3 +788,18 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 }
 @keyframes db-nod{0%{transform:rotate(0) translateY(0)}25%{transform:rotate(-11deg) translateY(1px)}55%{transform:rotate(9deg) translateY(-1px)}80%{transform:rotate(-4deg)}100%{transform:rotate(0)}}
 @media(max-width:760px){.db-signin-cta{height:36px;padding:0 13px;font-size:12px}}
+
+/* ── Interactive memestock chart (lightweight-charts) ───────────────────── */
+.db-meme-chart-i{padding:12px 12px 8px}
+.db-chart-controls{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.db-chart-tfs,.db-chart-kind{display:inline-flex;gap:3px;background:#eef1fa;border-radius:11px;padding:3px}
+.db-app[data-theme="dark"] .db-chart-tfs,.db-app[data-theme="dark"] .db-chart-kind{background:#1b2236}
+.db-chart-tfs button,.db-chart-kind button{border:0;background:transparent;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--db-muted);line-height:1}
+.db-chart-tfs button.active,.db-chart-kind button.active{background:#fff;color:var(--db-blue);box-shadow:0 1px 2px #0002}
+.db-app[data-theme="dark"] .db-chart-tfs button.active,.db-app[data-theme="dark"] .db-chart-kind button.active{background:#2a3450;color:#aeb9ff}
+.db-chart-stage{position:relative}
+.db-chart-canvas{width:100%;height:280px}
+.db-chart-tip{position:absolute;top:8px;left:8px;z-index:3;background:var(--db-glass);backdrop-filter:blur(8px);border:1px solid var(--db-line);border-radius:10px;padding:6px 10px;pointer-events:none;line-height:1.25}
+.db-chart-tip strong{display:block;font-size:13px;color:var(--db-ink);font-variant-numeric:tabular-nums}
+.db-chart-tip span{font-size:10px;color:var(--db-muted)}
+.db-chart-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:9px;font-size:13px;color:var(--db-muted);background:var(--db-glass);border-radius:12px;text-align:center;padding:0 20px}
