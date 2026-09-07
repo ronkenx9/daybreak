@@ -691,3 +691,86 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 .db-meme-chart-state{display:flex;align-items:center;justify-content:center;gap:10px;height:200px;color:var(--db-muted);font-size:13px;padding:0 20px;text-align:center}
 .db-chart-spinner{width:16px;height:16px;border:2px solid var(--db-line);border-top-color:var(--db-blue);border-radius:50%;animation:db-spin .8s linear infinite}
 @keyframes db-spin{to{transform:rotate(360deg)}}
+
+/* ══ Dark mode (in-app only, toggled from You › preferences) ═════════════ */
+.db-app[data-theme="dark"]{
+  --db-ink:#e7ebf7; --db-muted:#95a1bd; --db-line:#283049; --db-bg:#0b0f1c;
+  --db-blue:#8296ff; --db-glass:rgba(19,25,43,.74);
+  background:radial-gradient(ellipse at 0 0,#17213f 0,transparent 50%),var(--db-bg);
+  color-scheme:dark;
+}
+/* surfaces */
+.db-app[data-theme="dark"] .db-app-header{background:#0b0f1ccc;border-bottom-color:#283049}
+.db-app[data-theme="dark"] .db-app-nav a:hover{background:#1a2136}
+.db-app[data-theme="dark"] .db-app-nav a[aria-current=page]{background:#25305a;color:#b3bcff;box-shadow:none}
+.db-app[data-theme="dark"] .db-company-card,
+.db-app[data-theme="dark"] .db-company-card:nth-child(2n){background:#141a2b;border-color:#283049;box-shadow:0 6px 18px #00000038}
+.db-app[data-theme="dark"] .db-company-card:hover{background:#182038;box-shadow:0 16px 30px #00000052}
+.db-app[data-theme="dark"] .db-card-bottom{border-top-color:#283049}
+.db-app[data-theme="dark"] .db-company-icon{background:#222a40;color:#c3ccea}
+.db-app[data-theme="dark"] .db-icon-button:hover{background:#1e2740}
+.db-app[data-theme="dark"] .db-search{background:#141a2b;border-color:#283049;color:#95a1bd}
+.db-app[data-theme="dark"] .db-filter-row button.active{background:#25305a;border-color:#33407a;color:#b3bcff}
+.db-app[data-theme="dark"] .db-filter-row button:hover{background:#1a2136}
+.db-app[data-theme="dark"] .db-glass,
+.db-app[data-theme="dark"] .db-group-card,
+.db-app[data-theme="dark"] .db-preferences,
+.db-app[data-theme="dark"] .db-leaderboard,
+.db-app[data-theme="dark"] .db-holdings-summary,
+.db-app[data-theme="dark"] .db-profile-card,
+.db-app[data-theme="dark"] .db-circle-callout{background:#141a2b;border-color:#283049;box-shadow:0 12px 36px #00000045}
+.db-app[data-theme="dark"] .db-group-card>div>span{background:#222a40;color:#aab3d0}
+.db-app[data-theme="dark"] .db-demo-tag{background:#222a40;color:#aab3d0;border-color:#33407a}
+.db-app[data-theme="dark"] .db-board-controls select,
+.db-app[data-theme="dark"] .db-profile-card input,
+.db-app[data-theme="dark"] .db-headwear-picker button,
+.db-app[data-theme="dark"] .db-saved-list>button,
+.db-app[data-theme="dark"] .db-lp-stats>div{background:#1b2236;border-color:#2f3a58;color:var(--db-ink)}
+.db-app[data-theme="dark"] .db-headwear-picker button:hover{background:#222c48}
+.db-app[data-theme="dark"] .db-headwear-picker button.selected,
+.db-app[data-theme="dark"] .db-avatar-picker button.selected{background:#1c2550}
+.db-app[data-theme="dark"] .db-leaderboard td{border-bottom-color:#222a40}
+.db-app[data-theme="dark"] .db-availability{background:#1b2236}
+.db-app[data-theme="dark"] .db-empty svg{color:#4a5678}
+/* dialog */
+.db-app[data-theme="dark"] .db-dialog-overlay{background:#03060f80}
+.db-app[data-theme="dark"] .db-company-dialog{background:#121829;border-color:#283049;box-shadow:0 30px 120px #00000090}
+/* type badges */
+.db-app[data-theme="dark"] .db-type-badge{background:#1b2236;border-color:#2f3a58;color:var(--db-ink)}
+.db-app[data-theme="dark"] .db-type-badge.is-stock{background:#1c2550;border-color:#33407a;color:#aeb9ff}
+.db-app[data-theme="dark"] .db-type-badge.is-community{background:#2a2410;border-color:#4a3f1c;color:#e6c877}
+.db-app[data-theme="dark"] .db-type-badge.is-meme{background:#2e1712;border-color:#57241c;color:#f0a08e}
+/* memestock table + controls */
+.db-app[data-theme="dark"] .db-rankby button,
+.db-app[data-theme="dark"] .db-meme-stockfilter button{background:#141a2b;border-color:#283049;color:var(--db-muted)}
+.db-app[data-theme="dark"] .db-rankby button:hover,
+.db-app[data-theme="dark"] .db-meme-stockfilter button:hover{background:#1a2136;color:var(--db-ink)}
+.db-app[data-theme="dark"] .db-rankby button.active,
+.db-app[data-theme="dark"] .db-meme-stockfilter button.active{background:#3a4ae0;border-color:#3a4ae0;color:#fff}
+.db-app[data-theme="dark"] .db-meme-table-wrap{background:#141a2b;border-color:#283049}
+.db-app[data-theme="dark"] .db-meme-table thead th{background:#1b2236;border-bottom-color:#283049}
+.db-app[data-theme="dark"] .db-meme-table tbody td{border-bottom-color:#222a40}
+.db-app[data-theme="dark"] .db-meme-trow:hover{background:#1a2136}
+.db-app[data-theme="dark"] .db-meme-mono{background:#1b2236;border-color:#2f3a58}
+.db-app[data-theme="dark"] .db-meme-parent,
+.db-app[data-theme="dark"] .db-meme-table .db-meme-parent{background:#25305a;color:#aeb9ff}
+.db-app[data-theme="dark"] .db-mono-num,
+.db-app[data-theme="dark"] .db-meme-name strong{color:var(--db-ink)}
+/* earn + chart */
+.db-app[data-theme="dark"] .db-earn-chip{background:#1c2550;border-color:#33407a;color:#aeb9ff}
+.db-app[data-theme="dark"] .db-meme-chart{background:#141a2b;border-color:#283049}
+.db-app[data-theme="dark"] .db-meme-chart-foot{border-top-color:#222a40}
+/* LP builder/review */
+.db-app[data-theme="dark"] .db-lp-input,
+.db-app[data-theme="dark"] .db-lp-presets button,
+.db-app[data-theme="dark"] .db-lp-review-rows,
+.db-app[data-theme="dark"] .db-lp-band-preview{background:#1b2236;border-color:#2f3a58;color:var(--db-ink)}
+.db-app[data-theme="dark"] .db-lp-input input{color:var(--db-ink)}
+.db-app[data-theme="dark"] .db-lp-presets button.active{background:#1c2550;border-color:#3a4ae0}
+.db-app[data-theme="dark"] .db-lp-review-rows>div{border-bottom-color:#222a40}
+.db-app[data-theme="dark"] .db-lp-unavailable{color:var(--db-muted)}
+/* keep reduce-transparency from forcing white surfaces in dark */
+.db-app[data-theme="dark"] .db-app-feature,
+.db-app[data-theme="dark"] .db-company-card,
+.db-app[data-theme="dark"] .db-group-card,
+.db-app[data-theme="dark"] .db-app-nav{backdrop-filter:none}

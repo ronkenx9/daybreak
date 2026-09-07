@@ -10,6 +10,7 @@ export interface UserSettings {
   reduceTransparency: boolean;
   soundEnabled: boolean;
   networkMode: 'fixture' | 'live';
+  theme: 'light' | 'dark';
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -17,6 +18,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   reduceTransparency: false,
   soundEnabled: false,
   networkMode: 'fixture',
+  theme: 'light',
 };
 
 export const INITIAL_WORLD_STATE: WorldState = {
@@ -61,7 +63,7 @@ export function loadUserSettings(): UserSettings {
     const raw = localStorage.getItem(STORAGE_KEY_SETTINGS);
     if (!raw) return DEFAULT_SETTINGS;
     const value = JSON.parse(raw);
-    return { reduceMotion: value?.reduceMotion === true, reduceTransparency: value?.reduceTransparency === true, soundEnabled: value?.soundEnabled === true, networkMode: 'fixture' };
+    return { reduceMotion: value?.reduceMotion === true, reduceTransparency: value?.reduceTransparency === true, soundEnabled: value?.soundEnabled === true, networkMode: 'fixture', theme: value?.theme === 'dark' ? 'dark' : 'light' };
   } catch {
     return DEFAULT_SETTINGS;
   }
