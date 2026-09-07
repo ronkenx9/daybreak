@@ -40,32 +40,79 @@ function finite(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+type DexPair = {
+  chainId?: string;
+  pairAddress?: string;
+  liquidity?: { usd?: number | string };
+  volume?: { h24?: number | string };
+  priceChange?: { h24?: number | string };
+  url?: string;
+};
+
+function unavailable(market: StockLpMarket, sourceUrl: string): LpPoolSnapshot {
+  return {
+    ticker: market.ticker, pool: market.pool, gauge: market.gauge, feeBps: market.feeBps,
+    reserveUsd: null, volume24Usd: null, change24Pct: null,
+    observedAt: new Date().toISOString(), sourceUrl, dataStatus: 'unavailable',
+  };
+}
+
+async function readDexScreenerPool(market: StockLpMarket): Promise<LpPoolSnapshot> {
+  const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${market.token}`, {
+    headers: { accept: 'application/json' },
+    signal: AbortSignal.timeout(10_000),
+    next: { revalidate: 30 },
+  });
+  if (!response.ok) throw new Error(`DexScreener returned ${response.status}`);
+  const json = await response.json() as { pairs?: DexPair[] };
+  const pair = json.pairs?.find((candidate) =>
+    candidate.chainId === 'base' && candidate.pairAddress?.toLowerCase() === market.pool.toLowerCase()
+  );
+  if (!pair) throw new Error('Exact Aerodrome pool not indexed by DexScreener');
+  return {
+    ticker: market.ticker, pool: market.pool, gauge: market.gauge, feeBps: market.feeBps,
+    reserveUsd: finite(pair.liquidity?.usd),
+    volume24Usd: finite(pair.volume?.h24),
+    change24Pct: finite(pair.priceChange?.h24),
+    observedAt: new Date().toISOString(),
+    sourceUrl: `https://dexscreener.com/base/${market.pool}`,
+    dataStatus: 'live',
+  };
+}
+
+async function readGeckoTerminalPool(market: StockLpMarket): Promise<LpPoolSnapshot> {
+  const sourceUrl = `https://www.geckoterminal.com/base/pools/${market.pool}`;
+  const response = await fetch(`https://api.geckoterminal.com/api/v2/networks/base/pools/${market.pool}`, {
+    headers: { accept: 'application/json' },
+    signal: AbortSignal.timeout(10_000),
+    next: { revalidate: 30 },
+  });
+  if (!response.ok) throw new Error(`GeckoTerminal returned ${response.status}`);
+  const json = await response.json() as { data?: { attributes?: { reserve_in_usd?: string; volume_usd?: { h24?: string }; price_change_percentage?: { h24?: string } } } };
+  const attributes = json.data?.attributes;
+  return {
+    ticker: market.ticker, pool: market.pool, gauge: market.gauge, feeBps: market.feeBps,
+    reserveUsd: finite(attributes?.reserve_in_usd),
+    volume24Usd: finite(attributes?.volume_usd?.h24),
+    change24Pct: finite(attributes?.price_change_percentage?.h24),
+    observedAt: new Date().toISOString(), sourceUrl, dataStatus: 'live',
+  };
+}
+
 export async function readLpPool(ticker: string): Promise<LpPoolSnapshot | null> {
   const market = stockLpMarket(ticker);
   if (!market) return null;
-  const sourceUrl = `https://www.geckoterminal.com/base/pools/${market.pool}`;
   try {
-    const response = await fetch(`https://api.geckoterminal.com/api/v2/networks/base/pools/${market.pool}`, {
-      headers: { accept: 'application/json' },
-      signal: AbortSignal.timeout(10_000),
-      next: { revalidate: 30 },
-    });
-    if (!response.ok) throw new Error(`Pool provider returned ${response.status}`);
-    const json = await response.json() as { data?: { attributes?: { reserve_in_usd?: string; volume_usd?: { h24?: string }; price_change_percentage?: { h24?: string } } } };
-    const attributes = json.data?.attributes;
-    return {
-      ticker: market.ticker, pool: market.pool, gauge: market.gauge, feeBps: market.feeBps,
-      reserveUsd: finite(attributes?.reserve_in_usd),
-      volume24Usd: finite(attributes?.volume_usd?.h24),
-      change24Pct: finite(attributes?.price_change_percentage?.h24),
-      observedAt: new Date().toISOString(), sourceUrl, dataStatus: 'live',
-    };
+    // DexScreener gives this project a higher read allowance for the multi-pool
+    // grid. Match the returned pair to the known on-chain Aerodrome address;
+    // never select a same-ticker lookalike or a different DEX route.
+    return await readDexScreenerPool(market);
   } catch {
-    return {
-      ticker: market.ticker, pool: market.pool, gauge: market.gauge, feeBps: market.feeBps,
-      reserveUsd: null, volume24Usd: null, change24Pct: null,
-      observedAt: new Date().toISOString(), sourceUrl, dataStatus: 'unavailable',
-    };
+    try {
+      return await readGeckoTerminalPool(market);
+    } catch {
+      return unavailable(market, `https://dexscreener.com/base/${market.pool}`);
+    }
   }
 }
 

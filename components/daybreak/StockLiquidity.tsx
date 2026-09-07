@@ -54,7 +54,7 @@ export default function StockLiquidity({ token, price: quotePrice }: { token: St
     retry: 1,
   });
 
-  if (!market) return <section className="db-lp-unavailable"><Droplets size={24}/><h3>LP route not available yet.</h3><p>Daybreak currently supports stock liquidity for AAPL, NVDA, GOOGL and META. You can still trade or follow this stock.</p></section>;
+  if (!market) return <section className="db-lp-unavailable"><Droplets size={24}/><h3>LP route not available yet.</h3><p>This stock doesn’t have a supported Aerodrome USDC pool on Daybreak yet. You can still trade or follow it.</p></section>;
 
   const positions = query.data?.wallet?.positions ?? [];
   // Reference price for the band: a live wallet position's pool price if we have
