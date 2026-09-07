@@ -226,6 +226,20 @@ Each implementation handoff must include changed files, schema migration instruc
 
 ## 10. Resources
 
+### Aerodrome stock LP module
+
+Daybreak now has a read-only stock LP surface for the four markets supported by Bankr's `aero-stock-lp` skill: AAPL, NVDA, GOOGL and META. The Earn tab reads the exact Aerodrome Slipstream pool on Base, shows live pool liquidity and 24-hour volume, and detects both staked gauge positions and unstaked Slipstream NFT positions for the connected wallet. It labels the earning route accurately: staked positions receive AERO emissions; unstaked positions receive pool trading fees; an out-of-range position earns neither until price returns to its range.
+
+The implementation was independently written from the on-chain interfaces and verified facts because no repository license was present when reviewed. Do not copy or redistribute upstream skill files until the license is clarified. The upstream skill was pinned at commit `179c4c8f64c38844544cb51b68fe073e807a782e`; its live self-test passed all 59 checks on Base on 2026-09-07.
+
+Current execution is a deliberate Bankr handoff: Daybreak creates a precise `aero-stock-lp` prompt, the user copies it, and Bankr performs its price, volatility, balance, gas and pool checks before asking for confirmation. No transaction is triggered by copying. The Bankr wallet selected during execution may differ from the wallet connected to Daybreak for holdings discovery.
+
+Native execution remains gated on a per-user authorization design. A normal `bk_usr_...` API key controls its selected Bankr wallet and must never be used as a shared public trading credential. Direct execution requires a documented Bankr partner/provisioning flow or another verified per-user signer path. When that is available, keep the upstream sequence: obtain a fresh equity quote and volatility input; fail closed on stale or missing data; preflight balances and gas; build the deterministic plan; submit transactions sequentially; verify every receipt; size after swaps; mint the position; settle; optionally stake; and persist the resulting token ID and receipts in Postgres. Never store the upstream skill's local `~/.aero-stock-lp/state.json` as multi-user application state.
+
+- Upstream skill: https://github.com/BankrBot/skills/tree/main/aero-stock-lp
+- Base pool reads: `app/api/lp/route.ts`, `lib/base/lp.ts`, `lib/base/lp-model.ts`
+- Product surface: `components/daybreak/StockLiquidity.tsx`
+
 ### Bankr — verified documentation used in this plan
 - Platform: https://bankr.bot
 - Documentation: https://docs.bankr.bot/

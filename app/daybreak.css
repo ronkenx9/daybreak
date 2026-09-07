@@ -552,3 +552,71 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 .db-band-blue .db-poster h3{color:#fff}
 .db-band-blue .db-poster p{color:#dfe3ff}
 .db-band-blue .db-poster .db-text-link{color:#fff}
+
+/* ── Product-boundary type badges (§3 images+information) ───────────────── */
+.db-type-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:650;letter-spacing:.2px;line-height:1;border:1px solid var(--db-line);background:#fff;color:var(--db-ink);white-space:nowrap}
+.db-type-badge small{font-weight:550;color:var(--db-muted);letter-spacing:0}
+.db-type-dot{width:7px;height:7px;border-radius:50%;background:var(--db-muted);flex:none}
+.db-type-badge.is-stock{border-color:#c9d0ff;background:#eef1ff;color:var(--db-blue)}
+.db-type-badge.is-stock .db-type-dot{background:var(--db-blue)}
+.db-type-badge.is-community{border-color:#e6d3b0;background:#fbf3e2;color:#8a5b12}
+.db-type-badge.is-community .db-type-dot{background:#c98a1e}
+.db-type-badge.is-meme{border-color:#f0c4bd;background:#fdeeeb;color:#a8331f}
+.db-type-badge.is-meme .db-type-dot{background:#d8482e}
+.db-type-badge.is-company{border-color:var(--db-line);background:#fff;color:var(--db-muted)}
+.db-asset-id{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 4px}
+.db-asset-sym{font-size:12px;font-weight:600;color:var(--db-muted);font-variant-numeric:tabular-nums}
+.db-meme-detail-head .db-type-badge{margin-left:auto;align-self:flex-start}
+
+/* ── Card → asset motion (§9: carry visual identity into detail) ────────── */
+/* View Transitions crossfade the feed → dialog swap. Reduced motion is honored
+   two ways: openView() skips startViewTransition, and these rules disable the
+   keyframe under the app's own toggle and OS preference. */
+::view-transition-old(root),::view-transition-new(root){animation-duration:.28s}
+@media (prefers-reduced-motion:no-preference){
+ html:not([data-reduce-motion="true"]) .db-company-dialog{animation:db-asset-open .3s cubic-bezier(.2,.8,.2,1) both}
+ html:not([data-reduce-motion="true"]) .db-dialog-overlay{animation:db-asset-fade .22s ease both}
+}
+@keyframes db-asset-open{from{opacity:0;transform:translateY(14px) scale(.965)}to{opacity:1;transform:none}}
+@keyframes db-asset-fade{from{opacity:0}to{opacity:1}}
+
+/* ── Memestock ranking table (DexScreener-style, Daybreak light) ────────── */
+.db-meme-rank{margin-top:12px}
+.db-rankby{display:flex;align-items:center;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
+.db-rankby::-webkit-scrollbar{display:none}
+.db-rankby-label{font-size:11px;font-weight:650;letter-spacing:.4px;text-transform:uppercase;color:var(--db-muted);white-space:nowrap;margin-right:2px}
+.db-rankby button{flex:none;border:1px solid var(--db-line);background:#fff;color:var(--db-muted);border-radius:999px;padding:7px 13px;font-size:12px;font-weight:600;white-space:nowrap;transition:background .18s,color .18s,border-color .18s}
+.db-rankby button:hover{border-color:#c9d3f2;color:var(--db-ink)}
+.db-rankby button.active{background:var(--db-blue);border-color:var(--db-blue);color:#fff}
+.db-meme-table-wrap{overflow-x:auto;border:1px solid var(--db-line);border-radius:16px;background:#fff}
+.db-meme-table{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
+.db-meme-table thead th{position:sticky;top:0;background:#f7f9ff;text-align:right;font-size:11px;font-weight:650;letter-spacing:.3px;text-transform:uppercase;color:var(--db-muted);padding:11px 12px;border-bottom:1px solid var(--db-line);white-space:nowrap}
+.db-meme-table thead th.db-col-rank{text-align:center}
+.db-meme-table thead th.db-col-token{text-align:left}
+.db-meme-table thead th.is-active{color:var(--db-blue)}
+.db-meme-table tbody td{padding:10px 12px;border-bottom:1px solid #f0f3fb;text-align:right;vertical-align:middle}
+.db-meme-table tbody tr:last-child td{border-bottom:0}
+.db-meme-trow{cursor:pointer;transition:background .15s}
+.db-meme-trow:hover{background:#f5f8ff}
+.db-meme-trow:focus-visible{outline:2px solid var(--db-blue);outline-offset:-2px}
+.db-col-rank{text-align:center!important;width:40px}
+.db-meme-idx{font-size:12px;font-weight:600;color:var(--db-muted);font-variant-numeric:tabular-nums}
+.db-col-token{text-align:left!important}
+.db-meme-table td.db-col-token{display:flex;align-items:center;gap:11px;min-width:180px}
+.db-meme-name{display:flex;flex-direction:column;gap:1px;line-height:1.25;min-width:0}
+.db-meme-name strong{font-size:13.5px;color:var(--db-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.db-meme-name small{font-size:11px;color:var(--db-muted)}
+.db-mono-num{font-variant-numeric:tabular-nums;color:var(--db-ink);font-weight:600}
+.db-meme-table td.is-active{color:var(--db-blue)}
+.db-chg{font-variant-numeric:tabular-nums;font-weight:600;font-size:12.5px}
+.db-chg-up{color:#0f8a4d}
+.db-chg-down{color:#c33a24}
+.db-chg-flat{color:var(--db-muted)}
+.db-col-go{width:30px;color:var(--db-muted)}
+.db-meme-table td.db-col-go{text-align:center}
+.db-meme-table .db-meme-parent{display:inline-block;padding:3px 8px;border-radius:8px;background:#eef1ff;font-size:11.5px}
+
+/* Stock liquidity — Daybreak's visual layer over Bankr + Aerodrome. */
+.db-lp{margin-top:14px}.db-lp-hero{position:relative;overflow:hidden;min-height:190px;border-radius:23px;padding:27px;background:linear-gradient(145deg,#0617ef 0%,#174bff 57%,#8cb2ff 100%);color:#fff;display:grid;grid-template-columns:minmax(0,1fr) 145px;gap:16px;isolation:isolate}.db-lp-hero .db-eyebrow{color:#dfe7ff}.db-lp-hero h3{font-family:DynaPuff,'Arial Rounded MT Bold',sans-serif;font-size:25px;font-weight:500;letter-spacing:-.6px;margin:10px 0 9px}.db-lp-hero p{max-width:34ch;color:#e8edff;font-size:12px;line-height:1.65}.db-lp-orbit{position:relative;display:grid;place-items:center}.db-lp-ring{position:absolute;width:128px;height:128px;border:1px solid #ffffff72;border-radius:50%;animation:db-lp-ring 7s ease-in-out infinite}.db-lp-ring:after{content:'';position:absolute;width:9px;height:9px;border-radius:50%;background:#fff;top:8px;left:23px;box-shadow:0 0 15px #fff}.db-lp-sun{width:70px;height:70px;border-radius:50%;background:radial-gradient(circle at 32% 26%,#fff 0 12%,#fff8ce 22%,#ffd26f 59%,#ffad45 100%);box-shadow:0 0 45px #ffe2aacc,0 16px 30px #0519a655}.db-lp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--db-line);border:1px solid var(--db-line);border-radius:17px;overflow:hidden;margin-top:13px}.db-lp-stats>div{background:#fff;padding:15px}.db-lp-stats span{display:block;color:var(--db-muted);font-size:10px}.db-lp-stats strong{display:block;margin-top:5px;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}.db-lp-source{display:flex;justify-content:space-between;align-items:center;padding:9px 3px;color:var(--db-muted);font-size:10px}.db-lp-source a{display:inline-flex;gap:5px;align-items:center;color:var(--db-blue);font-weight:600}.db-lp-positions{border-top:1px solid var(--db-line);margin-top:15px;padding-top:20px}.db-lp-section-head,.db-lp-position-top,.db-lp-labels{display:flex;align-items:center;justify-content:space-between;gap:12px}.db-lp-section-head h3{margin-top:6px;font-size:17px}.db-lp-position{margin-top:14px;padding:17px;border-radius:18px;background:#f5f7fd;border:1px solid #e7ebf7}.db-lp-position-top{font-size:11px;color:var(--db-muted)}.db-lp-position-top strong{padding:5px 8px;border-radius:7px;font-size:10px}.db-lp-position-top .is-in{color:#12613d;background:#ddf5e8}.db-lp-position-top .is-out{color:#a34227;background:#ffebe5}.db-lp-range{height:9px;position:relative;margin:25px 5px 10px;background:#d8def0;border-radius:999px}.db-lp-range-fill{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(90deg,#87a5ff,#0210ef)}.db-lp-marker{position:absolute;top:50%;width:24px;height:24px;border:5px solid #fff;border-radius:50%;background:#ffc45f;box-shadow:0 4px 12px #233a7750;transform:translate(-50%,-50%);transition:left .5s cubic-bezier(.2,.8,.2,1)}.db-lp-labels{font-size:9px;color:var(--db-muted);font-variant-numeric:tabular-nums}.db-lp-labels strong{color:var(--db-ink);font-weight:600}.db-lp-position p{font-size:10px;color:var(--db-muted);margin-top:13px;line-height:1.5}.db-lp-action{display:grid;grid-template-columns:minmax(110px,.7fr) 1.2fr auto;align-items:end;gap:9px;margin-top:22px}.db-lp-action label>span:first-child{display:block;font-size:10px;color:var(--db-muted);margin:0 0 7px 3px}.db-lp-input{height:50px;border:1px solid var(--db-line);border-radius:16px;background:#fff;display:flex;align-items:center;padding:0 14px;gap:5px}.db-lp-input b{font-size:15px;color:var(--db-muted)}.db-lp-input input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--db-ink);font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}.db-lp-action .db-button{padding:0 14px;font-size:12px}.db-lp-action>.db-text-link{height:50px;white-space:nowrap;font-size:11px;padding:0 3px}.db-lp-footnote{display:flex;align-items:flex-start;gap:8px;margin-top:15px;color:var(--db-muted);font-size:10px;line-height:1.6}.db-lp-footnote svg{flex:none;margin-top:2px;color:var(--db-blue)}.db-lp-unavailable{text-align:center;padding:42px 20px;background:#f4f6fc;border-radius:20px}.db-lp-unavailable svg{color:var(--db-blue)}.db-lp-unavailable h3{margin:13px 0 7px}.db-lp-unavailable p{max-width:38ch;margin:auto;font-size:12px;line-height:1.6;color:var(--db-muted)}.db-lp-loading{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:13px}.db-lp-loading span{height:64px;border-radius:14px;background:linear-gradient(100deg,#eff2f9 20%,#fafbfe 45%,#eff2f9 70%);background-size:240% 100%;animation:db-lp-shimmer 1.4s linear infinite}@keyframes db-lp-shimmer{to{background-position-x:-240%}}@keyframes db-lp-ring{50%{transform:rotate(180deg) scale(1.05)}to{transform:rotate(360deg)}}
+@media(max-width:600px){.db-lp-hero{grid-template-columns:1fr 84px;padding:22px}.db-lp-orbit{align-self:center}.db-lp-ring{width:82px;height:82px}.db-lp-sun{width:48px;height:48px}.db-lp-stats{grid-template-columns:1fr}.db-lp-action{grid-template-columns:1fr 1fr}.db-lp-action>.db-text-link{grid-column:1/-1;justify-content:center;height:38px}.db-lp-labels strong{display:none}}
+@media(prefers-reduced-motion:reduce){.db-lp-ring,.db-lp-loading span{animation:none}.db-lp-marker{transition:none}}

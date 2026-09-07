@@ -14,7 +14,12 @@ export interface MemeToken {
   address: string;
   priceUsd: number | null;
   liquidityUsd: number;
-  volume24Usd: number;
+  volume24Usd: number; // = volume.h24, kept for the detail view
+  volume: { h1: number; h6: number; h24: number };
+  change: { h1: number; h6: number; h24: number }; // % price change; can be negative
+  marketCapUsd: number | null;
+  txns24: number;
+  ageMs: number | null;
   url: string;
   lowLiquidity: boolean;
 }
@@ -32,7 +37,12 @@ interface DexPair {
   quoteToken?: DexToken;
   priceUsd?: string;
   liquidity?: { usd?: number };
-  volume?: { h24?: number };
+  volume?: { h24?: number; h6?: number; h1?: number };
+  priceChange?: { h24?: number; h6?: number; h1?: number };
+  txns?: { h24?: { buys?: number; sells?: number } };
+  marketCap?: number;
+  fdv?: number;
+  pairCreatedAt?: number;
   url?: string;
 }
 
@@ -95,6 +105,8 @@ export async function fetchMemeTokens(ticker: string): Promise<MemeToken[]> {
     // DexScreener's priceUsd is the base token's USD price. When the stock is
     // the base side it cannot safely be assigned to the quote-side meme token.
     const priceUsd = baseIsStock || reportedPrice === null || !Number.isFinite(reportedPrice) || reportedPrice < 0 ? null : reportedPrice;
+    const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+    const marketCapRaw = Number(p.marketCap ?? p.fdv);
     const candidate = {
       symbol,
       name: name.slice(0, 40),
@@ -102,6 +114,11 @@ export async function fetchMemeTokens(ticker: string): Promise<MemeToken[]> {
       priceUsd,
       liquidityUsd,
       volume24Usd,
+      volume: { h1: Math.round(Math.max(0, num(p.volume?.h1))), h6: Math.round(Math.max(0, num(p.volume?.h6))), h24: volume24Usd },
+      change: { h1: num(p.priceChange?.h1), h6: num(p.priceChange?.h6), h24: num(p.priceChange?.h24) },
+      marketCapUsd: Number.isFinite(marketCapRaw) && marketCapRaw > 0 ? Math.round(marketCapRaw) : null,
+      txns24: Math.round(Math.max(0, num(p.txns?.h24?.buys) + num(p.txns?.h24?.sells))),
+      ageMs: typeof p.pairCreatedAt === 'number' && p.pairCreatedAt > 0 ? Math.max(0, Date.now() - p.pairCreatedAt) : null,
       url: dexUrl(p.url, address),
       lowLiquidity: liquidityUsd < 25_000,
     };
@@ -133,5 +150,6 @@ export async function fetchTrending(): Promise<TrendingMeme[]> {
       if (!prev || m.volume24Usd > prev.volume24Usd) best.set(m.address, m);
     }
   }
-  return [...best.values()].sort((a, b) => b.volume24Usd - a.volume24Usd).slice(0, 24);
+  // Bound by 24h volume, then let the client re-rank this pool by any column.
+  return [...best.values()].sort((a, b) => b.volume24Usd - a.volume24Usd).slice(0, 40);
 }

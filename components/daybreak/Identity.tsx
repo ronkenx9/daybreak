@@ -18,3 +18,13 @@ export function CharacterCrew({className=''}:{className?:string}){return <div cl
 const LOGO_TICKERS=new Set(['AAPL','AMZN','NFLX','NVDA','SBUX','SONY','GOOGL','TSLA','META','MSFT','COIN','INTC','SPCX','CRCL','MSTR']);
 export function StockIcon({ticker,size=44}:{ticker:string;size?:number}){const hasLogo=LOGO_TICKERS.has(ticker);return <span className={`db-token db-token-${ticker}`} style={{width:size,height:size}}>{hasLogo?<img src={`/assets/stock/${ticker}.svg`} alt={`${ticker} logo`} width={size*.54} height={size*.54}/>:<span className="db-token-mono" style={{fontSize:size*.34}}>{ticker.slice(0,2)}</span>}</span>}
 export function AvatarStack(){return <span className="db-avatar-stack" aria-label="Illustrated community avatars">{[0,1,2,3].map(i=><Avatar key={i} seed={i} size={36}/>)}</span>}
+// Product-boundary badge: makes a tokenized stock, a community token, a meme and
+// a plain company visually distinct at a glance (see product boundaries §3).
+// A stock/company charm expresses taste; it never implies a holding.
+const BADGE={
+ stock:{label:'Tokenized stock',sub:'Base 8453'},
+ community:{label:'Community token',sub:'Independent'},
+ meme:{label:'Community meme',sub:'Speculative'},
+ company:{label:'Company',sub:''},
+} as const;
+export function TypeBadge({kind}:{kind:keyof typeof BADGE}){const b=BADGE[kind];return <span className={`db-type-badge is-${kind}`} title={`${b.label}${b.sub?` · ${b.sub}`:''}`}><span className="db-type-dot" aria-hidden="true"/>{b.label}{b.sub&&<small>· {b.sub}</small>}</span>}

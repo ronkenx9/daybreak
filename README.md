@@ -40,6 +40,7 @@ Electric blue, liquid glass, and plush stock-pin characters give Daybreak its id
 - **Personal profiles:** six plush character looks, editable profiles, and saved companies.
 - **Account foundation:** Google, Apple, passkey, and wallet login through Privy; server-verified identity and Postgres-backed profiles, bookmarks, and circle membership when configured.
 - **Related token discovery:** a separate Dexscreener-backed experimental lookup. Meme tokens are clearly distinguished from company stock.
+- **Stock liquidity:** live Aerodrome Slipstream pool context and connected-wallet LP discovery for AAPL, NVDA, GOOGL, and META. Daybreak prepares a Bankr LP prompt; Bankr owns the final wallet review and confirmation.
 
 **Status:** active development. Anonymous discovery works without account credentials. The account data layer has local database validation; a complete hosted Privy-to-Postgres sign-in flow still needs deployment verification. Shared feeds and public watchlists are upcoming, and example community profiles are labeled.
 
@@ -98,6 +99,7 @@ Next.js / React interface
             ├─ Base RPC → balances and oracle references
             ├─ GDELT → company headline links
             ├─ Dexscreener → related token discovery
+            ├─ Aerodrome + GeckoTerminal → stock LP positions and pool activity
             └─ Verified Privy identity → Drizzle → Postgres
 ```
 
