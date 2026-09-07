@@ -45,8 +45,9 @@ export function useAccountData() {
     retry: (n, e) => status(e) !== 503 && status(e) !== 401 && n < 2,
   });
 
-  // Backend not provisioned yet (no DB / secret) → 503. Fall back to local.
-  const serverEnabled = authenticated && status(query.error) !== 503;
+  // Backend unavailable (503 no DB/secret) or the session was rejected (401) →
+  // fall back to local; we do not treat the server as the source of truth.
+  const serverEnabled = authenticated && status(query.error) !== 503 && status(query.error) !== 401;
 
   const addBookmark = useMutation({ mutationFn: (companyId: string) => authedFetch('/api/bookmarks', { method: 'POST', body: JSON.stringify({ companyId }) }), onSettled: invalidate });
   const removeBookmark = useMutation({ mutationFn: (companyId: string) => authedFetch(`/api/bookmarks?companyId=${encodeURIComponent(companyId)}`, { method: 'DELETE' }), onSettled: invalidate });
@@ -55,5 +56,18 @@ export function useAccountData() {
   const updateProfile = useMutation({ mutationFn: (v: { displayName?: string; avatar?: number; version: number }) => authedFetch<{ profile: ProfileData }>('/api/me', { method: 'PATCH', body: JSON.stringify(v) }), onSettled: invalidate });
   const importLocal = useMutation({ mutationFn: (v: { bookmarks: string[]; memberships: string[]; displayName?: string; avatar?: number }) => authedFetch('/api/me/import-local', { method: 'POST', body: JSON.stringify(v) }), onSettled: invalidate });
 
-  return { data: query.data, isLoading: authenticated && query.isPending, serverEnabled, refetch: query.refetch, addBookmark, removeBookmark, joinCircle, leaveCircle, updateProfile, importLocal };
+  // Truthful sync state for the UI — only "synced" once the server actually
+  // returned this account's data, never merely because a token exists.
+  const anyMutating = [addBookmark, removeBookmark, joinCircle, leaveCircle, updateProfile, importLocal].some((m) => m.isPending);
+  const errStatus = status(query.error);
+  const syncStatus: 'off' | 'loading' | 'saving' | 'synced' | 'offline' | 'expired' | 'error' =
+    !authenticated ? 'off'
+    : errStatus === 503 ? 'offline'
+    : errStatus === 401 ? 'expired'
+    : query.isError ? 'error'
+    : anyMutating ? 'saving'
+    : query.data ? 'synced'
+    : 'loading';
+
+  return { data: query.data, isLoading: authenticated && query.isPending, serverEnabled, syncStatus, anyMutating, refetch: query.refetch, addBookmark, removeBookmark, joinCircle, leaveCircle, updateProfile, importLocal };
 }

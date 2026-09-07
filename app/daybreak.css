@@ -774,3 +774,17 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 .db-app[data-theme="dark"] .db-company-card,
 .db-app[data-theme="dark"] .db-group-card,
 .db-app[data-theme="dark"] .db-app-nav{backdrop-filter:none}
+
+/* ── Header: guest sign-in + avatar theme toggle ────────────────────────── */
+.db-header-actions{display:flex;align-items:center;gap:12px}
+.db-signin-cta{display:inline-flex;align-items:center;height:40px;padding:0 16px;border-radius:999px;font-size:13px;font-weight:600;color:#fff;background:var(--db-blue);border:1px solid var(--db-blue);transition:transform .18s,box-shadow .18s}
+.db-signin-cta:hover{transform:translateY(-1px);box-shadow:0 8px 20px #0210ef22}
+.db-theme-toggle{position:relative;display:inline-flex;border-radius:50%;padding:0;border:0;background:transparent;line-height:0}
+.db-theme-toggle:focus-visible{outline:2px solid var(--db-blue);outline-offset:3px;border-radius:50%}
+.db-theme-cue{position:absolute;right:-2px;bottom:-2px;width:19px;height:19px;display:grid;place-items:center;border-radius:50%;background:var(--db-blue);color:#fff;border:2px solid var(--db-bg);box-shadow:0 2px 5px #0007}
+.db-app[data-theme="dark"] .db-theme-cue{border-color:#0b0f1c}
+@media(prefers-reduced-motion:no-preference){
+ html:not([data-reduce-motion="true"]) .db-theme-toggle.is-nodding .db-avatar{animation:db-nod .6s cubic-bezier(.3,.7,.3,1)}
+}
+@keyframes db-nod{0%{transform:rotate(0) translateY(0)}25%{transform:rotate(-11deg) translateY(1px)}55%{transform:rotate(9deg) translateY(-1px)}80%{transform:rotate(-4deg)}100%{transform:rotate(0)}}
+@media(max-width:760px){.db-signin-cta{height:36px;padding:0 13px;font-size:12px}}

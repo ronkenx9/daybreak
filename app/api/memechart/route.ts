@@ -3,28 +3,44 @@ import { createRequestCache, createRateLimit } from '@/lib/server/requests';
 
 export const dynamic = 'force-dynamic';
 
-// Close-price series for a memestock, from GeckoTerminal. We resolve the token's
-// top pool ourselves (DexScreener's pair id isn't always a GeckoTerminal pool
-// address), then read that pool's hourly OHLCV. Real candles only; fail closed.
-interface Point { t: number; c: number }
+// OHLCV series for a memestock, from GeckoTerminal. We resolve the token's top
+// pool ourselves (DexScreener's pair id isn't always a GeckoTerminal pool
+// address), then read that pool's hourly candles priced in USD for the REQUESTED
+// token's side — a stock-quoted meme must not be charted as the stock. Real
+// candles only; fail closed.
+interface Point { t: number; o: number; h: number; l: number; c: number; v: number }
+interface Resolved { pool: string; side: 'base' | 'quote'; oriented: boolean }
 const GT = 'https://api.geckoterminal.com/api/v2/networks/base';
 const TTL_MS = 120_000;
-const cached = createRequestCache<Point[]>(TTL_MS, 64, 1);
+// Cache the whole payload per token; allow several distinct charts in flight so
+// two viewers opening different tokens don't get a "busy" error.
+const cached = createRequestCache<{ points: Point[]; meta: object }>(TTL_MS, 64, 6);
 const allowed = createRateLimit(120);
 
-async function topPool(token: string): Promise<string | null> {
+// address embedded in a GeckoTerminal id like "base_0xabc…".
+const idAddr = (id: unknown) => typeof id === 'string' ? (id.split('_').pop() || '').toLowerCase() : '';
+
+async function topPool(token: string): Promise<Resolved | null> {
   const r = await fetch(`${GT}/tokens/${token}/pools?page=1`, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(10_000) });
   if (!r.ok) throw new Error(`pools ${r.status}`);
-  const json = (await r.json()) as { data?: { attributes?: { address?: string } }[] };
-  return json.data?.[0]?.attributes?.address ?? null;
+  const json = (await r.json()) as { data?: { attributes?: { address?: string }; relationships?: { base_token?: { data?: { id?: string } }; quote_token?: { data?: { id?: string } } } }[] };
+  const p = json.data?.[0];
+  const pool = p?.attributes?.address;
+  if (!pool) return null;
+  const base = idAddr(p?.relationships?.base_token?.data?.id);
+  const quote = idAddr(p?.relationships?.quote_token?.data?.id);
+  // Chart the side that IS the requested token; if we can't tell, default to base and say so.
+  if (token === base) return { pool, side: 'base', oriented: true };
+  if (token === quote) return { pool, side: 'quote', oriented: true };
+  return { pool, side: 'base', oriented: false };
 }
 
-async function ohlcv(pool: string): Promise<Point[]> {
-  const r = await fetch(`${GT}/pools/${pool}/ohlcv/hour?aggregate=1&limit=48&currency=usd`, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(10_000) });
+async function ohlcv(pool: string, side: 'base' | 'quote'): Promise<Point[]> {
+  const r = await fetch(`${GT}/pools/${pool}/ohlcv/hour?aggregate=1&limit=48&currency=usd&token=${side}`, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(10_000) });
   if (!r.ok) throw new Error(`ohlcv ${r.status}`);
   const json = (await r.json()) as { data?: { attributes?: { ohlcv_list?: number[][] } } };
   return (json.data?.attributes?.ohlcv_list ?? [])
-    .map((row) => ({ t: Number(row[0]), c: Number(row[4]) }))
+    .map((row) => ({ t: Number(row[0]), o: Number(row[1]), h: Number(row[2]), l: Number(row[3]), c: Number(row[4]), v: Number(row[5]) }))
     .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.c) && p.c > 0)
     .sort((a, b) => a.t - b.t);
 }
@@ -34,13 +50,21 @@ export async function GET(request: Request) {
   const token = (new URL(request.url).searchParams.get('token') || '').toLowerCase();
   if (!/^0x[0-9a-f]{40}$/.test(token)) return NextResponse.json({ error: 'Invalid token address.' }, { status: 400 });
   try {
-    const points = await cached(token, async () => {
-      const pool = await topPool(token);
-      if (!pool) return [];
-      return ohlcv(pool);
+    const result = await cached(token, async () => {
+      const resolved = await topPool(token);
+      if (!resolved) return { points: [], meta: { token, pool: null, resolvedSide: null, oriented: false } };
+      const points = await ohlcv(resolved.pool, resolved.side);
+      return {
+        points,
+        meta: {
+          token, pool: resolved.pool, resolvedSide: resolved.side, oriented: resolved.oriented,
+          quote: 'usd', interval: 'hour', source: 'geckoterminal', generatedAt: Date.now(),
+        },
+      };
     });
-    return NextResponse.json({ points, source: 'geckoterminal' }, { headers: { 'Cache-Control': 'no-store' } });
-  } catch {
-    return NextResponse.json({ error: 'Chart data is temporarily unavailable.' }, { status: 503, headers: { 'Retry-After': '30' } });
+    return NextResponse.json({ ...result, source: 'geckoterminal' }, { headers: { 'Cache-Control': 'no-store' } });
+  } catch (e) {
+    const busy = e instanceof Error && e.message === 'Service busy';
+    return NextResponse.json({ error: busy ? 'Chart is busy, retry shortly.' : 'Chart data is temporarily unavailable.' }, { status: 503, headers: { 'Retry-After': busy ? '5' : '30' } });
   }
 }

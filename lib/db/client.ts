@@ -13,7 +13,16 @@ let sql: ReturnType<typeof postgres> | null = null;
 export function getDb() {
   if (!isDbConfigured) throw new Error('DATABASE_URL is not set');
   if (!db) {
-    sql = postgres(DATABASE_URL, { prepare: false });
+    // Bounded pool for serverless: keep few connections per instance so many
+    // instances don't exhaust the Supabase transaction pooler, with explicit
+    // connect/idle timeouts so a stuck provider can't pin a request open.
+    sql = postgres(DATABASE_URL, {
+      prepare: false,
+      max: Number(process.env.DB_POOL_MAX ?? 5),
+      idle_timeout: 20,
+      connect_timeout: 10,
+      max_lifetime: 60 * 30,
+    });
     db = drizzle(sql, { schema });
   }
   return db;

@@ -11,7 +11,7 @@ const METHODS: { id: LoginMethod; label: string }[] = [
 ];
 
 export default function SignInSheet({ onClose }: { onClose: () => void }) {
-  const { configured, login } = useAccountState();
+  const { configured, ready, login } = useAccountState();
   return (
     <Dialog label="Sign in to Daybreak" onClose={onClose}>
       <div className="db-signin">
@@ -21,15 +21,17 @@ export default function SignInSheet({ onClose }: { onClose: () => void }) {
         {configured ? (
           <div className="db-signin-methods">
             {METHODS.map((m) => (
-              <button key={m.id} className="db-signin-btn" onClick={() => { login(m.id); onClose(); }}>
+              <button key={m.id} className="db-signin-btn" disabled={!ready} aria-disabled={!ready}
+                onClick={() => { if (!ready) return; login(m.id); onClose(); }}>
                 {m.label}
               </button>
             ))}
+            {!ready && <span className="db-small-note" role="status">Preparing secure sign-in…</span>}
           </div>
         ) : (
           <div className="db-signin-note">
-            <strong>Sign-in isn’t switched on yet.</strong>
-            <span>Add a Privy app ID (<code>NEXT_PUBLIC_PRIVY_APP_ID</code>) to enable Google, Apple, passkeys and wallet login. Everything else works without it.</span>
+            <strong>Sign-in isn’t available right now.</strong>
+            <span>You can keep exploring — everything here works without an account. Please try again in a little while.</span>
           </div>
         )}
         <p className="db-small-note">A wallet login proves ownership with a signature. It never moves funds or approves a trade.</p>
