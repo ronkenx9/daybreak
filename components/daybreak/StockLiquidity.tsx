@@ -3,9 +3,20 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAccount } from 'wagmi';
-import { ArrowUpRight, Check, Copy, Droplets, Sparkles } from 'lucide-react';
+import { ArrowUpRight, ChevronLeft, Droplets, ShieldCheck, Sparkles } from 'lucide-react';
 import type { StockToken } from '@/lib/base/tokens';
 import { markerPosition, stockLpMarket } from '@/lib/base/lp-model';
+import { priceState, type StockPrice } from '@/lib/base/model';
+import ConnectButton from './ConnectButton';
+
+// Range presets bracket the current price. Percentages are the half-width of the
+// band around the reference price; execution aligns to the pool's tick spacing.
+const PRESETS = [
+  { id: 'focused', label: 'Focused', pct: 0.05, note: 'Tighter range, more fees while in range, exits range sooner' },
+  { id: 'balanced', label: 'Balanced', pct: 0.12, note: 'A middle band for everyday moves' },
+  { id: 'wide', label: 'Wide', pct: 0.25, note: 'Stays in range longer, earns less per dollar' },
+] as const;
+type PresetId = (typeof PRESETS)[number]['id'];
 
 interface PoolSnapshot {
   ticker: string; pool: string; feeBps: number;
@@ -21,11 +32,12 @@ interface LpResponse { pool: PoolSnapshot; wallet: { positions: Position[]; part
 const money = (value: number | null) => value == null ? 'Unavailable' : value.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const price = (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
 
-export default function StockLiquidity({ token }: { token: StockToken }) {
+export default function StockLiquidity({ token, price: quotePrice }: { token: StockToken; price?: StockPrice }) {
   const market = stockLpMarket(token.ticker);
   const { address, isConnected } = useAccount();
   const [amount, setAmount] = useState('50');
-  const [copied, setCopied] = useState(false);
+  const [presetId, setPresetId] = useState<PresetId>('balanced');
+  const [review, setReview] = useState(false);
   const wallet = isConnected ? address?.toLowerCase() : undefined;
   const query = useQuery({
     queryKey: ['stock-lp', token.ticker, wallet],
@@ -45,11 +57,13 @@ export default function StockLiquidity({ token }: { token: StockToken }) {
   if (!market) return <section className="db-lp-unavailable"><Droplets size={24}/><h3>LP route not available yet.</h3><p>Daybreak currently supports stock liquidity for AAPL, NVDA, GOOGL and META. You can still trade or follow this stock.</p></section>;
 
   const positions = query.data?.wallet?.positions ?? [];
-  const prompt = `LP $${amount || '50'} into the ${token.ticker} stock pool on Base using the aero-stock-lp skill`;
-  const copyPrompt = async () => {
-    try { await navigator.clipboard.writeText(prompt); setCopied(true); setTimeout(() => setCopied(false), 1800); }
-    catch { setCopied(false); }
-  };
+  // Reference price for the band: a live wallet position's pool price if we have
+  // one, else the token's oracle reference. Labeled as reference, not a quote.
+  const oracle = quotePrice ? priceState(quotePrice) : undefined;
+  const centerPrice = positions[0]?.currentPrice ?? (oracle && oracle.state !== 'paused' ? oracle.priceUsd ?? null : null);
+  const preset = PRESETS.find((p) => p.id === presetId)!;
+  const band = centerPrice != null ? { low: centerPrice * (1 - preset.pct), high: centerPrice * (1 + preset.pct) } : null;
+  const amountNum = Number(amount) || 0;
 
   return <section className="db-lp">
     <div className="db-lp-hero">
@@ -80,11 +94,30 @@ export default function StockLiquidity({ token }: { token: StockToken }) {
       {isConnected && !query.isPending && !query.isError && positions.length === 0 && <p className="db-small-note">No supported {token.ticker}/USDC Slipstream position was found for this wallet. This does not inspect other protocols.</p>}
     </div>
 
-    <div className="db-lp-action">
-      <label><span>Start with</span><span className="db-lp-input"><b>$</b><input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, '').slice(0, 8))} aria-label="LP amount in US dollars"/></span></label>
-      <button className="db-button db-blue-button" onClick={copyPrompt}>{copied ? <Check size={16}/> : <Copy size={16}/>} {copied ? 'Prompt copied' : 'Copy Bankr prompt'}</button>
-      <a className="db-text-link" href="https://bankr.bot" target="_blank" rel="noreferrer">Open Bankr <ArrowUpRight size={15}/></a>
-    </div>
-    <p className="db-lp-footnote"><Sparkles size={13}/> Bankr checks live price, volatility, wallet balance, gas and pool conditions before it proposes a range. Copying the prompt does not move funds. Review Bankr’s confirmation and its selected wallet before execution; it may differ from the wallet connected to Daybreak.</p>
+    {!review ? <div className="db-lp-builder">
+      <label className="db-lp-amount"><span>Deposit</span><span className="db-lp-input"><b>$</b><input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, '').slice(0, 8))} aria-label="LP amount in US dollars"/><small>USDC</small></span></label>
+      <div className="db-lp-presets" role="group" aria-label="Price range">
+        {PRESETS.map((p) => <button key={p.id} type="button" aria-pressed={presetId === p.id} className={presetId === p.id ? 'active' : ''} onClick={() => setPresetId(p.id)}><strong>{p.label}</strong><small>±{Math.round(p.pct * 100)}%</small></button>)}
+      </div>
+      <p className="db-lp-preset-note">{preset.note}.</p>
+      {band ? <div className="db-lp-band-preview"><span>{price(band.low)}</span><span className="db-lp-band-center">{centerPrice != null ? `${price(centerPrice)} ref` : ''}</span><span>{price(band.high)}</span></div> : <p className="db-small-note">A live reference price isn’t available right now, so the range can’t be previewed. Try again in a moment.</p>}
+      <button className="db-button db-blue-button" disabled={!band || amountNum <= 0} onClick={() => setReview(true)}>Review position <ArrowUpRight size={16}/></button>
+      <p className="db-lp-footnote"><Sparkles size={13}/> Powered by Aerodrome Slipstream on Base. Daybreak builds and reviews the position with you here — you sign from your own connected wallet, and you’re never handed off to another site.</p>
+    </div> : <div className="db-lp-review">
+      <button type="button" className="db-text-link db-lp-back" onClick={() => setReview(false)}><ChevronLeft size={15}/> Edit</button>
+      <h3>Review your {token.ticker} position</h3>
+      <dl className="db-lp-review-rows">
+        <div><dt>Deposit</dt><dd>{price(amountNum)} <small>USDC → paired with {token.onchainSymbol}</small></dd></div>
+        <div><dt>Range</dt><dd>{band ? `${price(band.low)} – ${price(band.high)}` : 'Unavailable'} <small>{preset.label} · ±{Math.round(preset.pct * 100)}%</small></dd></div>
+        <div><dt>Earns</dt><dd>Pool trading fees while in range <small>Stake the position afterward to earn AERO emissions instead</small></dd></div>
+        <div><dt>Pool fee</dt><dd>{market.feeBps / 100}%</dd></div>
+        <div><dt>Signing wallet</dt><dd>{isConnected && address ? <>{address.slice(0, 6)}…{address.slice(-4)} <small>your connected Daybreak wallet</small></> : 'Not connected'}</dd></div>
+      </dl>
+      {isConnected
+        ? <><button className="db-button db-blue-button" disabled aria-disabled="true"><ShieldCheck size={16}/> Add liquidity</button>
+            <p className="db-lp-footnote"><Sparkles size={13}/> In-app signing is being switched on — when it lands, this confirms in your connected wallet with no redirect. Nothing is submitted yet and no funds move. Amounts and range shown are a reference preview, not a final quote.</p></>
+        : <><ConnectButton/>
+            <p className="db-lp-footnote"><Sparkles size={13}/> Connect the wallet you’ll provide liquidity from to continue. The position is signed from that wallet inside Daybreak.</p></>}
+    </div>}
   </section>;
 }
