@@ -38,6 +38,10 @@ export default function StockLiquidity({ token, price: quotePrice }: { token: St
   const [amount, setAmount] = useState('50');
   const [presetId, setPresetId] = useState<PresetId>('balanced');
   const [review, setReview] = useState(false);
+  const [slippage, setSlippage] = useState(1);
+  // Native LP signing stays gated until it's proven against a funded wallet
+  // on-chain; the flow below is a real quote/review, never fabricated execution.
+  const executionEnabled = false;
   const wallet = isConnected ? address?.toLowerCase() : undefined;
   const query = useQuery({
     queryKey: ['stock-lp', token.ticker, wallet],
@@ -111,13 +115,19 @@ export default function StockLiquidity({ token, price: quotePrice }: { token: St
         <div><dt>Range</dt><dd>{band ? `${price(band.low)} – ${price(band.high)}` : 'Unavailable'} <small>{preset.label} · ±{Math.round(preset.pct * 100)}%</small></dd></div>
         <div><dt>Earns</dt><dd>Pool trading fees while in range <small>Stake the position afterward to earn AERO emissions instead</small></dd></div>
         <div><dt>Pool fee</dt><dd>{market.feeBps / 100}%</dd></div>
+        <div><dt>Max slippage</dt><dd><span className="db-lp-slip">{[0.5, 1, 2].map((s) => <button key={s} type="button" aria-pressed={slippage === s} className={slippage === s ? 'active' : ''} onClick={() => setSlippage(s)}>{s}%</button>)}</span></dd></div>
+        <div><dt>Network</dt><dd>Base · 8453</dd></div>
+        <div><dt>Pool</dt><dd><a className="db-mono-addr" href={`https://basescan.org/address/${market.pool}`} target="_blank" rel="noreferrer">{market.pool.slice(0, 6)}…{market.pool.slice(-4)} ↗</a></dd></div>
+        <div><dt>Position manager</dt><dd><a className="db-mono-addr" href={`https://basescan.org/address/${market.npm}`} target="_blank" rel="noreferrer">{market.npm.slice(0, 6)}…{market.npm.slice(-4)} ↗</a></dd></div>
         <div><dt>Signing wallet</dt><dd>{isConnected && address ? <>{address.slice(0, 6)}…{address.slice(-4)} <small>your connected Daybreak wallet</small></> : 'Not connected'}</dd></div>
       </dl>
-      {isConnected
-        ? <><button className="db-button db-blue-button" disabled aria-disabled="true"><ShieldCheck size={16}/> Add liquidity</button>
-            <p className="db-lp-footnote"><Sparkles size={13}/> In-app signing is being switched on — when it lands, this confirms in your connected wallet with no redirect. Nothing is submitted yet and no funds move. Amounts and range shown are a reference preview, not a final quote.</p></>
-        : <><ConnectButton/>
-            <p className="db-lp-footnote"><Sparkles size={13}/> Connect the wallet you’ll provide liquidity from to continue. The position is signed from that wallet inside Daybreak.</p></>}
+      <ol className="db-lp-steps"><li>Approve {token.onchainSymbol} and USDC for the position manager</li><li>Mint the concentrated position in your chosen range</li><li>Get a receipt with the token id; refresh your positions</li></ol>
+      {!isConnected
+        ? <><ConnectButton/><p className="db-lp-footnote"><Sparkles size={13}/> Connect the wallet you’ll provide liquidity from. The position is signed from that wallet inside Daybreak — no redirect.</p></>
+        : executionEnabled
+        ? <button className="db-button db-blue-button"><ShieldCheck size={16}/> Add liquidity</button>
+        : <><button className="db-button db-blue-button" disabled aria-disabled="true"><ShieldCheck size={16}/> Signing not yet enabled</button>
+            <p className="db-lp-footnote"><Sparkles size={13}/> This is a real quote/review of the exact position and contracts. Native signing is gated until it’s verified on-chain with a funded wallet — nothing is submitted and no funds move here. Amounts follow the current pool reference and re-quote before any signature.</p></>}
     </div>}
   </section>;
 }

@@ -831,3 +831,11 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 .db-disc-actions button:hover{border-color:#c9d3f2;color:var(--db-ink)}
 .db-disc-actions button[aria-pressed=true]{color:var(--db-blue);border-color:#c9d0ff;background:#eef1ff}
 .db-app[data-theme="dark"] .db-disc-actions button[aria-pressed=true]{background:#1c2550;border-color:#33407a;color:#aeb9ff}
+
+/* ── LP quote/review: slippage, plan, steps ─────────────────────────────── */
+.db-lp-slip{display:inline-flex;gap:4px}
+.db-lp-slip button{border:1px solid var(--db-line);background:transparent;border-radius:8px;padding:4px 9px;font-size:11px;font-weight:600;color:var(--db-muted);font-variant-numeric:tabular-nums}
+.db-lp-slip button.active{background:var(--db-blue);border-color:var(--db-blue);color:#fff}
+.db-mono-addr{font-family:var(--db-mono,ui-monospace,monospace);font-size:12px;color:var(--db-blue);font-weight:600}
+.db-lp-steps{margin:12px 0 4px;padding-left:20px;display:flex;flex-direction:column;gap:5px}
+.db-lp-steps li{font-size:12px;line-height:1.5;color:var(--db-muted)}
