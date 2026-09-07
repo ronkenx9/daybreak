@@ -3,9 +3,11 @@
 import Dialog from './Dialog';
 import { useAccountState, type LoginMethod } from './AccountProvider';
 
+// Apple is omitted until its OAuth credentials are set in the Privy dashboard —
+// showing it before then dead-ends at Privy's "login not allowed". Re-add once
+// configured. Every method here is one the app has verified is enabled.
 const METHODS: { id: LoginMethod; label: string }[] = [
   { id: 'google', label: 'Continue with Google' },
-  { id: 'apple', label: 'Continue with Apple' },
   { id: 'passkey', label: 'Use a passkey' },
   { id: 'wallet', label: 'Continue with a wallet' },
 ];

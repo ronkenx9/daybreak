@@ -64,10 +64,12 @@ export default function AccountProvider({ children }: { children: ReactNode }) {
       appId={PRIVY_APP_ID}
       config={{
         appearance: { theme: 'light', accentColor: '#0210ef' },
-        // Don't create an embedded wallet on login — a social account must not
-        // imply a funded wallet or that stocks were moved into a new one.
+        // Give each new account a self-custodial EVM (Base) wallet on login, but
+        // only if they didn't bring their own — a wallet login keeps using theirs.
+        // The wallet starts empty; login never moves funds or implies holdings.
+        // Solana stays off (Daybreak is Base-only).
         embeddedWallets: {
-          ethereum: { createOnLogin: 'off' },
+          ethereum: { createOnLogin: 'users-without-wallets' },
           solana: { createOnLogin: 'off' },
         },
         loginMethods: ['google', 'apple', 'passkey', 'wallet'],
