@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
+import {useEffect,useRef} from 'react';
 export function Wordmark({light=false}:{light?:boolean}){return <Link href="/" aria-label="Daybreak home" className={`db-wordmark ${light?'is-light':''}`}>daybreak<span className="db-logo-sun" aria-hidden="true">✳</span></Link>}
 export const HEADWEAR=[
  {id:'midnight',name:'Midnight trapper',stock:'AAPL · NVDA'},
@@ -11,7 +12,33 @@ export const HEADWEAR=[
  {id:'afterhours',name:'Afterhours cap',stock:'COIN'},
 ] as const;
 export function Avatar({seed=0,size=48,label}:{seed?:number;size?:number;label?:string}){const n=((seed%HEADWEAR.length)+HEADWEAR.length)%HEADWEAR.length;return <span role={label?'img':undefined} aria-label={label} aria-hidden={!label} className="db-avatar db-plush-avatar" style={{width:size,height:size}}><Image src={`/assets/characters/${HEADWEAR[n].id}.png`} alt="" width={size} height={size} sizes={`${size}px`}/></span>}
-export function CharacterCrew({className=''}:{className?:string}){return <div className={`db-character-crew ${className}`} aria-hidden="true">{[0,1,2].map(seed=><div key={seed}><Avatar seed={seed} size={360}/></div>)}</div>}
+export function CharacterCrew({className=''}:{className?:string}){
+ const crew=useRef<HTMLDivElement>(null);
+ useEffect(()=>{
+  const root=crew.current;if(!root)return;
+  const finePointer=window.matchMedia('(hover:hover) and (pointer:fine)');
+  const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
+  let frame=0,lastX=0,lastY=0;
+  const reset=()=>{root.removeAttribute('data-tracking');for(let i=0;i<3;i++){root.style.setProperty(`--crew-x-${i}`,'0px');root.style.setProperty(`--crew-y-${i}`,'0px')}root.style.setProperty('--crew-rx','0deg');root.style.setProperty('--crew-ry','0deg')};
+  const render=()=>{
+   frame=0;
+   if(!finePointer.matches||reducedMotion.matches||document.documentElement.getAttribute('data-reduce-motion')==='true'){reset();return}
+   const box=root.getBoundingClientRect();
+   const x=Math.max(-1,Math.min(1,(lastX-(box.left+box.width/2))/(box.width*.62)));
+   const y=Math.max(-1,Math.min(1,(lastY-(box.top+box.height/2))/(Math.max(box.height,240)*.72)));
+   const depth=[10,19,13];
+   depth.forEach((amount,i)=>{root.style.setProperty(`--crew-x-${i}`,`${(x*amount).toFixed(2)}px`);root.style.setProperty(`--crew-y-${i}`,`${(y*amount*.55).toFixed(2)}px`)});
+   root.style.setProperty('--crew-rx',`${(-y*4).toFixed(2)}deg`);
+   root.style.setProperty('--crew-ry',`${(x*6).toFixed(2)}deg`);
+   root.setAttribute('data-tracking','true');
+  };
+  const move=(event:PointerEvent)=>{if(event.pointerType==='touch')return;lastX=event.clientX;lastY=event.clientY;if(!frame)frame=requestAnimationFrame(render)};
+  const leave=(event:PointerEvent)=>{if(!event.relatedTarget)reset()};
+  window.addEventListener('pointermove',move,{passive:true});window.addEventListener('pointerout',leave);window.addEventListener('blur',reset);
+  return()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerout',leave);window.removeEventListener('blur',reset);if(frame)cancelAnimationFrame(frame)};
+ },[]);
+ return <div ref={crew} className={`db-character-crew ${className}`} aria-hidden="true">{[0,1,2].map(seed=><div key={seed}><Avatar seed={seed} size={360}/></div>)}</div>
+}
 // Only these tickers ship a logo SVG. For every other tokenized name we draw a
 // two-letter monogram — deciding up front avoids the broken-image flash you get
 // from an SSR <img> that 404s before React can attach an onError handler.
