@@ -1,7 +1,7 @@
 import 'server-only';
-import { and, count, eq, inArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { getDb } from './client';
-import { users, profiles, bookmarks, circles, circleMemberships, migrationImports } from './schema';
+import { users, profiles, bookmarks, circles, circleMemberships, migrationImports, circleDiscoveries, discoverySaves, userBlocks, contentReports } from './schema';
 import { CIRCLES, CIRCLE_SLUGS } from './circles';
 import { DISCOVERY_CATALOG } from '@/lib/catalog';
 import { TOKENS } from '@/lib/base/tokens';
@@ -138,4 +138,83 @@ export async function importLocal(
     }
     return { alreadyImported: false as const, importedBookmarks, importedMemberships: slugs.length };
   });
+}
+
+// ---- Social: shared discoveries in circles, saves, moderation ----
+
+async function isCircleMember(userId: string, slug: string): Promise<boolean> {
+  const db = getDb();
+  const [c] = await db.select({ id: circles.id }).from(circles).where(eq(circles.slug, slug)).limit(1);
+  if (!c) return false;
+  const [m] = await db.select({ id: circleMemberships.id }).from(circleMemberships)
+    .where(and(eq(circleMemberships.userId, userId), eq(circleMemberships.circleId, c.id), eq(circleMemberships.status, 'active'))).limit(1);
+  return !!m;
+}
+
+const isSubjectType = (v: unknown): v is 'stock' | 'memestock' => v === 'stock' || v === 'memestock';
+
+export async function createDiscovery(userId: string, input: { circleSlug: string; subjectType: string; subjectId: string; subjectLabel?: string; note?: string }) {
+  await ensureCircles();
+  if (!(CIRCLE_SLUGS as readonly string[]).includes(input.circleSlug)) return { ok: false as const, reason: 'circle' as const };
+  if (!isSubjectType(input.subjectType)) return { ok: false as const, reason: 'subject' as const };
+  if (typeof input.subjectId !== 'string' || !input.subjectId.trim()) return { ok: false as const, reason: 'subject' as const };
+  if (!(await isCircleMember(userId, input.circleSlug))) return { ok: false as const, reason: 'member' as const };
+  const db = getDb();
+  const [row] = await db.insert(circleDiscoveries).values({
+    userId, circleSlug: input.circleSlug, subjectType: input.subjectType,
+    subjectId: input.subjectId.slice(0, 120), subjectLabel: input.subjectLabel?.slice(0, 80) ?? null,
+    note: input.note?.slice(0, 280) ?? null,
+  }).returning({ id: circleDiscoveries.id });
+  return { ok: true as const, id: row.id };
+}
+
+export async function listCircleDiscoveries(userId: string, slug: string) {
+  if (!(await isCircleMember(userId, slug))) return { ok: false as const, reason: 'member' as const };
+  const db = getDb();
+  const blocked = (await db.select({ b: userBlocks.blockedUserId }).from(userBlocks).where(eq(userBlocks.blockerUserId, userId))).map((r) => r.b);
+  const rows = await db.select({
+    id: circleDiscoveries.id, authorId: circleDiscoveries.userId, subjectType: circleDiscoveries.subjectType,
+    subjectId: circleDiscoveries.subjectId, subjectLabel: circleDiscoveries.subjectLabel, note: circleDiscoveries.note,
+    createdAt: circleDiscoveries.createdAt, authorName: profiles.displayName, authorAvatar: profiles.avatar,
+  }).from(circleDiscoveries).leftJoin(profiles, eq(profiles.userId, circleDiscoveries.userId))
+    .where(and(eq(circleDiscoveries.circleSlug, slug), eq(circleDiscoveries.status, 'active'), blocked.length ? notInArray(circleDiscoveries.userId, blocked) : sql`true`))
+    .orderBy(desc(circleDiscoveries.createdAt)).limit(50);
+  const saved = new Set((await db.select({ d: discoverySaves.discoveryId }).from(discoverySaves).where(eq(discoverySaves.userId, userId))).map((r) => r.d));
+  // Internal author id is never returned; isMine is resolved server-side.
+  return { ok: true as const, discoveries: rows.map(({ authorId, ...r }) => ({ ...r, isMine: authorId === userId, savedByMe: saved.has(r.id) })) };
+}
+
+export async function saveDiscovery(userId: string, discoveryId: string) {
+  const db = getDb();
+  const [d] = await db.select({ slug: circleDiscoveries.circleSlug }).from(circleDiscoveries)
+    .where(and(eq(circleDiscoveries.id, discoveryId), eq(circleDiscoveries.status, 'active'))).limit(1);
+  if (!d || !(await isCircleMember(userId, d.slug))) return { ok: false as const };
+  await db.insert(discoverySaves).values({ userId, discoveryId }).onConflictDoNothing();
+  return { ok: true as const };
+}
+
+export async function unsaveDiscovery(userId: string, discoveryId: string) {
+  const db = getDb();
+  await db.delete(discoverySaves).where(and(eq(discoverySaves.userId, userId), eq(discoverySaves.discoveryId, discoveryId)));
+}
+
+export async function removeDiscovery(userId: string, discoveryId: string) {
+  const db = getDb();
+  await db.update(circleDiscoveries).set({ status: 'removed' }).where(and(eq(circleDiscoveries.id, discoveryId), eq(circleDiscoveries.userId, userId)));
+}
+
+export async function blockByDiscovery(userId: string, discoveryId: string) {
+  const db = getDb();
+  const [d] = await db.select({ author: circleDiscoveries.userId }).from(circleDiscoveries).where(eq(circleDiscoveries.id, discoveryId)).limit(1);
+  if (!d || d.author === userId) return { ok: false as const };
+  await db.insert(userBlocks).values({ blockerUserId: userId, blockedUserId: d.author }).onConflictDoNothing();
+  return { ok: true as const };
+}
+
+export async function reportDiscovery(userId: string, discoveryId: string, reason?: string) {
+  const db = getDb();
+  const [d] = await db.select({ id: circleDiscoveries.id }).from(circleDiscoveries).where(eq(circleDiscoveries.id, discoveryId)).limit(1);
+  if (!d) return { ok: false as const };
+  await db.insert(contentReports).values({ reporterUserId: userId, discoveryId, reason: reason?.slice(0, 200) ?? null }).onConflictDoNothing();
+  return { ok: true as const };
 }

@@ -803,3 +803,31 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 .db-chart-tip strong{display:block;font-size:13px;color:var(--db-ink);font-variant-numeric:tabular-nums}
 .db-chart-tip span{font-size:10px;color:var(--db-muted)}
 .db-chart-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:9px;font-size:13px;color:var(--db-muted);background:var(--db-glass);border-radius:12px;text-align:center;padding:0 20px}
+
+/* ── Circle shared discoveries ──────────────────────────────────────────── */
+.db-disc-heading{margin-top:30px}
+.db-disc{margin:8px 0 4px}
+.db-disc-empty{text-align:center;padding:38px 20px;border:1px dashed var(--db-line);border-radius:20px;color:var(--db-muted)}
+.db-disc-empty h3{font-size:17px;color:var(--db-ink);margin-bottom:8px}
+.db-disc-empty p{font-size:13px;max-width:42ch;margin:0 auto 16px}
+.db-disc-composer{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:#fff;border:1px solid var(--db-line);border-radius:18px;padding:12px}
+.db-app[data-theme="dark"] .db-disc-composer{background:#141a2b;border-color:#283049}
+.db-disc-composer select{border:1px solid var(--db-line);border-radius:12px;padding:11px 10px;font-size:13px;color:var(--db-ink);background:#f8faff;flex:none;max-width:180px}
+.db-app[data-theme="dark"] .db-disc-composer select{background:#1b2236;border-color:#2f3a58}
+.db-disc-composer input{flex:1;min-width:180px;border:1px solid var(--db-line);border-radius:12px;padding:11px 13px;font-size:13px;color:var(--db-ink);background:transparent}
+.db-disc-composer .db-button{min-height:42px;border-radius:12px;font-size:13px}
+.db-disc-list{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.db-disc-item{display:flex;gap:13px;background:#fff;border:1px solid var(--db-line);border-radius:18px;padding:16px}
+.db-app[data-theme="dark"] .db-disc-item{background:#141a2b;border-color:#283049}
+.db-disc-body{flex:1;min-width:0}
+.db-disc-head{display:flex;align-items:baseline;gap:10px}
+.db-disc-head strong{font-size:14px;font-weight:600}
+.db-disc-head span{font-size:11px;color:var(--db-muted)}
+.db-disc-subject{display:flex;align-items:center;gap:8px;margin:8px 0}
+.db-disc-subject span{font-size:13px;font-weight:600;color:var(--db-blue)}
+.db-disc-body p{font-size:13px;line-height:1.55;color:var(--db-ink);margin:2px 0 10px}
+.db-disc-actions{display:flex;gap:8px;flex-wrap:wrap}
+.db-disc-actions button{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--db-muted);border:1px solid var(--db-line);border-radius:999px;padding:6px 12px;transition:border-color .15s,color .15s}
+.db-disc-actions button:hover{border-color:#c9d3f2;color:var(--db-ink)}
+.db-disc-actions button[aria-pressed=true]{color:var(--db-blue);border-color:#c9d0ff;background:#eef1ff}
+.db-app[data-theme="dark"] .db-disc-actions button[aria-pressed=true]{background:#1c2550;border-color:#33407a;color:#aeb9ff}

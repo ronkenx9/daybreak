@@ -104,6 +104,51 @@ export const watchlistItems = pgTable('watchlist_items', {
   addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({ uniqItem: uniqueIndex('watchlist_items_list_company').on(t.watchlistId, t.companyId) }));
 
+// ---- Social: shared discoveries inside circles, saves, and moderation ----
+
+// A member shares an asset (stock or memestock) into a circle with a short note.
+// Visible to that circle's members; authorship is a Daybreak identity, not a wallet.
+export const circleDiscoveries = pgTable('circle_discoveries', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  circleSlug: text('circle_slug').notNull(),
+  subjectType: text('subject_type').notNull(), // 'stock' | 'memestock'
+  subjectId: text('subject_id').notNull(),     // ticker, or token address for a memestock
+  subjectLabel: text('subject_label'),
+  note: text('note'),
+  status: text('status').notNull().default('active'), // active | removed
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  circleLookup: index('circle_discoveries_circle_idx').on(t.circleSlug),
+  authorLookup: index('circle_discoveries_user_idx').on(t.userId),
+}));
+
+// One member saving another member's shared discovery into their own collection.
+export const discoverySaves = pgTable('discovery_saves', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  discoveryId: uuid('discovery_id').notNull().references(() => circleDiscoveries.id, { onDelete: 'cascade' }),
+  savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniqSave: uniqueIndex('discovery_saves_user_discovery').on(t.userId, t.discoveryId) }));
+
+// Personal block: the blocker never sees the blocked user's shared content.
+export const userBlocks = pgTable('user_blocks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  blockerUserId: uuid('blocker_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  blockedUserId: uuid('blocked_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniqBlock: uniqueIndex('user_blocks_blocker_blocked').on(t.blockerUserId, t.blockedUserId) }));
+
+// A report for moderation review. One per (reporter, discovery).
+export const contentReports = pgTable('content_reports', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  reporterUserId: uuid('reporter_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  discoveryId: uuid('discovery_id').notNull().references(() => circleDiscoveries.id, { onDelete: 'cascade' }),
+  reason: text('reason'),
+  status: text('status').notNull().default('open'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniqReport: uniqueIndex('content_reports_reporter_discovery').on(t.reporterUserId, t.discoveryId) }));
+
 // ---- Bankr integration: durable operation ledger + market state (Phase B) ----
 // Financial amounts are raw integer strings with explicit decimals — never floats.
 
