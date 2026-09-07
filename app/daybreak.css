@@ -660,3 +660,34 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 .db-earn-stats>span{display:flex;flex-direction:column;gap:2px}
 .db-earn-stats small{font-size:11px;color:var(--db-muted);font-weight:600}
 .db-earn-stats strong{font-size:15px;color:var(--db-ink);font-variant-numeric:tabular-nums}
+
+/* ── Memestock search + paired-stock filter ────────────────────────────── */
+.db-meme-controls{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.db-meme-search{width:100%}
+.db-meme-stockfilter{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.db-meme-stockfilter::-webkit-scrollbar{display:none}
+.db-meme-stockfilter button{flex:none;border:1px solid var(--db-line);background:#fff;color:var(--db-muted);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;white-space:nowrap;transition:background .16s,color .16s,border-color .16s}
+.db-meme-stockfilter button:hover{border-color:#c9d3f2;color:var(--db-ink)}
+.db-meme-stockfilter button.active{background:var(--db-blue);border-color:var(--db-blue);color:#fff}
+.db-meme-empty{margin-top:12px}
+/* meme logo image fill */
+.db-meme-mono.has-img{padding:0;overflow:hidden;background:#fff}
+.db-meme-mono img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+
+/* ── Memestock detail: chart + headline + compact risk ─────────────────── */
+.db-meme-headline{display:flex;align-items:baseline;gap:10px;margin-top:6px}
+.db-meme-headline strong{font-size:26px;font-weight:750;color:var(--db-ink);font-variant-numeric:tabular-nums}
+.db-meme-headline small{font-size:11px;color:var(--db-muted);text-transform:uppercase;letter-spacing:.4px}
+.db-meme-chart{margin-top:12px;border:1px solid var(--db-line);border-radius:16px;overflow:hidden;background:#fff}
+.db-meme-chart iframe{display:block;width:100%;height:320px;border:0}
+.db-meme-nochart{margin-top:12px}
+.db-meme-risk{display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:11.5px;line-height:1.45;color:var(--db-muted)}
+.db-meme-risk svg{flex:none;margin-top:1px;color:#c33a24}
+.db-meme-risk strong{color:#a8331f}
+
+/* ── In-app memestock SVG chart ────────────────────────────────────────── */
+.db-meme-chart-svg{display:block;width:100%;height:200px}
+.db-meme-chart-foot{display:flex;justify-content:space-between;padding:8px 12px;border-top:1px solid #f0f3fb;font-size:11px;color:var(--db-muted);font-weight:600}
+.db-meme-chart-state{display:flex;align-items:center;justify-content:center;gap:10px;height:200px;color:var(--db-muted);font-size:13px;padding:0 20px;text-align:center}
+.db-chart-spinner{width:16px;height:16px;border:2px solid var(--db-line);border-top-color:var(--db-blue);border-radius:50%;animation:db-spin .8s linear infinite}
+@keyframes db-spin{to{transform:rotate(360deg)}}

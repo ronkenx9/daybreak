@@ -21,6 +21,8 @@ export interface MemeToken {
   txns24: number;
   ageMs: number | null;
   url: string;
+  pairAddress: string | null; // the DEX pool, for the in-app chart embed
+  imageUrl: string | null;    // token logo when DexScreener has one for the meme side
   lowLiquidity: boolean;
 }
 
@@ -43,7 +45,19 @@ interface DexPair {
   marketCap?: number;
   fdv?: number;
   pairCreatedAt?: number;
+  pairAddress?: string;
+  info?: { imageUrl?: string };
   url?: string;
+}
+
+// Only surface an image DexScreener actually served, over https, so we never
+// render a wrong or unsafe logo. Returns null otherwise (UI falls back to a monogram).
+function safeImage(value: string | undefined): string | null {
+  try {
+    const url = new URL(value ?? '');
+    if (url.protocol === 'https:') return url.toString();
+  } catch {}
+  return null;
 }
 
 export class MemeProviderError extends Error {
@@ -120,6 +134,11 @@ export async function fetchMemeTokens(ticker: string): Promise<MemeToken[]> {
       txns24: Math.round(Math.max(0, num(p.txns?.h24?.buys) + num(p.txns?.h24?.sells))),
       ageMs: typeof p.pairCreatedAt === 'number' && p.pairCreatedAt > 0 ? Math.max(0, Date.now() - p.pairCreatedAt) : null,
       url: dexUrl(p.url, address),
+      // DexScreener returns a mixed-case pairAddress that fails viem's strict
+      // checksum; validate loosely and lowercase (the chart route expects that).
+      pairAddress: p.pairAddress && /^0x[0-9a-fA-F]{40}$/.test(p.pairAddress) ? p.pairAddress.toLowerCase() : null,
+      // info.imageUrl is the base token's logo; only trust it for the meme when the meme IS the base side.
+      imageUrl: baseIsStock ? null : safeImage(p.info?.imageUrl),
       lowLiquidity: liquidityUsd < 25_000,
     };
     const previous = found.get(address);

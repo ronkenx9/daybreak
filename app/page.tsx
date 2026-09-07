@@ -7,9 +7,9 @@ import { Wordmark, AvatarStack, StockIcon, Avatar, CharacterCrew } from '@/compo
 import { Lines } from '@/components/daybreak/Lines';
 
 const PROOF = [
-  { value: '06', label: 'Companies in the catalog' },
-  { value: '6/6', label: 'Relationships with a cited source' },
-  { value: 'Base', label: 'Chain 8453' },
+  { value: '13', label: 'Real stocks, tokenized on Base' },
+  { value: 'USDC', label: 'Trade and pair onchain' },
+  { value: 'LP', label: 'Earn fees on Aerodrome' },
   { value: '0', label: 'Wallets needed to explore' },
 ];
 
@@ -58,13 +58,14 @@ export default function Landing() {
 
           <div className="db-hero-copy" data-reveal>
             <span className="db-micro db-micro-light" style={{ '--i': 0 } as React.CSSProperties}>
-              A fresh way to discover stocks
+              Tokenized stocks on Base
             </span>
             <h1>
-              <Lines lines={['A new day.', 'A little more yours.']} from={1} />
+              <Lines lines={['Stocks, tokenized.', 'Onchain and yours.']} from={1} />
             </h1>
             <p style={{ '--i': 4 } as React.CSSProperties}>
-              The companies you love. People who get it. A whole new world to explore.
+              Apple, NVIDIA, Tesla and more — as tokens on Base. Trade them, provide
+              liquidity to earn fees, and find the people trading the same tickers.
             </p>
             <div className="db-hero-actions" style={{ '--i': 5 } as React.CSSProperties}>
               <Link className="db-button db-white-button" href="/app">
@@ -75,7 +76,7 @@ export default function Landing() {
               </Link>
             </div>
             <span className="db-caption" style={{ '--i': 6 } as React.CSSProperties}>
-              Explore first. No wallet needed.
+              Explore first. Connect a wallet only when you trade.
             </span>
           </div>
         </div>
@@ -104,11 +105,11 @@ export default function Landing() {
         <div className="db-shell">
           <div className="db-section-head" data-reveal>
             <h2>
-              <Lines lines={['Your interests.', 'A world of possibilities.']} />
+              <Lines lines={['Every stock,', 'a token on Base.']} />
             </h2>
             <p>
-              Your morning coffee. Your favorite game. The tech on your desk. Discover the businesses
-              behind the things that make your day.
+              Browse tokenized stocks like AAPL and NVDA with live onchain prices, the community
+              memecoins paired against them, and the pools where you can provide liquidity for fees.
             </p>
             <Link className="db-text-link" href="/app">
               Explore the collection <ArrowUpRight size={17} />

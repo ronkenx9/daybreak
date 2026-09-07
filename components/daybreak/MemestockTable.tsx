@@ -1,7 +1,8 @@
 'use client';
-import {useState} from 'react';
-import {ChevronRight} from 'lucide-react';
+import {useMemo, useState} from 'react';
+import {ChevronRight, Search, X} from 'lucide-react';
 import type {MemeTokenData} from './MemestockDetail';
+import MemeLogo from './MemeLogo';
 
 // A memestock is any row; the trending feed also carries its parent stock.
 export type MemeRow = MemeTokenData & {parentTicker?: string; parentSymbol?: string};
@@ -38,10 +39,27 @@ const pct = (n: number | undefined) => {
 export default function MemestockTable({rows, showStock, onSelect}: {rows: MemeRow[]; showStock: boolean; onSelect: (row: MemeRow) => void}) {
   const [sort, setSort] = useState<SortKey>('h24');
   const active = SORTS.find((s) => s.key === sort)!;
-  const ranked = [...rows].sort((a, b) => active.get(b) - active.get(a));
+  const [q, setQ] = useState('');
+  const [stockFilter, setStockFilter] = useState('all');
+  // Distinct paired stocks present, for the stock filter (trending feed only).
+  const stocks = useMemo(() => showStock ? [...new Set(rows.map((r) => r.parentTicker).filter((t): t is string => !!t))].sort() : [], [rows, showStock]);
+  const needle = q.trim().toLowerCase();
+  const filtered = rows.filter((r) =>
+    (stockFilter === 'all' || r.parentTicker === stockFilter) &&
+    (!needle || `${r.name} ${r.symbol}`.toLowerCase().includes(needle)));
+  const ranked = [...filtered].sort((a, b) => active.get(b) - active.get(a));
 
   return (
     <div className="db-meme-rank">
+      <div className="db-meme-controls">
+        <label className="db-search db-meme-search"><Search size={17} /><input aria-label="Search memestocks" placeholder="Search memestocks" value={q} onChange={(e) => setQ(e.target.value)} />{q && <button aria-label="Clear search" onClick={() => setQ('')}><X size={14} /></button>}</label>
+        {showStock && stocks.length > 0 && (
+          <div className="db-meme-stockfilter" role="group" aria-label="Filter by paired stock">
+            <button aria-pressed={stockFilter === 'all'} className={stockFilter === 'all' ? 'active' : ''} onClick={() => setStockFilter('all')}>All stocks</button>
+            {stocks.map((t) => <button key={t} aria-pressed={stockFilter === t} className={stockFilter === t ? 'active' : ''} onClick={() => setStockFilter(t)}>{t}</button>)}
+          </div>
+        )}
+      </div>
       <div className="db-rankby" role="group" aria-label="Rank memestocks by">
         <span className="db-rankby-label">Rank by</span>
         {SORTS.map((s) => (
@@ -76,7 +94,7 @@ export default function MemestockTable({rows, showStock, onSelect}: {rows: MemeR
                   onClick={open} onKeyDown={(e) => {if (e.key === 'Enter' || e.key === ' ') {e.preventDefault(); open();}}}>
                   <td className="db-col-rank"><span className="db-meme-idx">{i + 1}</span></td>
                   <td className="db-col-token">
-                    <span className="db-token-mono db-meme-mono">{r.symbol.slice(0, 2)}</span>
+                    <MemeLogo symbol={r.symbol} imageUrl={r.imageUrl} />
                     <span className="db-meme-name"><strong>{r.name || r.symbol}</strong><small>{r.symbol}{r.lowLiquidity ? ' · low liq' : ''}</small></span>
                   </td>
                   {showStock && <td><span className="db-meme-parent">{r.parentTicker}</span></td>}
@@ -94,6 +112,7 @@ export default function MemestockTable({rows, showStock, onSelect}: {rows: MemeR
           </tbody>
         </table>
       </div>
+      {ranked.length === 0 && <p className="db-small-note db-meme-empty">No memestocks match{needle ? ` “${q}”` : ''}{stockFilter !== 'all' ? ` paired with ${stockFilter}` : ''}. Try clearing the filter.</p>}
     </div>
   );
 }
