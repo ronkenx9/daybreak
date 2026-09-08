@@ -3,18 +3,18 @@ import { useQuery } from '@tanstack/react-query';
 import { Radio } from 'lucide-react';
 import { tokenForTicker } from '@/lib/base/tokens';
 
-interface FeedItem { ticker: string; title: string; url: string; source: string; seenAt: string }
+export interface NewsStory { ticker: string; title: string; url: string; source: string; seenAt: string; image: string }
 
 // Always-on headline ticker. Each item opens that stock's workspace — the news →
 // stock → paired-memecoin flywheel. Real GDELT headlines; hides itself if empty.
-export default function NewsTicker({ onOpenTicker }: { onOpenTicker: (ticker: string) => void }) {
+export default function NewsTicker({ onOpenStory }: { onOpenStory: (story: NewsStory) => void }) {
   const q = useQuery({
     queryKey: ['news-feed'],
     queryFn: async ({ signal }) => {
       const r = await fetch('/api/news/feed', { signal });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'News feed unavailable');
-      return d as { items: FeedItem[]; stale?: boolean };
+      return d as { items: NewsStory[]; stale?: boolean };
     },
     staleTime: 5 * 60_000,
     refetchInterval: 10 * 60_000,
@@ -35,7 +35,7 @@ export default function NewsTicker({ onOpenTicker }: { onOpenTicker: (ticker: st
             const known = !!tokenForTicker(it.ticker);
             return (
               <button key={it.url + i} className="db-ticker-item" title={`${it.title} — ${it.source}`}
-                onClick={() => known && onOpenTicker(it.ticker)} tabIndex={i < items.length ? 0 : -1} aria-hidden={i >= items.length}>
+                onClick={() => known && onOpenStory(it)} tabIndex={i < items.length ? 0 : -1} aria-hidden={i >= items.length}>
                 <b>{it.ticker}</b>
                 <span className="db-ticker-title">{it.title}</span>
                 <span className="db-ticker-src">{it.source}</span>

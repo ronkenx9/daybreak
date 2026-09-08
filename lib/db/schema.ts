@@ -149,6 +149,23 @@ export const contentReports = pgTable('content_reports', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({ uniqReport: uniqueIndex('content_reports_reporter_discovery').on(t.reporterUserId, t.discoveryId) }));
 
+// Discussion attached to one canonical news URL inside a stock workspace.
+// articleKey is a server-computed SHA-256 hash; URLs remain available for
+// attribution while comments are authored by Daybreak identities.
+export const newsComments = pgTable('news_comments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  articleKey: text('article_key').notNull(),
+  articleUrl: text('article_url').notNull(),
+  ticker: text('ticker').notNull(),
+  body: text('body').notNull(),
+  status: text('status').notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  articleLookup: index('news_comments_article_idx').on(t.articleKey, t.createdAt),
+  authorLookup: index('news_comments_user_idx').on(t.userId),
+}));
+
 // ---- Bankr integration: durable operation ledger + market state (Phase B) ----
 // Financial amounts are raw integer strings with explicit decimals — never floats.
 

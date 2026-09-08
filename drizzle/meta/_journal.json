@@ -36,6 +36,20 @@
       "when": 1788815446957,
       "tag": "0004_blue_valkyrie",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788899244668,
+      "tag": "0005_public_scream",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788899331608,
+      "tag": "0006_news_comments_security",
+      "breakpoints": true
     }
   ]
 }

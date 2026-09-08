@@ -10,6 +10,7 @@ export interface BankrCapabilities {
   chain: string;
   chainId: number;
   discovery: boolean;
+  quoting: boolean;
   trading: boolean;
   launches: boolean;
   launchFee: { allInPct: number; creatorPct: number }; // verified from docs
@@ -25,13 +26,14 @@ export function getCapabilities(): BankrCapabilities {
     chain: BANKR_CHAIN,
     chainId: BASE_CHAIN_ID,
     discovery: true,
+    quoting: isBankrConfigured,
     trading: false, // enable only after live wallet-mode proof
     launches: false, // enable only after live stock-allowlist + wallet proof
     launchFee: { allInPct: 1.75, creatorPct: 0.665 },
     launchSupply: 100_000_000_000,
     notes: [
       'Chain is always Base (8453); the provider default Robinhood chain is never used.',
-      'Trading and community-token launches remain disabled until Bankr wallet authority and the stock allowlist are proven with live credentials.',
+      'Live stock quoting is enabled when configured. Execution and community-token launches remain disabled until per-user Bankr wallet authority is proven.',
     ],
   };
 }

@@ -3,6 +3,7 @@ import LandingStories from '@/components/daybreak/LandingStories';
 import { ArrowUpRight, ArrowRight, Compass, Layers, Sun, Github } from 'lucide-react';
 import ShareRedirect from '@/components/daybreak/ShareRedirect';
 import { Wordmark, AvatarStack, StockIcon, Avatar, CharacterCrew } from '@/components/daybreak/Identity';
+import CommunitySpotlight from '@/components/daybreak/CommunitySpotlight';
 
 import { Lines } from '@/components/daybreak/Lines';
 
@@ -61,18 +62,18 @@ export default function Landing() {
               Tokenized stocks on Base
             </span>
             <h1>
-              <Lines lines={['Stocks, tokenized.', 'Onchain and yours.']} from={1} />
+              <Lines lines={['Your world.', 'Your stocks.']} from={1} />
             </h1>
             <p style={{ '--i': 4 } as React.CSSProperties}>
-              Apple, NVIDIA, Tesla and more — as tokens on Base. Trade them, provide
-              liquidity to earn fees, and find the people trading the same tickers.
+              Discover tokenized stocks on Base through the interests, creators and
+              communities you follow.
             </p>
             <div className="db-hero-actions" style={{ '--i': 5 } as React.CSSProperties}>
               <Link className="db-button db-white-button" href="/app">
-                Find your daybreak <ArrowRight size={17} />
+                Explore stocks <ArrowRight size={17} />
               </Link>
-              <Link className="db-button db-ghost-button" href="/references">
-                See our direction <ArrowUpRight size={17} />
+              <Link className="db-button db-ghost-button" href="/app/groups">
+                Find your circle <ArrowUpRight size={17} />
               </Link>
             </div>
             <span className="db-caption" style={{ '--i': 6 } as React.CSSProperties}>
@@ -166,6 +167,12 @@ export default function Landing() {
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      <section className="db-section db-section-tint">
+        <div className="db-shell">
+          <CommunitySpotlight />
         </div>
       </section>
 

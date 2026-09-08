@@ -1,7 +1,7 @@
 import 'server-only';
 import { and, count, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { getDb } from './client';
-import { users, profiles, bookmarks, circles, circleMemberships, migrationImports, circleDiscoveries, discoverySaves, userBlocks, contentReports } from './schema';
+import { users, profiles, bookmarks, circles, circleMemberships, migrationImports, circleDiscoveries, discoverySaves, userBlocks, contentReports, newsComments } from './schema';
 import { CIRCLES, CIRCLE_SLUGS } from './circles';
 import { DISCOVERY_CATALOG } from '@/lib/catalog';
 import { TOKENS } from '@/lib/base/tokens';
@@ -217,4 +217,26 @@ export async function reportDiscovery(userId: string, discoveryId: string, reaso
   if (!d) return { ok: false as const };
   await db.insert(contentReports).values({ reporterUserId: userId, discoveryId, reason: reason?.slice(0, 200) ?? null }).onConflictDoNothing();
   return { ok: true as const };
+}
+
+export async function listNewsComments(articleKey: string) {
+  const db = getDb();
+  const rows = await db.select({
+    id: newsComments.id, body: newsComments.body, createdAt: newsComments.createdAt,
+    authorName: profiles.displayName, authorAvatar: profiles.avatar,
+  }).from(newsComments).leftJoin(profiles, eq(profiles.userId, newsComments.userId))
+    .where(and(eq(newsComments.articleKey, articleKey), eq(newsComments.status, 'active')))
+    .orderBy(desc(newsComments.createdAt)).limit(100);
+  return rows;
+}
+
+export async function createNewsComment(userId: string, input: { articleKey: string; articleUrl: string; ticker: string; body: string }) {
+  const db = getDb();
+  const [row] = await db.insert(newsComments).values({ userId, ...input }).returning({ id: newsComments.id });
+  return row;
+}
+
+export async function removeNewsComment(userId: string, id: string) {
+  const db = getDb();
+  await db.update(newsComments).set({ status: 'removed' }).where(and(eq(newsComments.id, id), eq(newsComments.userId, userId)));
 }

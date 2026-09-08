@@ -1,6 +1,6 @@
 # Bankr capability matrix — Phase 0 (package A)
 
-Status: **documentation-qualified, not live-proven.** Findings below were read from Bankr docs on 2026-09-06 (base `https://api.bankr.bot`). No Bankr credentials are configured, so no live simulation/quote/launch has been executed. Nothing here is a claim of a working integration. Recheck before implementation — provider behavior and fee schedules change.
+Status: **application execution not live-proven.** September 8 inspection confirms `BANKR_API_KEY` is set in `.env.local`; the previous claim that no credentials were configured was stale. Existing brain notes record an earlier successful read-only wallet check. A fresh read-only `GET /wallet/me` check on September 8 returned HTTP 200 using the configured key; no secrets or wallet details were printed and no transaction was submitted. The unfinished work is per-user wallet authority and connecting the adapter to app quote/execute/launch routes and UI. See [concrete implementation plan](../DAYBREAK-APP-IMPLEMENTATION-PLAN.md). Findings below were read from Bankr docs on September 6 and require current endpoint-specific verification before execution.
 
 ## Verified from documentation
 

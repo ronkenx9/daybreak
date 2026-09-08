@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { createChart, CandlestickSeries, LineSeries, HistogramSeries, CrosshairMode, type IChartApi, type ISeriesApi, type UTCTimestamp } from 'lightweight-charts';
+import { createChart, createSeriesMarkers, CandlestickSeries, LineSeries, HistogramSeries, CrosshairMode, type IChartApi, type ISeriesApi, type ISeriesMarkersPluginApi, type Time, type UTCTimestamp } from 'lightweight-charts';
 
 interface Point { t: number; o: number; h: number; l: number; c: number; v: number }
 interface Resp { points: Point[]; meta?: { oriented?: boolean; interval?: string; source?: string } }
@@ -14,13 +14,14 @@ const fmtPrice = (n: number) => n >= 1 ? `$${n.toLocaleString('en-US', { maximum
 // Interactive OHLCV chart (TradingView lightweight-charts, Apache-2.0): candles/
 // line, crosshair with a price/time tooltip, pan/zoom, volume, timeframes, touch
 // gestures, and a theme that follows the app. Real GeckoTerminal candles only.
-export default function MemeChart({ token }: { token: string; up?: boolean }) {
+export default function MemeChart({ token, eventTime }: { token: string; up?: boolean; eventTime?: string }) {
   const [tf, setTf] = useState<Tf>('1H');
   const [kind, setKind] = useState<'candles' | 'line'>('candles');
   const wrapRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const priceRef = useRef<ISeriesApi<'Candlestick'> | ISeriesApi<'Line'> | null>(null);
   const volRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const dataRef = useRef<Point[]>([]);
   const [hover, setHover] = useState<{ price: string; time: string } | null>(null);
   const [themeKey, setThemeKey] = useState(0);
@@ -52,6 +53,11 @@ export default function MemeChart({ token }: { token: string; up?: boolean }) {
     if (kind === 'candles') (priceRef.current as ISeriesApi<'Candlestick'>).setData(pts.map((p) => ({ time: p.t as UTCTimestamp, open: p.o, high: p.h, low: p.l, close: p.c })));
     else (priceRef.current as ISeriesApi<'Line'>).setData(pts.map((p) => ({ time: p.t as UTCTimestamp, value: p.c })));
     volRef.current?.setData(pts.map((p) => ({ time: p.t as UTCTimestamp, value: p.v, color: (p.c >= p.o ? UP : DOWN) + '55' })));
+    const eventSeconds = eventTime ? Math.floor(Date.parse(eventTime) / 1000) : NaN;
+    if (markersRef.current && Number.isFinite(eventSeconds) && pts.length) {
+      const nearest = pts.reduce((best, point) => Math.abs(point.t - eventSeconds) < Math.abs(best.t - eventSeconds) ? point : best);
+      markersRef.current.setMarkers([{ time: nearest.t as UTCTimestamp, position: 'aboveBar', color: '#0210ef', shape: 'circle', text: 'News' }]);
+    } else markersRef.current?.setMarkers([]);
     chartRef.current?.timeScale().fitContent();
   };
 
@@ -81,15 +87,15 @@ export default function MemeChart({ token }: { token: string; up?: boolean }) {
       if (!param.time || val == null) { setHover(null); return; }
       setHover({ price: fmtPrice(val), time: new Date((param.time as number) * 1000).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) });
     });
-    void ink;
+    void ink; markersRef.current = createSeriesMarkers(price, []);
     chartRef.current = chart; priceRef.current = price; volRef.current = vol;
     paint();
-    return () => { chart.remove(); chartRef.current = null; priceRef.current = null; volRef.current = null; };
+    return () => { chart.remove(); chartRef.current = null; priceRef.current = null; volRef.current = null; markersRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, themeKey]);
 
   // Repaint when data (timeframe/token) changes.
-  useEffect(() => { paint(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [q.data]);
+  useEffect(() => { paint(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [q.data, eventTime]);
 
   const pts = q.data?.points ?? [];
   const last = pts[pts.length - 1]?.c, first = pts[0]?.c;

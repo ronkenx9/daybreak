@@ -1,7 +1,7 @@
 import 'server-only';
 export const COMPANY_QUERIES:Record<string,string>={AAPL:'Apple (iPhone OR earnings OR stock)',AMZN:'Amazon (AWS OR earnings OR stock)',GOOGL:'(Google OR Alphabet) (earnings OR stock OR technology)',NVDA:'Nvidia',TSLA:'Tesla (automotive OR earnings OR stock)',META:'"Meta Platforms"',MSFT:'Microsoft',COIN:'Coinbase',CRCL:'"Circle Internet"',INTC:'Intel (semiconductor OR earnings OR stock)',MSTR:'(MicroStrategy OR "Strategy Inc")',SNDK:'Sandisk',SPCX:'SpaceX',SONY:'Sony',NFLX:'Netflix',SBUX:'Starbucks'};
 const HEADLINE_MATCH:Record<string,RegExp>={AAPL:/\b(apple|iphone|ipad|macbook)\b/i,AMZN:/\b(amazon|aws)\b/i,GOOGL:/\b(google|alphabet)\b/i,NVDA:/\bnvidia\b/i,TSLA:/\btesla\b/i,META:/\b(meta|facebook|instagram|whatsapp)\b/i,MSFT:/\b(microsoft|azure)\b/i,COIN:/\bcoinbase\b/i,CRCL:/\b(circle|usdc)\b/i,INTC:/\bintel\b/i,MSTR:/\b(microstrategy|strategy)\b/i,SNDK:/\bsandisk\b/i,SPCX:/\b(spacex|starlink)\b/i,SONY:/\b(sony|playstation)\b/i,NFLX:/\bnetflix\b/i,SBUX:/\bstarbucks\b/i};
-export interface Article {title:string;url:string;source:string;seenAt:string}
+export interface Article {title:string;url:string;source:string;seenAt:string;image:string}
 export function normalizeArticles(input:unknown,ticker?:string):Article[]{
  if(!input||typeof input!=='object'||!('articles' in input)||!Array.isArray(input.articles))throw Error('Unexpected news response');
  const seen=new Set<string>();const out:Article[]=[];
@@ -10,7 +10,8 @@ export function normalizeArticles(input:unknown,ticker?:string):Article[]{
  if(ticker&&!HEADLINE_MATCH[ticker]?.test(a.title))continue;
  const key=url.toString();if(seen.has(key))continue;seen.add(key);
  const date=typeof a.seendate==='string'?a.seendate.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/,'$1-$2-$3T$4:$5:$6Z'):'';
- out.push({title:a.title.slice(0,300),url:key,source:url.hostname.replace(/^www\./,''),seenAt:Number.isFinite(Date.parse(date))?new Date(date).toISOString():''});if(out.length===8)break;
+ const image=typeof a.socialimage==='string'&&/^https?:\/\//i.test(a.socialimage)?a.socialimage.slice(0,2000):'';
+ out.push({title:a.title.slice(0,300),url:key,source:url.hostname.replace(/^www\./,''),seenAt:Number.isFinite(Date.parse(date))?new Date(date).toISOString():'',image});if(out.length===8)break;
  }return out;
 }
 export async function fetchCompanyNews(ticker:string){
@@ -46,7 +47,8 @@ export async function fetchNewsFeed(): Promise<{ items: FeedItem[]; checkedAt: n
     seen.add(key);
     const sd = a.seendate;
     const date = typeof sd === 'string' ? sd.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, '$1-$2-$3T$4:$5:$6Z') : '';
-    items.push({ ticker, title: (a.title as string).slice(0, 200), url: key, source: u.hostname.replace(/^www\./, ''), seenAt: Number.isFinite(Date.parse(date)) ? new Date(date).toISOString() : '' });
+    const image = typeof a.socialimage === 'string' && /^https?:\/\//i.test(a.socialimage) ? a.socialimage.slice(0, 2000) : '';
+    items.push({ ticker, title: (a.title as string).slice(0, 200), url: key, source: u.hostname.replace(/^www\./, ''), seenAt: Number.isFinite(Date.parse(date)) ? new Date(date).toISOString() : '', image });
     if (items.length === 20) break;
   }
   return { items, checkedAt: Date.now(), provider: 'GDELT' };
