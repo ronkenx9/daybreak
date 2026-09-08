@@ -845,3 +845,40 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 .db-wallet-copy{gap:8px}
 .db-acct-wallet-row strong{display:flex;align-items:center;gap:8px}
 .db-acct-wallet-row strong:before{content:"";width:8px;height:8px;border-radius:50%;background:#0f8a4d;flex:none}
+
+/* ── Always-on news ticker (news → stock → memecoin flywheel) ───────────── */
+.db-ticker{display:flex;align-items:stretch;gap:0;border:1px solid var(--db-line);background:#fff;border-radius:14px;overflow:hidden;margin-bottom:22px}
+.db-app[data-theme="dark"] .db-ticker{background:#141a2b;border-color:#283049}
+.db-ticker-badge{display:inline-flex;align-items:center;gap:7px;flex:none;padding:0 14px;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#fff;background:var(--db-blue);white-space:nowrap}
+.db-ticker-badge svg{animation:db-ticker-pulse 1.6s ease-in-out infinite}
+@keyframes db-ticker-pulse{0%,100%{opacity:.55}50%{opacity:1}}
+.db-ticker-viewport{flex:1;min-width:0;overflow:hidden;position:relative;-webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)}
+.db-ticker-track{display:inline-flex;align-items:center;white-space:nowrap;animation:db-ticker-scroll 60s linear infinite;will-change:transform}
+.db-ticker-viewport:hover .db-ticker-track{animation-play-state:paused}
+@keyframes db-ticker-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.db-ticker-item{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;font-size:13px;color:var(--db-ink);border-right:1px solid var(--db-line);max-width:520px}
+.db-app[data-theme="dark"] .db-ticker-item{border-right-color:#242c42}
+.db-ticker-item b{color:var(--db-blue);font-weight:700;font-size:12px;flex:none}
+.db-ticker-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.db-ticker-src{color:var(--db-muted);font-size:11px;flex:none}
+.db-ticker-item:hover .db-ticker-title{color:var(--db-blue)}
+@media(prefers-reduced-motion:reduce){.db-ticker-track{animation:none}.db-ticker-viewport{overflow-x:auto;-webkit-mask-image:none}}
+html[data-reduce-motion="true"] .db-ticker-track{animation:none}
+html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask-image:none}
+
+/* ── Interest onboarding ────────────────────────────────────────────────── */
+.db-onboard h2{font-family:DynaPuff,'Arial Rounded MT Bold',sans-serif;font-weight:500;font-size:26px;letter-spacing:-.6px;margin:8px 0 8px}
+.db-onboard>p{font-size:13px;line-height:1.6;color:var(--db-muted);margin-bottom:18px}
+.db-onboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.db-onboard-grid button{display:flex;flex-direction:column;gap:10px;align-items:flex-start;padding:14px;border:1px solid var(--db-line);border-radius:16px;background:#fff;transition:border-color .18s,background .18s,transform .18s}
+.db-app[data-theme="dark"] .db-onboard-grid button{background:#141a2b;border-color:#283049}
+.db-onboard-grid button:hover{transform:translateY(-2px);border-color:#c9d3f2}
+.db-onboard-grid button.selected{border-color:var(--db-blue);background:#eef1ff;box-shadow:0 0 0 1px var(--db-blue)}
+.db-app[data-theme="dark"] .db-onboard-grid button.selected{background:#1c2550;border-color:#33407a}
+.db-onboard-icons{display:inline-flex}
+.db-onboard-icons .db-token+.db-token{margin-left:-8px}
+.db-onboard-grid strong{font-size:14px;font-weight:600}
+.db-onboard-actions{display:flex;align-items:center;gap:16px;margin-top:20px}
+.db-onboard-actions .db-button{flex:1}
+.db-foryou-note{display:flex;align-items:center;gap:8px;margin:0 0 12px}
+.db-foryou-note .db-text-link{font-size:12px}
