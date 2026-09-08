@@ -839,3 +839,9 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 .db-mono-addr{font-family:var(--db-mono,ui-monospace,monospace);font-size:12px;color:var(--db-blue);font-weight:600}
 .db-lp-steps{margin:12px 0 4px;padding-left:20px;display:flex;flex-direction:column;gap:5px}
 .db-lp-steps li{font-size:12px;line-height:1.5;color:var(--db-muted)}
+
+/* ── Profile: your embedded Daybreak wallet ─────────────────────────────── */
+.db-acct-wallet-row code{font-family:var(--db-mono,ui-monospace,monospace);font-size:12px;color:var(--db-blue);font-weight:600}
+.db-wallet-copy{gap:8px}
+.db-acct-wallet-row strong{display:flex;align-items:center;gap:8px}
+.db-acct-wallet-row strong:before{content:"";width:8px;height:8px;border-radius:50%;background:#0f8a4d;flex:none}
