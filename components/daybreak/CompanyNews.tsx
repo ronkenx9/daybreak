@@ -27,7 +27,7 @@ export default function CompanyNews({ ticker, token, initialStory = null }: { ti
           <div className="db-news-image">{image ? <img src={image} alt="" onError={(event) => { event.currentTarget.style.display = 'none'; }}/> : <ImageIcon size={30}/>}</div>
           <div className="db-news-story-copy"><span>{selected.source}{selected.seenAt ? ` · ${new Date(selected.seenAt).toLocaleDateString()}` : ''}</span><h4>{selected.title}</h4><div className="db-news-summary"><strong>Summary</strong>{preview.isPending ? <p>Reading the publisher’s preview…</p> : <p>{preview.data?.summary || selected.title}</p>}</div><a className="db-text-link" href={selected.url} target="_blank" rel="noopener noreferrer">Read full article <ExternalLink size={15}/></a></div>
         </article>
-        <section className="db-news-market" aria-label={`${ticker} market response`}><div><span className="db-eyebrow">Market response</span><p>Price around the report</p></div><MemeChart token={token} eventTime={selected.seenAt}/><small>The news marker shows publication time on available pool data. Timing alone does not prove the story caused the move.</small></section>
+        <section className="db-news-market" aria-label={`${ticker} market response`}><div className="db-news-market-head"><span className="db-eyebrow">Market response</span><p>Price around the report</p></div><MemeChart token={token} eventTime={selected.seenAt}/><small>The news marker shows publication time on available pool data. Timing alone does not prove the story caused the move.</small></section>
       </div>
       <NewsDiscussion ticker={ticker} url={selected.url}/>
     </> : <MemeChart token={token}/>}
