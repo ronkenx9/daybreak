@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   icons: {
     icon: '/assets/daybreak-icon.svg',
   },
+  // Base app-domain ownership verification (Base Build "Add Domain" step).
+  other: {
+    'base:app_id': '6a9eb0205538a47d1b071bdf',
+  },
 };
 
 export const viewport: Viewport = {
