@@ -1,7 +1,7 @@
 import 'server-only';
 import {createHmac} from 'node:crypto';
 import {HttpError} from '@/lib/account/auth-server';
-export const MUSE_ORIGIN='https://musemirror.app';
+export const MUSE_ORIGIN=process.env.MUSE_ORIGIN?.trim()||'https://musemirror.app';
 export async function museRequest(userId:string,body:Record<string,unknown>,idempotencyKey?:string){
  const secret=process.env.MUSE_DAYBREAK_SECRET?.trim();
  if(!secret||secret.length<32)throw new HttpError(503,'Creation is being connected. Please try again shortly.');
