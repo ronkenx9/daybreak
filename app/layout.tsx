@@ -4,6 +4,7 @@ import './daybreak.css';
 import Motion from '@/components/daybreak/Motion';
 import Web3Provider from '@/components/daybreak/Web3Provider';
 import AccountProvider from '@/components/daybreak/AccountProvider';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: 'Daybreak — A new day. A little more yours.',
@@ -53,6 +54,7 @@ setTimeout(function(){if(r.dataset.dbMotionReady!=='1')r.classList.remove('db-mo
         <AccountProvider>
           <Web3Provider>{children}</Web3Provider>
         </AccountProvider>
+        <Analytics />
         <Motion />
       </body>
     </html>
