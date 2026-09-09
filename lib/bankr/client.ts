@@ -56,8 +56,8 @@ export async function bankrFetch<T>(path: string, init: { method?: string; body?
   }
 }
 
-// Typed wrappers. Base is always forced. These are ready but inert until a key
-// is configured AND the wallet mode is proven live (see the capability matrix).
+// Typed wrappers. Base is always forced, and every request fails closed until
+// a Bankr key is configured.
 export const swapQuote = (req: Omit<SwapQuoteRequest, 'fromChain' | 'toChain'>) =>
   bankrFetch<SwapQuote>('/wallet/swap-quote', { method: 'POST', body: { ...req, fromChain: BANKR_CHAIN, toChain: BANKR_CHAIN } });
 

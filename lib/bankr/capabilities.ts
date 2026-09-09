@@ -1,9 +1,8 @@
 import 'server-only';
 import { isBankrConfigured, BANKR_AUTH_MODE, BANKR_CHAIN, BASE_CHAIN_ID } from './config';
 
-// Public capability flags (no secrets). Trading and launches stay OFF until the
-// live Phase 0 proofs land (wallet mode + stock allowlist). Discovery is on
-// because it runs on Dexscreener, independent of Bankr credentials.
+// Public capability flags contain no secrets. Discovery runs on Dexscreener;
+// Bankr-backed preview and launch routes are available only when configured.
 export interface BankrCapabilities {
   configured: boolean;
   authMode: BankrAuthModePublic;
@@ -28,12 +27,12 @@ export function getCapabilities(): BankrCapabilities {
     discovery: true,
     quoting: isBankrConfigured,
     trading: false, // enable only after live wallet-mode proof
-    launches: false, // enable only after live stock-allowlist + wallet proof
+    launches: isBankrConfigured,
     launchFee: { allInPct: 1.75, creatorPct: 0.665 },
     launchSupply: 100_000_000_000,
     notes: [
       'Chain is always Base (8453); the provider default Robinhood chain is never used.',
-      'Live stock quoting is enabled when configured. Execution and community-token launches remain disabled until per-user Bankr wallet authority is proven.',
+      'Stock-paired community-token previews and launches are enabled when Bankr is configured. Every creator signs in with a verified wallet, previews first, and explicitly confirms deployment.',
     ],
   };
 }

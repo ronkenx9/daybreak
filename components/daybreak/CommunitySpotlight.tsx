@@ -19,7 +19,7 @@ export default function CommunitySpotlight({ compact = false }: { compact?: bool
         <div className="db-spotlight-art"><Avatar seed={item.seed} size={compact ? 92 : 128}/><StockIcon ticker={item.stock} size={compact ? 38 : 48}/></div>
         <div className="db-spotlight-copy"><span>{item.stock} circle</span><h3>{item.name}</h3><p>{item.art}</p></div>
         <div className="db-spotlight-score"><strong>{item.score}</strong><span>live points</span></div>
-        <Link href="/app/groups" className="db-button db-spotlight-action"><Sparkles size={16}/> Create with this community</Link>
+        <Link href={`/app/launch?stock=${item.stock}`} className="db-button db-spotlight-action"><Sparkles size={16}/> Launch with this community</Link>
       </article>)}
     </div>
     <p className="db-spotlight-note">Spotlight is a promotional creative-activity board. Scores do not measure investment quality or expected returns. Live scoring activates with the first settled Muse generation.</p>

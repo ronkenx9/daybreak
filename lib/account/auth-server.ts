@@ -42,6 +42,19 @@ export async function requireUser(req: Request) {
   return requireActiveAccount(await resolveUser(claims.userId));
 }
 
+// Resolve the EVM fee wallet from Privy's verified identity, never from a
+// browser-supplied address. Launch creator fees are bound to this wallet.
+export async function requireUserWithWallet(req: Request) {
+  const user = await requireUser(req);
+  let identity;
+  try { identity = await privy().getUserById(user.privyDid); }
+  catch { throw new HttpError(503, 'Your verified wallet could not be loaded'); }
+  const candidate = identity.wallet ?? identity.linkedAccounts.find((account) => account.type === 'wallet' && account.chainType === 'ethereum');
+  const address = candidate && 'address' in candidate ? candidate.address : '';
+  if (!/^0x[0-9a-f]{40}$/i.test(address)) throw new HttpError(409, 'Link an Ethereum wallet to your Daybreak account before launching');
+  return { user, walletAddress: address.toLowerCase() };
+}
+
 export async function readJsonObject(req: Request, maxBytes = 16_384): Promise<Record<string, unknown>> {
   const declared = Number(req.headers.get('content-length') ?? 0);
   if (Number.isFinite(declared) && declared > maxBytes) throw new HttpError(413, 'Request body is too large');

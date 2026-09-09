@@ -2,7 +2,8 @@
 import {useState} from 'react';
 import {useQuery} from '@tanstack/react-query';
 import {tokenForTicker} from '@/lib/base/tokens';
-import {ArrowLeft} from 'lucide-react';
+import Link from 'next/link';
+import {ArrowLeft, Rocket} from 'lucide-react';
 import MemestockDetail,{type MemeTokenData} from './MemestockDetail';
 import MemestockTable from './MemestockTable';
 
@@ -18,7 +19,7 @@ export default function Memestocks({ticker}:{ticker:string}){
  if(!tok) return <section className="db-memestocks"><p className="db-small-note">Memestocks pair against a tokenized stock. {ticker} isn’t tokenized on Base yet, so there’s nothing to pair against.</p></section>;
  if(sel) return <section className="db-memestocks"><button className="db-text-link db-meme-back" onClick={()=>setSel(null)}><ArrowLeft size={15}/> All memestocks</button><MemestockDetail token={sel} pairedWith={tok.onchainSymbol} companyName={tok.name}/></section>;
 
- return <section className="db-memestocks"><div className="db-section-heading"><h3>Community memestocks</h3><button className="db-text-link" disabled={q.isFetching} onClick={()=>void q.refetch()}>{q.isFetching?'Loading…':'Refresh'}</button></div>
+ return <section className="db-memestocks"><div className="db-section-heading"><h3>Community memestocks</h3><div className="db-meme-actions"><Link className="db-text-link" href={`/app/launch?stock=${ticker}`}><Rocket size={15}/> Launch one</Link><button className="db-text-link" disabled={q.isFetching} onClick={()=>void q.refetch()}>{q.isFetching?'Loading…':'Refresh'}</button></div></div>
   <p className="db-small-note">Meme tokens that paired liquidity against {tok.onchainSymbol} on Base. Not {tok.name} or its stock — independent, speculative, high-risk.</p>
   {q.isPending&&<p role="status">Reading Base liquidity pools…</p>}
   {q.isError&&<p role="status">Memestock data is temporarily unavailable.</p>}

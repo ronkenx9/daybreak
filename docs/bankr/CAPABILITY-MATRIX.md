@@ -1,6 +1,6 @@
 # Bankr capability matrix — Phase 0 (package A)
 
-Status: **application execution not live-proven.** September 8 inspection confirms `BANKR_API_KEY` is set in `.env.local`; the previous claim that no credentials were configured was stale. Existing brain notes record an earlier successful read-only wallet check. A fresh read-only `GET /wallet/me` check on September 8 returned HTTP 200 using the configured key; no secrets or wallet details were printed and no transaction was submitted. The unfinished work is per-user wallet authority and connecting the adapter to app quote/execute/launch routes and UI. See [concrete implementation plan](../DAYBREAK-APP-IMPLEMENTATION-PLAN.md). Findings below were read from Bankr docs on September 6 and require current endpoint-specific verification before execution.
+Status: **stock-paired launch simulation is live-proven; deployment is wired but intentionally not test-broadcast.** On September 9 the configured user key returned a successful `simulateOnly:true` Base response with a predicted token address, Uniswap v4 pool ID, and fee roles for an AAPL-paired launch. Daybreak now exposes authenticated preview and deployment routes plus `/app/launch`; the deploy route requires the exact saved preview, a verified Privy wallet, and an explicit final confirmation. No token was created during verification.
 
 ## Verified from documentation
 
@@ -19,7 +19,7 @@ Status: **application execution not live-proven.** September 8 inspection confir
 - **Tokenized-stock swaps require a location check at execution** (`403` without clearance). Quotes are NOT gated — a successful quote is not execution clearance.
 
 ### Deploy — `POST /token-launches/deploy`
-- Req: `chain` (**default `"robinhood"` / chain 4663 — we must send `"base"`**; also `arbitrum`), `name`, `symbol`, `supply`, `feeRecipient{type:"wallet"|"x"|"farcaster"|"ens"}`, `pairedTokenAddress` (Base user-key only, allowlisted), `pairedStockAddress` (**mutually exclusive with `pairedTokenAddress`**), `quoteOnlyFees`, `degenMode`, `simulateOnly`.
+- Current request: `chain` (**Daybreak always sends `"base"`**), `tokenName`, `tokenSymbol`, `description`, optional `image`, `tweetUrl`, and `websiteUrl`, `feeRecipient`, `pairedStockAddress`, `quoteOnlyFees`, and `simulateOnly`.
 - Resp: `txHash` (omitted when `simulateOnly:true`), deployed token address, "Uniswap v4 pool ID", `feeDistribution`, chain id, status.
 - Quota: **3 counted launch attempts per rolling 24h per signing wallet.** Non-partner early cap: 2% of supply for first 5 min. On Base all three attempts are gas-sponsored.
 
@@ -35,16 +35,16 @@ Status: **application execution not live-proven.** September 8 inspection confir
 ### Errors (both surfaces)
 `400` invalid/unsupported/insufficient/price-impact · `401` auth · `403` banned token / failed location check / wallet protection limit · `409` duplicate idempotencyKey still processing · `502/503/504` availability.
 
-## Open items — require live credentials (do NOT assume; keep disabled until proven)
+## Open items
 1. **Wallet mode.** Docs don't fully specify how wallets are provisioned/associated. Two candidates:
    - *User/partner API key acting on its wallet* — but a single shared Daybreak key must never be a pooled customer trading wallet.
    - *Privy-JWT web mode* — unproven whether Bankr accepts **Daybreak's** Privy app JWT (Bankr likely runs its own Privy app). Must test.
    Decision blocked until we prove per-user signing authority. Until then: external Uniswap handoff stays the fallback.
-2. **Supported B20 stock allowlist** for `pairedStockAddress` (and for stock swaps) per auth mode.
+2. **Full B20 stock allowlist.** AAPL simulation is proven; every other Daybreak stock remains subject to Bankr validation at preview time.
 3. **Partner fee-split configuration** and whether org launches can set both creator and Daybreak recipients.
 4. **IP allowlist** operational requirement for write endpoints (server egress IP).
 5. **Webhook signing/replay contract** (not documented here) — `POST /api/integrations/bankr/webhook` stays off until verified.
-6. Live `simulateOnly` launch fixture + one stock swap quote fixture (Phase 0 steps 4–5).
+6. One deliberately chosen production launch and one stock swap execution fixture; neither should be created as an automated test.
 
 ## Consequence for the build (package B, this session)
-Build the typed adapter, capability flags and durable operation schema **fail-closed**: no BANKR key → `configured:false`, every call refused, UI capability flags off, external handoff retained. Always set `chain:"base"` and verify receipt chain id 8453. Treat quote and execution as distinct; never mark success without `success:true` + reconciliation. Store money as raw integer strings + explicit decimals.
+The typed adapter, capability flags and durable operation schema fail closed: no Bankr key means `configured:false` and every provider call is refused. Launch preview and deployment are separate, saved operations; only `success:true` with a transaction hash becomes a confirmed launch. Daybreak always sends `chain:"base"`.

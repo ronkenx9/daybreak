@@ -1,10 +1,10 @@
 import 'server-only';
 import { and, count, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { getDb } from './client';
-import { users, profiles, bookmarks, circles, circleMemberships, migrationImports, circleDiscoveries, discoverySaves, userBlocks, contentReports, newsComments } from './schema';
+import { users, profiles, bookmarks, circles, circleMemberships, migrationImports, circleDiscoveries, discoverySaves, userBlocks, contentReports, newsComments, operations, tokenLaunches } from './schema';
 import { CIRCLES, CIRCLE_SLUGS } from './circles';
 import { DISCOVERY_CATALOG } from '@/lib/catalog';
-import { TOKENS } from '@/lib/base/tokens';
+import { TOKENS, tokenForTicker } from '@/lib/base/tokens';
 
 const COMPANY_ID = /^[a-z0-9_.-]{1,64}$/i;
 const SAVABLE_COMPANY_IDS = new Set([...TOKENS.map((t) => t.ticker), ...DISCOVERY_CATALOG.map((item) => item.id)]);
@@ -239,4 +239,57 @@ export async function createNewsComment(userId: string, input: { articleKey: str
 export async function removeNewsComment(userId: string, id: string) {
   const db = getDb();
   await db.update(newsComments).set({ status: 'removed' }).where(and(eq(newsComments.id, id), eq(newsComments.userId, userId)));
+}
+
+export async function recordLaunchSimulation(input: {
+  userId: string; idempotencyKey: string; intentHash: string; ticker: string;
+  feeRecipient: string; fingerprint: string; tokenAddress: string; poolId: string; allocation: string;
+}) {
+  const db = getDb();
+  return db.transaction(async (tx) => {
+    const [operation] = await tx.insert(operations).values({
+      userId: input.userId, kind: 'launch', idempotencyKey: input.idempotencyKey,
+      intentHash: input.intentHash, status: 'quoted', providerRef: input.tokenAddress,
+    }).onConflictDoNothing().returning({ id: operations.id });
+    if (!operation) throw new Error('DUPLICATE_LAUNCH_INTENT');
+    const stock = tokenForTicker(input.ticker);
+    const [launch] = await tx.insert(tokenLaunches).values({
+      operationId: operation.id, creatorUserId: input.userId,
+      quoteAsset: stock?.token.toLowerCase(), supply: '100000000000',
+      allocation: input.allocation, feeRecipient: input.feeRecipient,
+      simulationFingerprint: input.fingerprint, tokenAddress: input.tokenAddress,
+      poolRef: input.poolId, status: 'simulated',
+    }).returning({ id: tokenLaunches.id });
+    return { operationId: operation.id, launchId: launch.id };
+  });
+}
+
+export async function getLaunchIntent(userId: string, idempotencyKey: string) {
+  const db = getDb();
+  const [row] = await db.select({
+    operationId: operations.id, intentHash: operations.intentHash,
+    operationStatus: operations.status, launchId: tokenLaunches.id,
+    fingerprint: tokenLaunches.simulationFingerprint,
+  }).from(operations).innerJoin(tokenLaunches, eq(tokenLaunches.operationId, operations.id))
+    .where(and(eq(operations.userId, userId), eq(operations.idempotencyKey, idempotencyKey), eq(operations.kind, 'launch'))).limit(1);
+  return row ?? null;
+}
+
+export async function claimLaunchForDeployment(operationId: string, launchId: string) {
+  const db = getDb(); const now = new Date();
+  return db.transaction(async (tx) => {
+    const claimed = await tx.update(operations).set({ status: 'submitted', updatedAt: now })
+      .where(and(eq(operations.id, operationId), eq(operations.status, 'quoted'))).returning({ id: operations.id });
+    if (!claimed.length) return false;
+    await tx.update(tokenLaunches).set({ status: 'submitted', updatedAt: now }).where(eq(tokenLaunches.id, launchId));
+    return true;
+  });
+}
+
+export async function setLaunchStatus(input: { operationId: string; launchId: string; status: string; txHash?: string; tokenAddress?: string; poolId?: string; errorClass?: string }) {
+  const db = getDb(); const now = new Date();
+  await db.transaction(async (tx) => {
+    await tx.update(operations).set({ status: input.status, txHash: input.txHash, errorClass: input.errorClass, updatedAt: now }).where(eq(operations.id, input.operationId));
+    await tx.update(tokenLaunches).set({ status: input.status, tokenAddress: input.tokenAddress, poolRef: input.poolId, updatedAt: now }).where(eq(tokenLaunches.id, input.launchId));
+  });
 }
