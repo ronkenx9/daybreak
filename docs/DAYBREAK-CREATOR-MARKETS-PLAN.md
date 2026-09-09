@@ -1,5 +1,7 @@
 # Daybreak × Muse — Creator-led stock markets
 
+> **Positioning:** Daybreak = where a news moment about a stock becomes a meme you can create and launch in one tap.
+
 > Saved September 8, 2026. Owner endorsed the direction and requested this plan. This is a product and execution proposal, not authorization to launch tokens, spend funds, or change production. Features below are planned unless explicitly identified as existing foundations.
 
 **Implementation started:** Daybreak now has the stocks-first entry, an in-app live Bankr stock quote, and a bounded Community Spotlight zero state. Muse delivery, score persistence, signed trades and creator launches are not yet connected.
