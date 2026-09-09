@@ -916,3 +916,36 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-create-news-row button:hover{border-color:#c9d3f2;transform:translateY(-2px)}
 .db-create-news-row button strong{font-size:11px;color:var(--db-blue);font-weight:700}
 .db-create-news-row button span{font-size:12px;color:var(--db-ink);line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+
+/* ══ Polish pass: real-world layered shadows + smooth motion ═════════════ */
+:root{
+  --db-ease:cubic-bezier(.2,.8,.2,1);
+  /* Single soft light from above, tinted with the brand navy, layered. */
+  --db-shadow-sm:0 1px 2px rgba(22,52,104,.05), 0 3px 9px rgba(22,52,104,.05);
+  --db-shadow-md:0 1px 2px rgba(22,52,104,.05), 0 7px 18px rgba(22,52,104,.07), 0 18px 40px rgba(22,52,104,.07);
+  --db-shadow-lg:0 2px 6px rgba(22,52,104,.06), 0 14px 32px rgba(22,52,104,.09), 0 34px 64px rgba(22,52,104,.11);
+}
+.db-app[data-theme="dark"]{
+  --db-shadow-sm:0 1px 2px rgba(0,0,0,.35), 0 4px 12px rgba(0,0,0,.35);
+  --db-shadow-md:0 1px 2px rgba(0,0,0,.4), 0 8px 20px rgba(0,0,0,.45), 0 20px 44px rgba(0,0,0,.5);
+  --db-shadow-lg:0 3px 8px rgba(0,0,0,.45), 0 16px 36px rgba(0,0,0,.55), 0 40px 72px rgba(0,0,0,.6);
+}
+/* Resting depth + one smooth easing curve for the surfaces you touch. */
+.db-company-card,.db-card,.db-earn-card,.db-circle-row,.db-saved-list>button,.db-disc-item,.db-meme-table-wrap,.db-meme-chart,.db-group-card,
+.db-app[data-theme="dark"] .db-company-card,.db-app[data-theme="dark"] .db-company-card:nth-child(2n),.db-app[data-theme="dark"] .db-earn-card,.db-app[data-theme="dark"] .db-disc-item,.db-app[data-theme="dark"] .db-meme-chart,.db-app[data-theme="dark"] .db-group-card{box-shadow:var(--db-shadow-sm);transition:transform .32s var(--db-ease),box-shadow .32s var(--db-ease),background .28s var(--db-ease),border-color .28s var(--db-ease)}
+.db-company-card:hover,.db-card:hover,.db-earn-card:hover,.db-group-card:hover,.db-disc-item:hover,
+.db-app[data-theme="dark"] .db-company-card:hover,.db-app[data-theme="dark"] .db-earn-card:hover{box-shadow:var(--db-shadow-md);transform:translateY(-3px)}
+.db-leaderboard,.db-holdings-summary,.db-profile-card,.db-preferences,.db-circle-callout,.db-app-feature,
+.db-app[data-theme="dark"] .db-leaderboard,.db-app[data-theme="dark"] .db-holdings-summary,.db-app[data-theme="dark"] .db-profile-card,.db-app[data-theme="dark"] .db-preferences,.db-app[data-theme="dark"] .db-circle-callout{box-shadow:var(--db-shadow-md)}
+.db-company-dialog,.db-app[data-theme="dark"] .db-company-dialog{box-shadow:var(--db-shadow-lg)}
+.db-button{transition:transform .24s var(--db-ease),box-shadow .24s var(--db-ease),background .2s var(--db-ease)}
+.db-button:hover{transform:translateY(-2px);box-shadow:var(--db-shadow-md)}
+.db-button:active,.db-company-card:active{transition-duration:.08s}
+
+/* ── Selects: remove native OS chrome, add a clean chevron ──────────────── */
+.db-app select{-webkit-appearance:none;-moz-appearance:none;appearance:none;cursor:pointer;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%23657089" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>');background-repeat:no-repeat;background-position:right 4px center;padding-right:26px}
+.db-app select:focus-visible{outline:2px solid var(--db-blue);outline-offset:2px}
+.db-app[data-theme="dark"] select{background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%2395a1bd" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>')}
+/* The inline "Creating for" / "Pay with" selects get a soft pill so they read as tappable. */
+.db-create-stock select,.db-create-currency select{border:1px solid var(--db-line);border-radius:11px;background-color:#f8faff;padding:8px 26px 8px 12px}
+.db-app[data-theme="dark"] .db-create-stock select,.db-app[data-theme="dark"] .db-create-currency select{background-color:#1b2236;border-color:#2f3a58}
