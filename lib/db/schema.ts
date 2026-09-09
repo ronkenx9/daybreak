@@ -280,3 +280,15 @@ export const feeObservations = pgTable('fee_observations', {
   claimableRaw: text('claimable_raw'),
   observedAt: timestamp('observed_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({ launchLookup: index('fee_observations_launch_idx').on(t.launchId) }));
+
+export const museCreations = pgTable('muse_creations', {
+ id: uuid('id').primaryKey(),
+ userId: uuid('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),
+ ticker: text('ticker').notNull(), capsuleId: text('capsule_id').notNull(),
+ fingerprint: text('fingerprint').notNull(), status: text('status').notNull().default('pending'),
+ image: text('image'), receipt: text('receipt').unique(), error: text('error'),
+ public: boolean('public').notNull().default(false), eligible: boolean('eligible').notNull().default(false),
+ createdAt: timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
+ updatedAt: timestamp('updated_at',{withTimezone:true}).notNull().defaultNow(),
+ completedAt: timestamp('completed_at',{withTimezone:true}),
+},t=>({userLookup:index('muse_creations_user_idx').on(t.userId,t.createdAt)}));

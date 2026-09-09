@@ -1,6 +1,6 @@
 'use client';
 
-import { PrivyProvider, usePrivy } from '@privy-io/react-auth';
+import { PrivyProvider, usePrivy, useWallets } from '@privy-io/react-auth';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { PRIVY_APP_ID, isAuthConfigured } from '@/lib/account/config';
 
@@ -22,13 +22,14 @@ export interface AccountState {
   login: (method?: LoginMethod) => void;
   logout: () => void;
   linkWallet: () => void;
+  payCreationTransfer: (transaction: {to:string;value:string;data:string}) => Promise<string>;
 }
 
 // Default = anonymous. This is what the app sees when auth isn't configured, so
 // every consumer works without a Privy provider mounted above it.
 const ANON: AccountState = {
   configured: false, ready: true, authenticated: false, user: null,
-  login() {}, logout() {}, linkWallet() {},
+  login() {}, logout() {}, linkWallet() {}, payCreationTransfer: async () => { throw new Error("Sign in first"); },
 };
 
 const AccountContext = createContext<AccountState>(ANON);
@@ -36,6 +37,7 @@ export const useAccountState = () => useContext(AccountContext);
 
 function AccountBridge({ children }: { children: ReactNode }) {
   const { ready, authenticated, user, login, logout, linkWallet } = usePrivy();
+  const {wallets} = useWallets();
   const value = useMemo<AccountState>(() => {
     // Privy's User shape varies by linked method; read it defensively.
     const u = user as any;
@@ -52,8 +54,25 @@ function AccountBridge({ children }: { children: ReactNode }) {
       login: (method) => login(method ? ({ loginMethods: [method] } as never) : undefined),
       logout: () => logout(),
       linkWallet: () => linkWallet(),
+      payCreationTransfer: async ({to,value,data}) => {
+        const val=BigInt(value||'0');
+        if (val>0n) {
+          // Native ETH: only the request marker as data, and capped at 0.1 ETH so
+          // a bug can never overspend on a fee that is only cents/dollars.
+          if(!/^0x[a-f0-9]{40}$/i.test(to)||!/^0x[a-f0-9]{64}$/i.test(data)||val>10n**17n)throw new Error('Invalid creation payment');
+        } else {
+          if(!['0x833589fcd6edb6e08f4c7c32d4f71b54bda02913','0xfde4c96c8593536e31f229ea8f37b2ada2699bb2'].includes(to.toLowerCase())||!/^0xa9059cbb[0-9a-f]{192}$/i.test(data))throw new Error('Invalid creation payment');
+        }
+        const signer=wallets.find(w=>w.address.toLowerCase()===wallet?.toLowerCase());
+        if(!signer)throw new Error('Your Daybreak wallet is still loading. Try again shortly.');
+        await signer.switchChain(8453);
+        const provider=await signer.getEthereumProvider();
+        const hash=await provider.request({method:'eth_sendTransaction',params:[{from:signer.address,to,data,value:val>0n?`0x${val.toString(16)}`:'0x0',chainId:'0x2105'}]});
+        if(typeof hash!=='string'||!/^0x[a-f0-9]{64}$/i.test(hash))throw new Error('Wallet did not return a payment transaction');
+        return hash;
+      },
     };
-  }, [ready, authenticated, user, login, logout, linkWallet]);
+  }, [ready, authenticated, user, login, logout, linkWallet, wallets]);
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;
 }
 

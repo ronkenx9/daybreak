@@ -50,6 +50,13 @@
       "when": 1788899331608,
       "tag": "0006_news_comments_security",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788958000000,
+      "tag": "0007_muse_creations",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { ArrowRight, Check, ExternalLink, LoaderCircle, Rocket, ShieldCheck, Sparkles } from 'lucide-react';
 import { authedFetch } from '@/lib/account/api-client';
 import { TOKENS } from '@/lib/base/tokens';
@@ -23,7 +24,9 @@ export default function LaunchPortal() {
   const [draft, setDraft] = useState(initial); const [preview, setPreview] = useState<Preview | null>(null);
   const [result, setResult] = useState<Result | null>(null); const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState<'preview' | 'launch' | null>(null); const [error, setError] = useState('');
+  useEffect(() => { try{const saved=JSON.parse(sessionStorage.getItem('daybreak-launch-draft')||'null');if(saved&&typeof saved.tokenName==='string')setDraft({...initial,...saved});}catch{} },[]);
   useEffect(() => { const ticker = new URLSearchParams(window.location.search).get('stock')?.toUpperCase(); if (ticker && TOKENS.some((token) => token.ticker === ticker)) setDraft((value) => ({ ...value, ticker })); }, []);
+  useEffect(() => { const id = new URLSearchParams(location.search).get('creation'); if(!id || !account.authenticated || !/^[a-f0-9-]{36}$/i.test(id))return; void authedFetch<{public:boolean;status:string}>(`/api/muse/jobs/${id}`).then(job=>{if(job.public&&job.status==='completed')setDraft(value=>({...value,image:`https://www.daybreakcircles.lol/api/muse/art/${id}`}));}).catch(()=>setError('The selected artwork could not be loaded.')); },[account.authenticated]);
   const stock = useMemo(() => TOKENS.find((token) => token.ticker === draft.ticker) ?? TOKENS[0], [draft.ticker]);
   const update = <K extends keyof Draft>(key: K, value: Draft[K]) => { setDraft((current) => ({ ...current, [key]: value })); setPreview(null); setConfirmed(false); setError(''); };
   const valid = draft.tokenName.trim().length >= 2 && /^[A-Z0-9]{2,10}$/.test(draft.tokenSymbol) && draft.description.trim().length >= 10;
@@ -59,6 +62,8 @@ export default function LaunchPortal() {
         <div className="db-launch-section-head"><span>01</span><div><h3>Name the idea.</h3><p>Keep it immediate. People should understand the joke or community in one glance.</p></div></div>
         <div className="db-launch-fields two"><label><span>Token name</span><input required minLength={2} maxLength={100} value={draft.tokenName} onChange={(event) => update('tokenName', event.target.value)} placeholder="Everything Is Fine"/></label><label><span>Symbol</span><input required minLength={2} maxLength={10} value={draft.tokenSymbol} onChange={(event) => update('tokenSymbol', event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} placeholder="FINE"/></label></div>
         <div className="db-launch-fields"><label><span>What is it?</span><textarea required minLength={10} maxLength={500} value={draft.description} onChange={(event) => update('description', event.target.value)} placeholder="The community token for people watching the world burn beautifully."/></label></div>
+        <Link className="db-launch-muse" onClick={()=>sessionStorage.setItem('daybreak-launch-draft',JSON.stringify(draft))} href={`/app/create?stock=${draft.ticker}`}><Sparkles size={22}/><span><strong>Give your token a visual world.</strong><small>Create its artwork with Muse, right here in Daybreak.</small></span><ArrowRight size={18}/></Link>
+        {draft.image.startsWith('https://www.daybreakcircles.lol/api/muse/art/')&&<img className="db-launch-art-preview" src={draft.image} alt="Selected Muse artwork"/>}
         <div className="db-launch-fields two"><label><span>Artwork URL <small>optional</small></span><input type="url" value={draft.image} onChange={(event) => update('image', event.target.value)} placeholder="https://…"/></label><label><span>Project website <small>optional</small></span><input type="url" value={draft.websiteUrl} onChange={(event) => update('websiteUrl', event.target.value)} placeholder="https://…"/></label></div>
 
         <div className="db-launch-section-head"><span>02</span><div><h3>Choose its market.</h3><p>The token trades against the stock you select, rather than only ETH or USDC.</p></div></div>

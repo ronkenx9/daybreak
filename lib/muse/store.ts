@@ -1,0 +1,11 @@
+import 'server-only';
+import {sql} from 'drizzle-orm';
+import {getDb} from '@/lib/db/client';
+export async function job(userId:string,id:string){const rows=await getDb().execute(sql`SELECT id,status,ticker,capsule_id,image,error,public,eligible,created_at FROM muse_creations WHERE id=${id}::uuid AND user_id=${userId}::uuid`);return rows[0]??null;}
+export async function createJob(userId:string,id:string,ticker:string,capsuleId:string,fingerprint:string){const rows=await getDb().execute(sql`INSERT INTO muse_creations(id,user_id,ticker,capsule_id,fingerprint) VALUES (${id}::uuid,${userId}::uuid,${ticker},${capsuleId},${fingerprint}) ON CONFLICT DO NOTHING RETURNING id`);return rows.length>0;}
+export async function completeJob(userId:string,id:string,image:string,receipt:string,eligible:boolean){await getDb().execute(sql`UPDATE muse_creations SET status='completed',image=${image},receipt=${receipt},eligible=${eligible},completed_at=NOW() WHERE id=${id}::uuid AND user_id=${userId}::uuid AND status='pending'`);}
+export async function failJob(userId:string,id:string,error:string){await getDb().execute(sql`UPDATE muse_creations SET status='failed',error=${error} WHERE id=${id}::uuid AND user_id=${userId}::uuid AND status='pending'`);}
+export async function publishJob(userId:string,id:string){const rows=await getDb().execute(sql`UPDATE muse_creations SET public=true WHERE id=${id}::uuid AND user_id=${userId}::uuid AND status='completed' RETURNING id`);return rows.length>0;}
+export async function publicArt(id:string){const rows=await getDb().execute(sql`SELECT image FROM muse_creations WHERE id=${id}::uuid AND public=true AND status='completed'`);return rows[0]?.image as string|undefined;}
+export async function spotlight(){return getDb().execute(sql`SELECT ticker,COUNT(*)::int AS score FROM muse_creations WHERE status='completed' AND eligible=true AND completed_at>NOW()-INTERVAL '24 hours' GROUP BY ticker ORDER BY score DESC`);}
+export async function retryJob(userId:string,id:string,fingerprint:string){const rows=await getDb().execute(sql`UPDATE muse_creations SET status='pending',error=NULL,updated_at=NOW() WHERE id=${id}::uuid AND user_id=${userId}::uuid AND fingerprint=${fingerprint} AND (status='failed' OR (status='pending' AND updated_at<NOW()-INTERVAL '6 minutes')) RETURNING id`);return rows.length>0;}
