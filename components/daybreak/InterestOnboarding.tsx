@@ -28,7 +28,7 @@ export default function InterestOnboarding({ initial = [], onDone }: { initial?:
       <div className="db-onboard">
         <span className="db-micro">Welcome to Daybreak</span>
         <h2>What are you into?</h2>
-        <p>Pick a few and we’ll bring those companies — and their circles — to the front. You can change this anytime in your profile.</p>
+        <p>Tap what you’re into and we’ll put those stocks up top. Change it whenever.</p>
         <div className="db-onboard-grid">
           {INTERESTS.map((it) => (
             <button key={it.id} type="button" aria-pressed={sel.includes(it.id)} className={sel.includes(it.id) ? 'selected' : ''} onClick={() => toggle(it.id)}>
@@ -38,8 +38,8 @@ export default function InterestOnboarding({ initial = [], onDone }: { initial?:
           ))}
         </div>
         <div className="db-onboard-actions">
-          <button className="db-button db-blue-button" disabled={sel.length === 0} onClick={() => onDone(sel)}>Show my daybreak</button>
-          <button className="db-text-link" onClick={() => onDone(initial)}>Skip for now</button>
+          <button className="db-button db-blue-button" disabled={sel.length === 0} onClick={() => onDone(sel)}>See my stocks</button>
+          <button className="db-text-link" onClick={() => onDone(initial)}>Skip</button>
         </div>
       </div>
     </Dialog>

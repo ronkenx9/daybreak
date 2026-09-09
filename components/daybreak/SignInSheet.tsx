@@ -19,7 +19,7 @@ export default function SignInSheet({ onClose }: { onClose: () => void }) {
       <div className="db-signin">
         <span className="db-micro">Your Daybreak account</span>
         <h2>Keep what you discover.</h2>
-        <p>Save companies, join circles, and carry them across devices. Looking around stays open — no account needed to explore.</p>
+        <p>Save companies, join circles, and carry them across devices. You can keep looking around without one.</p>
         {configured ? (
           <div className="db-signin-methods">
             {METHODS.map((m) => (
