@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   description:
     'Discover the companies behind your everyday, explore stock circles, and make Daybreak your own.',
   icons: {
-    icon: '/assets/daybreak-icon.svg',
+    icon: '/assets/daybreak-icon-v2.svg',
   },
   // Base app-domain ownership verification (Base Build "Add Domain" step).
   other: {

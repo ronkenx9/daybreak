@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Daybreak</title>
+  <path d="M14 4h26c6.627 0 12 5.373 12 12v2L18 52h-4C7.373 52 2 46.627 2 40V16C2 9.373 7.373 4 14 4Z" fill="#0210EF"/>
+  <path d="M60 18v30c0 6.627-5.373 12-12 12H18l42-42Z" fill="#111C36"/>
+</svg>

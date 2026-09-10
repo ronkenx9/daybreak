@@ -2,7 +2,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import {useEffect,useRef} from 'react';
-export function Wordmark({light=false}:{light?:boolean}){return <Link href="/" aria-label="Daybreak home" className={`db-wordmark ${light?'is-light':''}`}>daybreak<span className="db-logo-sun" aria-hidden="true">✳</span></Link>}
+export function BrandMark({size=30}:{size?:number}){return <svg className="db-brand-mark" width={size} height={size} viewBox="0 0 64 64" aria-hidden="true"><path className="db-brand-mark-primary" d="M14 4h26c6.627 0 12 5.373 12 12v2L18 52h-4C7.373 52 2 46.627 2 40V16C2 9.373 7.373 4 14 4Z"/><path className="db-brand-mark-secondary" d="M60 18v30c0 6.627-5.373 12-12 12H18l42-42Z"/></svg>}
+export function Wordmark({light=false}:{light?:boolean}){return <Link href="/" aria-label="Daybreak home" className={`db-wordmark ${light?'is-light':''}`}><BrandMark/><span>daybreak</span></Link>}
 export const HEADWEAR=[
  {id:'midnight',name:'Midnight trapper',stock:'AAPL · NVDA'},
  {id:'cloud',name:'Cloud trapper',stock:'MSFT'},
