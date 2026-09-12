@@ -2,7 +2,7 @@ import postgres from 'postgres';
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
 const expectedTables = [
-  'users', 'profiles', 'bookmarks', 'circles', 'circle_memberships',
+  'users', 'profiles', 'profile_photos', 'bookmarks', 'circles', 'circle_memberships',
   'migration_imports', 'saved_discoveries', 'linked_wallets', 'watchlists',
   'watchlist_items', 'wallet_connections', 'operations', 'community_tokens',
   'token_pools', 'trade_quotes', 'token_launches', 'fee_observations',

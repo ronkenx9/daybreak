@@ -6,7 +6,7 @@ import { accountQueryKey } from '@/lib/account/cache';
 import { useAccountState } from './AccountProvider';
 
 export interface ProfileData {
-  displayName: string; avatar: number; handle: string | null; bio: string | null; version: number; onboardingCompleted?: boolean;
+  displayName: string; avatar: number; avatarUrl: string | null; handle: string | null; bio: string | null; version: number; onboardingCompleted?: boolean;
 }
 
 export interface AccountData {
@@ -53,7 +53,7 @@ export function useAccountData() {
   const removeBookmark = useMutation({ mutationFn: (companyId: string) => authedFetch(`/api/bookmarks?companyId=${encodeURIComponent(companyId)}`, { method: 'DELETE' }), onSettled: invalidate });
   const joinCircle = useMutation({ mutationFn: (slug: string) => authedFetch('/api/circles/membership', { method: 'POST', body: JSON.stringify({ slug }) }), onSettled: invalidate });
   const leaveCircle = useMutation({ mutationFn: (slug: string) => authedFetch(`/api/circles/membership?slug=${encodeURIComponent(slug)}`, { method: 'DELETE' }), onSettled: invalidate });
-  const updateProfile = useMutation({ mutationFn: (v: { displayName?: string; avatar?: number; version: number }) => authedFetch<{ profile: ProfileData }>('/api/me', { method: 'PATCH', body: JSON.stringify(v) }), onSettled: invalidate });
+  const updateProfile = useMutation({ mutationFn: (v: { displayName?: string; avatar?: number; avatarUrl?: string | null; version: number }) => authedFetch<{ profile: ProfileData }>('/api/me', { method: 'PATCH', body: JSON.stringify(v) }), onSettled: invalidate });
   const importLocal = useMutation({ mutationFn: (v: { bookmarks: string[]; memberships: string[]; displayName?: string; avatar?: number }) => authedFetch('/api/me/import-local', { method: 'POST', body: JSON.stringify(v) }), onSettled: invalidate });
 
   // Truthful sync state for the UI — only "synced" once the server actually

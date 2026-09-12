@@ -144,7 +144,7 @@ export default function Landing() {
             <Link className="db-button db-blue-button" href="/app/groups">
               Explore circles <ArrowRight size={17} />
             </Link>
-            <span className="db-section-note">Community screens currently use labeled sample profiles.</span>
+            <span className="db-section-note">Members appear only in circles they choose to join.</span>
           </div>
 
           <ul className="db-circle-list">
@@ -162,7 +162,7 @@ export default function Landing() {
                 </div>
                 <div className="db-circle-side">
                   <AvatarStack />
-                  <span className="db-chip">Sample</span>
+                  <span className="db-chip">Open circle</span>
                 </div>
               </li>
             ))}

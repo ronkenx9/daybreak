@@ -6,7 +6,7 @@ import { useAccount } from 'wagmi';
 import { authedFetch } from '@/lib/account/api-client';
 import { TOKENS } from '@/lib/base/tokens';
 import { useAccountState } from './AccountProvider';
-import { Avatar } from './Identity';
+import { Avatar, ProfileAvatar } from './Identity';
 import CircleDiscoveries from './CircleDiscoveries';
 import CircleNews from './CircleNews';
 import ConnectButton from './ConnectButton';
@@ -15,7 +15,7 @@ interface Circle {
   slug: string; name: string; description: string | null; kind: string; gateMode: string;
   tickers: string[]; memberCount: number; joined: boolean; eligible: boolean; owned: boolean; tokenAddress: string | null;
 }
-interface Member { displayName: string; handle: string | null; avatar: number; role: string; verifiedTickers: string[] }
+interface Member { displayName: string; handle: string | null; avatar: number; avatarUrl: string | null; role: string; verifiedTickers: string[] }
 
 export default function CirclesHub() {
   const account = useAccountState();
@@ -107,7 +107,7 @@ export default function CirclesHub() {
       <CircleDiscoveries slug={active.slug} isMember={active.joined} onJoin={toggleJoin} tickers={active.tickers}/>
       {active.tokenAddress && <p className="db-circle-token"><strong>Live community token</strong><code>{active.tokenAddress.slice(0, 8)}…{active.tokenAddress.slice(-6)}</code><a href={`https://basescan.org/token/${active.tokenAddress}`} target="_blank" rel="noreferrer">View on BaseScan ↗</a></p>}
       {active.tickers.length > 0 && <CircleNews key={active.tickers.join(',')} tickers={active.tickers} title={`${active.name} · latest stories`}/>}
-      <section className="db-circle-members"><div className="db-board-header"><div><span className="db-eyebrow">People</span><h2>{active.joined ? `${members.length} in this circle.` : 'Join to meet members.'}</h2><p>Joining is consent to show your Daybreak name and verified stock badges inside this circle. Wallets and balances stay private.</p></div><ShieldCheck size={22}/></div>{active.joined && <div className="db-member-grid">{members.map((member, index) => <article key={`${member.displayName}-${index}`}><Avatar seed={member.avatar} size={48}/><div><strong>{member.displayName}</strong><small>{member.handle || (member.role === 'owner' ? 'Circle creator' : 'Member')}</small><p>{member.verifiedTickers.map((ticker) => <span key={ticker}>{ticker} ✓</span>)}</p></div></article>)}</div>}</section>
+      <section className="db-circle-members"><div className="db-board-header"><div><span className="db-eyebrow">People</span><h2>{active.joined ? `${members.length} in this circle.` : 'Join to meet members.'}</h2><p>Joining is consent to show your Daybreak name, profile photo and verified stock badges inside this circle. Wallets and balances stay private.</p></div><ShieldCheck size={22}/></div>{active.joined && (members.length ? <div className="db-member-grid">{members.map((member, index) => <article key={`${member.displayName}-${index}`}><ProfileAvatar imageUrl={member.avatarUrl} seed={member.avatar} size={48}/><div><strong>{member.displayName}</strong><small>{member.handle || (member.role === 'owner' ? 'Circle creator' : 'Member')}</small><p>{member.verifiedTickers.map((ticker) => <span key={ticker}>{ticker} ✓</span>)}</p></div></article>)}</div> : <div className="db-empty"><Users size={28}/><h3>You’re the first one here.</h3><p>Share the circle with another holder to meet them here.</p></div>)}</section>
     </>}
   </>;
 }

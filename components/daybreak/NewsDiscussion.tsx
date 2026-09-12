@@ -5,9 +5,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MessageCircle, Send } from 'lucide-react';
 import { authedFetch } from '@/lib/account/api-client';
 import { useAccountState } from './AccountProvider';
-import { Avatar } from './Identity';
+import { ProfileAvatar } from './Identity';
 
-interface Comment { id: string; body: string; createdAt: string; authorName: string | null; authorAvatar: number | null }
+interface Comment { id: string; body: string; createdAt: string; authorName: string | null; authorAvatar: number | null; authorAvatarUrl: string | null }
 
 export default function NewsDiscussion({ ticker, url }: { ticker: string; url: string }) {
   const account = useAccountState(); const qc = useQueryClient(); const [body, setBody] = useState('');
@@ -25,6 +25,6 @@ export default function NewsDiscussion({ ticker, url }: { ticker: string; url: s
     {q.isPending && <p className="db-small-note" role="status">Loading discussion…</p>}
     {q.isError && <p className="db-small-note" role="status">Discussion is temporarily unavailable.</p>}
     {q.data?.comments.length === 0 && <div className="db-news-no-comments"><MessageCircle size={22}/><p>Start the discussion around this story and the market movement beside it.</p></div>}
-    <div className="db-news-comments">{q.data?.comments.map((comment) => <article key={comment.id}><Avatar seed={comment.authorAvatar ?? 0} size={38}/><div><p><strong>{comment.authorName || 'A member'}</strong><time>{new Date(comment.createdAt).toLocaleDateString()}</time></p><span>{comment.body}</span></div></article>)}</div>
+    <div className="db-news-comments">{q.data?.comments.map((comment) => <article key={comment.id}><ProfileAvatar imageUrl={comment.authorAvatarUrl} seed={comment.authorAvatar ?? 0} size={38}/><div><p><strong>{comment.authorName || 'A member'}</strong><time>{new Date(comment.createdAt).toLocaleDateString()}</time></p><span>{comment.body}</span></div></article>)}</div>
   </section>;
 }

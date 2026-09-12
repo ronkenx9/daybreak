@@ -5,11 +5,11 @@ import { Bookmark, Flag, Ban, Send, Check } from 'lucide-react';
 import { authedFetch } from '@/lib/account/api-client';
 import { useAccountState } from './AccountProvider';
 import { TOKENS } from '@/lib/base/tokens';
-import { Avatar, StockIcon } from './Identity';
+import { ProfileAvatar, StockIcon } from './Identity';
 
 interface Discovery {
   id: string; subjectType: string; subjectId: string; subjectLabel: string | null;
-  note: string | null; createdAt: string; authorName: string | null; authorAvatar: number | null;
+  note: string | null; createdAt: string; authorName: string | null; authorAvatar: number | null; authorAvatarUrl: string | null;
   isMine: boolean; savedByMe: boolean;
 }
 
@@ -47,7 +47,7 @@ export default function CircleDiscoveries({ slug, isMember, onJoin, tickers }: {
     {q.isError && <p role="status" className="db-small-note">Discoveries are unavailable right now.</p>}
     {q.data && q.data.discoveries.length === 0 && <p className="db-small-note">No discoveries yet — be the first to share one.</p>}
     <div className="db-disc-list">{q.data?.discoveries.map((d) => <article key={d.id} className="db-disc-item">
-      <Avatar seed={d.authorAvatar ?? 0} size={40} />
+      <ProfileAvatar imageUrl={d.authorAvatarUrl} seed={d.authorAvatar ?? 0} size={40} />
       <div className="db-disc-body">
         <div className="db-disc-head"><strong>{d.authorName || 'A member'}</strong><span>{new Date(d.createdAt).toLocaleDateString()}</span></div>
         <div className="db-disc-subject"><StockIcon ticker={d.subjectId} size={28} /><span>{d.subjectLabel || d.subjectId}</span></div>

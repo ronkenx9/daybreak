@@ -13,6 +13,7 @@ export const HEADWEAR=[
  {id:'afterhours',name:'Afterhours cap',stock:'COIN'},
 ] as const;
 export function Avatar({seed=0,size=48,label}:{seed?:number;size?:number;label?:string}){const n=((seed%HEADWEAR.length)+HEADWEAR.length)%HEADWEAR.length;return <span role={label?'img':undefined} aria-label={label} aria-hidden={!label} className="db-avatar db-plush-avatar" style={{width:size,height:size}}><Image src={`/assets/characters/${HEADWEAR[n].id}.png`} alt="" width={size} height={size} sizes={`${size}px`}/></span>}
+export function ProfileAvatar({imageUrl,seed=0,size=48,label}:{imageUrl?:string|null;seed?:number;size?:number;label?:string}){return imageUrl?<span role="img" aria-label={label||'Profile photo'} className="db-avatar db-profile-photo" style={{width:size,height:size}}><img src={imageUrl} alt="" width={size} height={size}/></span>:<Avatar seed={seed} size={size} label={label}/>}
 export function CharacterCrew({className=''}:{className?:string}){
  const crew=useRef<HTMLDivElement>(null);
  useEffect(()=>{

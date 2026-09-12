@@ -1,7 +1,7 @@
 import 'server-only';
 import { and, count, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { getDb } from './client';
-import { users, profiles, bookmarks, circles, circleMemberships, migrationImports, circleDiscoveries, discoverySaves, userBlocks, contentReports, newsComments, operations, tokenLaunches, linkedWallets, holdingEligibilities, communityTokens } from './schema';
+import { users, profiles, profilePhotos, bookmarks, circles, circleMemberships, migrationImports, circleDiscoveries, discoverySaves, userBlocks, contentReports, newsComments, operations, tokenLaunches, linkedWallets, holdingEligibilities, communityTokens } from './schema';
 import { CIRCLES, CIRCLE_SLUGS } from './circles';
 import { DISCOVERY_CATALOG } from '@/lib/catalog';
 import { TOKENS, tokenForTicker } from '@/lib/base/tokens';
@@ -87,7 +87,7 @@ export async function listCircleMembers(userId: string, slug: string) {
   const [circle] = await db.select().from(circles).where(and(eq(circles.slug, slug), eq(circles.status, 'active'))).limit(1);
   if (!circle) return { ok: false as const, reason: 'missing' as const };
   if (!(await isCircleMember(userId, slug))) return { ok: false as const, reason: 'membership' as const };
-  const rows = await db.select({ userId: circleMemberships.userId, role: circleMemberships.role, joinedAt: circleMemberships.joinedAt, displayName: profiles.displayName, handle: profiles.handle, avatar: profiles.avatar })
+  const rows = await db.select({ userId: circleMemberships.userId, role: circleMemberships.role, joinedAt: circleMemberships.joinedAt, displayName: profiles.displayName, handle: profiles.handle, avatar: profiles.avatar, avatarUrl: profiles.avatarUrl })
     .from(circleMemberships).innerJoin(profiles, eq(profiles.userId, circleMemberships.userId))
     .where(and(eq(circleMemberships.circleId, circle.id), eq(circleMemberships.status, 'active'))).orderBy(circleMemberships.joinedAt).limit(100);
   const ids = rows.map((row) => row.userId);
@@ -122,7 +122,7 @@ export async function getAccount(userId: string) {
     .where(and(eq(circleMemberships.userId, userId), eq(circleMemberships.status, 'active')));
   return {
     profile: profile
-      ? { displayName: profile.displayName, avatar: profile.avatar, handle: profile.handle, bio: profile.bio, version: profile.version, onboardingCompleted: Boolean(user?.onboardingCompletedAt) }
+      ? { displayName: profile.displayName, avatar: profile.avatar, avatarUrl: profile.avatarUrl, handle: profile.handle, bio: profile.bio, version: profile.version, onboardingCompleted: Boolean(user?.onboardingCompletedAt) }
       : null,
     bookmarks: bm.map((x) => x.c),
     memberships: mem.map((x) => x.slug),
@@ -131,19 +131,50 @@ export async function getAccount(userId: string) {
 
 export async function updateProfile(
   userId: string,
-  fields: { displayName?: string; avatar?: number; handle?: string | null; bio?: string | null },
+  fields: { displayName?: string; avatar?: number; avatarUrl?: string | null; handle?: string | null; bio?: string | null },
   expectedVersion: number,
 ) {
   const db = getDb();
   const patch: Record<string, unknown> = { version: sql`${profiles.version} + 1`, updatedAt: new Date() };
   if (fields.displayName !== undefined) patch.displayName = fields.displayName.slice(0, 24);
   if (fields.avatar !== undefined) patch.avatar = Math.abs(Math.trunc(fields.avatar)) % 6;
+  if (fields.avatarUrl !== undefined) patch.avatarUrl = fields.avatarUrl;
   if (fields.handle !== undefined) patch.handle = fields.handle;
   if (fields.bio !== undefined) patch.bio = fields.bio?.slice(0, 280) ?? null;
   const res = await db.update(profiles).set(patch).where(and(eq(profiles.userId, userId), eq(profiles.version, expectedVersion))).returning();
   if (!res.length) return { conflict: true as const };
   const p = res[0];
-  return { conflict: false as const, profile: { displayName: p.displayName, avatar: p.avatar, handle: p.handle, bio: p.bio, version: p.version } };
+  return { conflict: false as const, profile: { displayName: p.displayName, avatar: p.avatar, avatarUrl: p.avatarUrl, handle: p.handle, bio: p.bio, version: p.version } };
+}
+
+export async function updateProfilePhoto(
+  userId: string,
+  imageData: string | null,
+  fields: { displayName?: string; avatar?: number },
+  expectedVersion: number,
+) {
+  const db = getDb();
+  return db.transaction(async (tx) => {
+    const photoId = imageData ? crypto.randomUUID() : null;
+    const patch: Record<string, unknown> = {
+      version: sql`${profiles.version} + 1`, updatedAt: new Date(),
+      avatarUrl: photoId ? `/api/profile-photo/${photoId}` : null,
+    };
+    if (fields.displayName !== undefined) patch.displayName = fields.displayName.slice(0, 24);
+    if (fields.avatar !== undefined) patch.avatar = Math.abs(Math.trunc(fields.avatar)) % 6;
+    const res = await tx.update(profiles).set(patch).where(and(eq(profiles.userId, userId), eq(profiles.version, expectedVersion))).returning();
+    if (!res.length) return { conflict: true as const };
+    await tx.delete(profilePhotos).where(eq(profilePhotos.userId, userId));
+    if (photoId && imageData) await tx.insert(profilePhotos).values({ id: photoId, userId, data: imageData.slice(imageData.indexOf(',') + 1) });
+    const p = res[0];
+    return { conflict: false as const, profile: { displayName: p.displayName, avatar: p.avatar, avatarUrl: p.avatarUrl, handle: p.handle, bio: p.bio, version: p.version } };
+  });
+}
+
+export async function getProfilePhoto(id: string) {
+  const db = getDb();
+  const [photo] = await db.select({ data: profilePhotos.data, contentType: profilePhotos.contentType }).from(profilePhotos).where(eq(profilePhotos.id, id)).limit(1);
+  return photo ?? null;
 }
 
 export async function addBookmark(userId: string, companyId: string) {
@@ -273,7 +304,7 @@ export async function listCircleDiscoveries(userId: string, slug: string) {
   const rows = await db.select({
     id: circleDiscoveries.id, authorId: circleDiscoveries.userId, subjectType: circleDiscoveries.subjectType,
     subjectId: circleDiscoveries.subjectId, subjectLabel: circleDiscoveries.subjectLabel, note: circleDiscoveries.note,
-    createdAt: circleDiscoveries.createdAt, authorName: profiles.displayName, authorAvatar: profiles.avatar,
+    createdAt: circleDiscoveries.createdAt, authorName: profiles.displayName, authorAvatar: profiles.avatar, authorAvatarUrl: profiles.avatarUrl,
   }).from(circleDiscoveries).leftJoin(profiles, eq(profiles.userId, circleDiscoveries.userId))
     .where(and(eq(circleDiscoveries.circleSlug, slug), eq(circleDiscoveries.status, 'active'), blocked.length ? notInArray(circleDiscoveries.userId, blocked) : sql`true`))
     .orderBy(desc(circleDiscoveries.createdAt)).limit(50);
@@ -321,7 +352,7 @@ export async function listNewsComments(articleKey: string) {
   const db = getDb();
   const rows = await db.select({
     id: newsComments.id, body: newsComments.body, createdAt: newsComments.createdAt,
-    authorName: profiles.displayName, authorAvatar: profiles.avatar,
+    authorName: profiles.displayName, authorAvatar: profiles.avatar, authorAvatarUrl: profiles.avatarUrl,
   }).from(newsComments).leftJoin(profiles, eq(profiles.userId, newsComments.userId))
     .where(and(eq(newsComments.articleKey, articleKey), eq(newsComments.status, 'active')))
     .orderBy(desc(newsComments.createdAt)).limit(100);

@@ -17,11 +17,22 @@ export const profiles = pgTable('profiles', {
   handle: text('handle').unique(),
   displayName: text('display_name').notNull().default('Early bird'),
   avatar: integer('avatar').notNull().default(0),
+  avatarUrl: text('avatar_url'),
   bio: text('bio'),
   visibility: text('visibility').notNull().default('private'),
   version: integer('version').notNull().default(1),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// One bounded, re-encoded photo per user. Social APIs return only the stable
+// route stored on the profile, so member and comment payloads stay small.
+export const profilePhotos = pgTable('profile_photos', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  contentType: text('content_type').notNull().default('image/webp'),
+  data: text('data').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniqUser: uniqueIndex('profile_photos_user').on(t.userId) }));
 
 // One row per saved company — individual records, so a save on one device never
 // rewrites the whole set and clobbers another device's change.
