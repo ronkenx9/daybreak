@@ -1,34 +1,44 @@
 import Link from 'next/link';
 import LandingStories from '@/components/daybreak/LandingStories';
-import { ArrowUpRight, ArrowRight, Compass, Layers, Sun, Github } from 'lucide-react';
+import { ArrowUpRight, ArrowRight, WalletCards, Users, Sparkles, Repeat2, Github } from 'lucide-react';
 import ShareRedirect from '@/components/daybreak/ShareRedirect';
-import { Wordmark, AvatarStack, StockIcon, Avatar, CharacterCrew } from '@/components/daybreak/Identity';
+import { Wordmark, AvatarStack, StockIcon } from '@/components/daybreak/Identity';
 import CommunitySpotlight from '@/components/daybreak/CommunitySpotlight';
 
 import { Lines } from '@/components/daybreak/Lines';
 
 const PROOF = [
-  { value: '13', label: 'Real stocks, tokenized on Base' },
-  { value: 'USDC', label: 'Trade and pair onchain' },
-  { value: 'LP', label: 'Earn fees on Aerodrome' },
-  { value: '0', label: 'Wallets needed to explore' },
+  { value: '01', label: 'Verify what you hold' },
+  { value: '02', label: 'Unlock your circles' },
+  { value: '03', label: 'Create the culture' },
+  { value: '04', label: 'Bring value home' },
 ];
 
 const DISCOVER = [
   {
-    icon: Compass,
-    title: 'Everyday favorites',
-    body: 'The coffee, the laptop, the streaming queue. Start from the things already in your day.',
+    icon: WalletCards,
+    step: 'Hold',
+    title: 'Your wallet is the invitation.',
+    body: 'Verify a supported tokenized stock without publishing your balance or exposing your wallet to other members.',
   },
   {
-    icon: Layers,
-    title: "Tomorrow's technology",
-    body: 'Follow a product down to the silicon, the cloud and the supply chain behind it.',
+    icon: Users,
+    step: 'Gather',
+    title: 'Find the room you already belong in.',
+    body: 'A verified holding unlocks the matching circle: real people, shared context and the stories moving the stock.',
   },
   {
-    icon: Sun,
-    title: 'A little curiosity',
-    body: 'Every relationship links out to the primary filing or newsroom it came from.',
+    icon: Sparkles,
+    step: 'Create',
+    title: 'Turn the news cycle into culture.',
+    body: 'Discuss the story, make the meme, or launch a community token paired with the stock that started it.',
+  },
+  {
+    icon: Repeat2,
+    step: 'Return',
+    title: 'Let activity flow back into stocks.',
+    body: 'The next protocol layer routes fees into a transparent stock treasury for future community distributions.',
+    planned: true,
   },
 ];
 
@@ -48,9 +58,9 @@ export default function Landing() {
           <nav className="db-site-nav">
             <Wordmark />
             <div className="db-site-links">
-              <a href="#discover">The experience</a>
+              <a href="#flywheel">The flywheel</a>
               <a href="#circles">Find your people</a>
-              <Link href="/references">Our direction</Link>
+              <Link href="/thesis">Read the thesis</Link>
             </div>
             <Link className="db-nav-cta" href="/app">
               Open app <ArrowUpRight size={15} />
@@ -59,30 +69,32 @@ export default function Landing() {
 
           <div className="db-hero-copy" data-reveal>
             <span className="db-micro db-micro-light" style={{ '--i': 0 } as React.CSSProperties}>
-              Tokenized stocks on Base
+              The social layer for tokenized stocks
             </span>
             <h1>
-              <Lines lines={['Your world.', 'Your stocks.']} from={1} />
+              <Lines lines={['Hold the stock.', 'Find your people.']} from={1} />
             </h1>
             <p style={{ '--i': 4 } as React.CSSProperties}>
-              Discover tokenized stocks on Base through the interests, creators and
-              communities you follow.
+              Verify your holdings. Unlock the matching circle. Turn market news into
+              conversation, culture and community markets.
             </p>
             <div className="db-hero-actions" style={{ '--i': 5 } as React.CSSProperties}>
-              <Link className="db-button db-white-button" href="/app">
-                Explore stocks <ArrowRight size={17} />
+              <Link className="db-button db-white-button" href="/app/groups">
+                Find my circle <ArrowRight size={17} />
               </Link>
-              <Link className="db-button db-ghost-button" href="/app/groups">
-                Find your circle <ArrowUpRight size={17} />
+              <Link className="db-button db-ghost-button" href="/thesis">
+                Read the thesis <ArrowUpRight size={17} />
               </Link>
             </div>
             <span className="db-caption" style={{ '--i': 6 } as React.CSSProperties}>
-              Explore first. Connect a wallet only when you trade.
+              Your position size stays private. The circle only sees the stocks you choose to verify.
             </span>
           </div>
         </div>
 
-        <CharacterCrew className="db-landing-crew" />
+        <div className="db-flywheel-hero-art" aria-hidden="true">
+          <img src="/assets/campaign/daybreak-flywheel-banner.png" alt="" width="2172" height="724" />
+        </div>
       </section>
 
       <section className="db-proof db-band-blue">
@@ -102,31 +114,30 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="discover" className="db-section">
+      <section id="flywheel" className="db-section db-loop-section">
         <div className="db-shell">
           <div className="db-section-head" data-reveal>
+            <span className="db-micro">One product. One loop.</span>
             <h2>
-              <Lines lines={['Every stock,', 'a token on Base.']} />
+              <Lines lines={['The stock is proof.', 'The circle is the product.']} />
             </h2>
             <p>
-              Browse tokenized stocks like AAPL and NVDA with live onchain prices, the community
-              memecoins paired against them, and the pools where you can provide liquidity for fees.
+              Daybreak turns a passive holding into a place to belong, create and build an onchain market together.
             </p>
-            <Link className="db-text-link" href="/app">
-              Explore the collection <ArrowUpRight size={17} />
-            </Link>
           </div>
 
-          <div className="db-card-row">
-            {DISCOVER.map(({ icon: Icon, title, body }, i) => (
-              <article key={title} className="db-card" data-reveal style={{ '--i': i } as React.CSSProperties}>
-                <div className="db-card-art">
-                  <Avatar seed={[2,0,4][i]} size={164}/>
-                </div>
+          <div className="db-loop-grid">
+            {DISCOVER.map(({ icon: Icon, step, title, body, planned }, i) => (
+              <article key={step} className="db-loop-step" data-reveal style={{ '--i': i } as React.CSSProperties}>
+                <div className="db-loop-index"><span>0{i + 1}</span><Icon size={22}/></div>
+                <span className="db-micro">{step}{planned ? ' · next' : ''}</span>
                 <h3>{title}</h3>
                 <p>{body}</p>
               </article>
             ))}
+          </div>
+          <div className="db-loop-line" aria-label="Daybreak loop">
+            <span>hold stocks</span><ArrowRight size={16}/><span>find your circle</span><ArrowRight size={16}/><span>create culture</span><ArrowRight size={16}/><span>earn more stocks</span>
           </div>
         </div>
       </section>
@@ -135,16 +146,16 @@ export default function Landing() {
         <div className="db-shell db-split">
           <div className="db-section-head" data-reveal>
             <h2>
-              <Lines lines={['Different interests.', 'Shared curiosity.']} />
+              <Lines lines={['Same holding.', 'A shared room.']} />
             </h2>
             <p>
-              Find your people around the things you love. Explore stocks, shared discoveries and
-              a little personality, with sharing always on your terms.
+              Enter with proof of a supported holding. Meet people following the same company,
+              share the latest story and build the culture around it.
             </p>
             <Link className="db-button db-blue-button" href="/app/groups">
               Explore circles <ArrowRight size={17} />
             </Link>
-            <span className="db-section-note">Members appear only in circles they choose to join.</span>
+            <span className="db-section-note">Balances and wallet addresses are never shown to other members.</span>
           </div>
 
           <ul className="db-circle-list">
@@ -183,15 +194,15 @@ export default function Landing() {
           <div>
             <span className="db-micro db-micro-light">Take a look around</span>
             <h2>
-              <Lines lines={['Your next discovery', 'starts here.']} />
+              <Lines lines={['The market is open.', 'Find your circle.']} />
             </h2>
           </div>
           <div className="db-hero-actions" style={{ '--i': 3 } as React.CSSProperties}>
             <Link className="db-button db-white-button" href="/app">
-              Open Daybreak <ArrowUpRight size={17} />
+              Enter Daybreak <ArrowUpRight size={17} />
             </Link>
-            <Link className="db-button db-ghost-button" href="/app/world">
-              Visit the room <ArrowRight size={17} />
+            <Link className="db-button db-ghost-button" href="/thesis">
+              Read the thesis <ArrowRight size={17} />
             </Link>
           </div>
         </div>
@@ -201,7 +212,7 @@ export default function Landing() {
         <div className="db-shell db-dawn-top">
           <div className="db-dawn-brand">
             <Wordmark />
-            <p>Built for curious people.<br />A circle that feels like you.</p>
+            <p>Hold the stock.<br />Find your people.</p>
             <div className="db-dawn-social">
               <a href="https://x.com/Daybreakcircles" target="_blank" rel="noreferrer" aria-label="Daybreak on X">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" /></svg>
@@ -219,6 +230,7 @@ export default function Landing() {
           <nav aria-label="Learn" className="db-dawn-col">
             <h3>Learn</h3>
             <Link href="/references">Design direction</Link>
+            <Link href="/thesis">The Daybreak thesis</Link>
             <Link href="/app/world">Explore the room</Link>
             <a href="https://github.com/ronkenx9/daybreak/blob/main/docs/FUTURE-PLANS.md" target="_blank" rel="noreferrer">Our roadmap <ArrowUpRight size={12} /></a>
           </nav>

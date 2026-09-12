@@ -91,7 +91,7 @@ export default function CirclesHub() {
     finally { setWorking(false); }
   };
 
-  if (!account.authenticated) return <section className="db-circle-auth db-glass"><Users size={36}/><h2>Sign in to find your people.</h2><p>Connect a Daybreak account, verify a wallet you own, and unlock circles for the supported stocks in it.</p><button className="db-button db-blue-button" onClick={() => account.login()}>Sign in</button></section>;
+  if (!account.authenticated) return <section className="db-circle-auth db-glass"><span className="db-eyebrow">Your holding is the invitation</span><Users size={36}/><h2>Hold the stock. Find your people.</h2><p>Sign in, verify a wallet you own, and Daybreak will show the circles unlocked by your supported tokenized stocks.</p><button className="db-button db-blue-button" onClick={() => account.login()}>Find my circles</button></section>;
 
   return <>
     <section className="db-circle-proof db-glass">
