@@ -1,4 +1,4 @@
-import { index, pgTable, uuid, text, integer, boolean, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { index, pgTable, uuid, text, date, integer, boolean, timestamp, uniqueIndex, primaryKey } from 'drizzle-orm/pg-core';
 
 // One internal user per verified Privy identity. We key on the Privy DID, never
 // on email or wallet address (those can change or be shared).
@@ -286,9 +286,25 @@ export const museCreations = pgTable('muse_creations', {
  userId: uuid('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),
  ticker: text('ticker').notNull(), capsuleId: text('capsule_id').notNull(),
  fingerprint: text('fingerprint').notNull(), status: text('status').notNull().default('pending'),
- image: text('image'), receipt: text('receipt').unique(), error: text('error'),
+  image: text('image'), receipt: text('receipt').unique(), error: text('error'),
+  kind: text('kind').notNull().default('pfp'), pullGroup: text('pull_group'),
+  momentLane: text('moment_lane'), momentText: text('moment_text'),
+  free: boolean('free').notNull().default(false),
  public: boolean('public').notNull().default(false), eligible: boolean('eligible').notNull().default(false),
  createdAt: timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
  updatedAt: timestamp('updated_at',{withTimezone:true}).notNull().defaultNow(),
  completedAt: timestamp('completed_at',{withTimezone:true}),
 },t=>({userLookup:index('muse_creations_user_idx').on(t.userId,t.createdAt)}));
+
+export const agentMoments = pgTable('agent_moments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  ticker: text('ticker').notNull(),
+  text: text('text').notNull(),
+  createdAt: timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
+},t=>({tickerLookup:index('agent_moments_ticker_idx').on(t.ticker,t.createdAt)}));
+
+export const freePullDays = pgTable('free_pull_days', {
+  userId: uuid('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),
+  day: date('day').notNull(),
+  createdAt: timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
+},t=>({pk:primaryKey({columns:[t.userId,t.day]})}));

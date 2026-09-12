@@ -57,6 +57,20 @@
       "when": 1788958000000,
       "tag": "0007_muse_creations",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789169782231,
+      "tag": "0008_muse_dual_output",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789170428949,
+      "tag": "0009_moments_and_free_pulls",
+      "breakpoints": true
     }
   ]
 }

@@ -916,6 +916,9 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-create-news-row button:hover{border-color:#c9d3f2;transform:translateY(-2px)}
 .db-create-news-row button strong{font-size:11px;color:var(--db-blue);font-weight:700}
 .db-create-news-row button span{font-size:12px;color:var(--db-ink);line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.db-create-community-pull{flex:0 0 auto;width:104px;display:flex;flex-direction:column;gap:4px}
+.db-create-community-pull img{width:104px;height:104px;object-fit:cover;border-radius:13px;border:1px solid var(--db-line)}
+.db-create-community-pull strong{font-size:11px;color:var(--db-blue);font-weight:700}
 
 /* ══ Polish pass: real-world layered shadows + smooth motion ═════════════ */
 :root{
