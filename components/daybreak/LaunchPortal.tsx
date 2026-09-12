@@ -7,6 +7,7 @@ import { authedFetch } from '@/lib/account/api-client';
 import { TOKENS } from '@/lib/base/tokens';
 import { useAccountState } from './AccountProvider';
 import { StockIcon, TypeBadge } from './Identity';
+import StonkFunLaunch from './StonkFunLaunch';
 
 interface Draft { tokenName: string; tokenSymbol: string; description: string; image: string; websiteUrl: string; tweetUrl: string; ticker: string; quoteOnlyFees: boolean }
 interface Preview {
@@ -24,6 +25,7 @@ export default function LaunchPortal() {
   const [draft, setDraft] = useState(initial); const [preview, setPreview] = useState<Preview | null>(null);
   const [result, setResult] = useState<Result | null>(null); const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState<'preview' | 'launch' | null>(null); const [error, setError] = useState('');
+  const [endpoint, setEndpoint] = useState<'bankr' | 'stonkfun'>('bankr');
   useEffect(() => { try{const saved=JSON.parse(sessionStorage.getItem('daybreak-launch-draft')||'null');if(saved&&typeof saved.tokenName==='string')setDraft({...initial,...saved});}catch{} },[]);
   useEffect(() => { const ticker = new URLSearchParams(window.location.search).get('stock')?.toUpperCase(); if (ticker && TOKENS.some((token) => token.ticker === ticker)) setDraft((value) => ({ ...value, ticker })); }, []);
   useEffect(() => { const id = new URLSearchParams(location.search).get('creation'); if(!id || !account.authenticated || !/^[a-f0-9-]{36}$/i.test(id))return; void authedFetch<{public:boolean;status:string}>(`/api/muse/jobs/${id}`).then(job=>{if(job.public&&job.status==='completed')setDraft(value=>({...value,image:`https://www.daybreakcircles.lol/api/muse/art/${id}`}));}).catch(()=>setError('The selected artwork could not be loaded.')); },[account.authenticated]);
@@ -53,11 +55,17 @@ export default function LaunchPortal() {
 
   return <section className="db-launch-portal">
     <div className="db-launch-hero">
-      <div><span className="db-overline"><Sparkles size={14}/> Daybreak × Bankr</span><h2>Make the meme.<br/>Pair the market.</h2><p>Create an independent community token and launch it directly against a tokenized stock on Base.</p></div>
+      <div><span className="db-overline"><Sparkles size={14}/> {endpoint === 'bankr' ? 'Daybreak × Bankr' : 'Daybreak × StonkFun'}</span><h2>Make the meme.<br/>Pair the market.</h2><p>{endpoint === 'bankr' ? 'Create an independent community token and launch it directly against a tokenized stock on Base.' : 'Create an independent community token and launch it directly against the stock on Solana.'}</p></div>
       <div className="db-launch-orbit"><div className="db-launch-token">{draft.tokenSymbol ? `$${draft.tokenSymbol.slice(0, 5)}` : 'YOUR\nTOKEN'}</div><span>×</span><StockIcon ticker={stock.ticker} size={76}/></div>
     </div>
 
     <div className="db-launch-layout">
+      <div>
+      <div className="db-create-news-row" role="tablist" aria-label="Launch endpoint">
+        <button type="button" role="tab" aria-selected={endpoint === 'bankr'} onClick={() => setEndpoint('bankr')}><strong>Base</strong><span>Bankr · Uniswap v4</span></button>
+        <button type="button" role="tab" aria-selected={endpoint === 'stonkfun'} onClick={() => setEndpoint('stonkfun')}><strong>Solana</strong><span>StonkFun · stock quote</span></button>
+      </div>
+      {endpoint === 'stonkfun' ? <StonkFunLaunch ticker={draft.ticker} artUrl={draft.image} initial={{ name: draft.tokenName, symbol: draft.tokenSymbol, description: draft.description }}/> : <>
       <form className="db-launch-form" onSubmit={(event) => { event.preventDefault(); if (account.authenticated) void simulate(); else account.login(); }}>
         <div className="db-launch-section-head"><span>01</span><div><h3>Name the idea.</h3><p>Keep it immediate. People should understand the joke or community in one glance.</p></div></div>
         <div className="db-launch-fields two"><label><span>Token name</span><input required minLength={2} maxLength={100} value={draft.tokenName} onChange={(event) => update('tokenName', event.target.value)} placeholder="Everything Is Fine"/></label><label><span>Symbol</span><input required minLength={2} maxLength={10} value={draft.tokenSymbol} onChange={(event) => update('tokenSymbol', event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} placeholder="FINE"/></label></div>
@@ -79,7 +87,9 @@ export default function LaunchPortal() {
         <dl><div><dt>Supply</dt><dd>{preview?.supply ?? '100B'}</dd></div><div><dt>Allocation</dt><dd>{preview?.allocation ?? '85% pool · 15% vested'}</dd></div><div><dt>Creator vesting</dt><dd>{preview?.vesting ?? '1 year · 30-day cliff'}</dd></div><div><dt>Pool</dt><dd>Uniswap v4</dd></div><div><dt>Creator fee share</dt><dd>{preview?.feeDistribution.creator ? `${preview.feeDistribution.creator.bps / 100}% of pool fees` : 'Shown after preview'}</dd></div></dl>
         {preview ? <><div className="db-launch-ready"><ShieldCheck size={19}/><div><strong>Simulation passed.</strong><p>No token has been deployed yet. Predicted address: <code>{compact(preview.tokenAddress)}</code></p></div></div><label className="db-launch-confirm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)}/><span>I understand this creates a public, tradable token and cannot be undone.</span></label><button className="db-button db-blue-button" disabled={!confirmed || loading !== null} onClick={() => void launch()}>{loading === 'launch' ? <><LoaderCircle className="db-spin" size={17}/> Launching on Base</> : <><Rocket size={17}/> Launch token</>}</button></> : <div className="db-launch-wait"><Rocket size={22}/><p>Complete the details and preview the launch. Bankr will simulate the exact pool and fee recipients before anything goes live.</p></div>}
         <p className="db-small-note"><TypeBadge kind="community"/> Independent community token. It is not equity, company-issued, or company-endorsed.</p>
-      </aside>
+        </aside>
+      </>}
+      </div>
     </div>
   </section>;
 }
