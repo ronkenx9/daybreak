@@ -38,10 +38,31 @@ export const circles = pgTable('circles', {
   slug: text('slug').notNull().unique(),
   name: text('name').notNull(),
   description: text('description'),
+  creatorUserId: uuid('creator_user_id').references(() => users.id, { onDelete: 'set null' }),
+  kind: text('kind').notNull().default('interest'), // interest | stock | custom
+  gateMode: text('gate_mode').notNull().default('open'), // open | any_stock | all_stocks
+  tickers: jsonb('tickers').$type<string[]>().notNull().default([]),
   visibility: text('visibility').notNull().default('public'),
   status: text('status').notNull().default('active'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// A short-lived proof that a verified, user-owned wallet held a supported stock.
+// Quantities are deliberately not stored: circles only need a yes/no eligibility
+// fact, and members never receive another member's wallet address.
+export const holdingEligibilities = pgTable('holding_eligibilities', {
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  ticker: text('ticker').notNull(),
+  walletAddress: text('wallet_address').notNull(),
+  tokenAddress: text('token_address').notNull(),
+  chainId: integer('chain_id').notNull().default(8453),
+  blockNumber: text('block_number').notNull(),
+  observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.userId, t.ticker] }),
+  expiryLookup: index('holding_eligibilities_expiry_idx').on(t.userId, t.expiresAt),
+}));
 
 export const circleMemberships = pgTable('circle_memberships', {
   id: uuid('id').defaultRandom().primaryKey(),

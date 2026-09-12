@@ -8,7 +8,7 @@ const expectedTables = [
   'token_pools', 'trade_quotes', 'token_launches', 'fee_observations',
   'news_comments', 'circle_discoveries', 'discovery_saves', 'user_blocks',
   'content_reports', 'muse_creations', 'agent_moments', 'free_pull_days',
-  'feed_snapshots', 'webhook_events',
+  'feed_snapshots', 'webhook_events', 'holding_eligibilities',
 ];
 
 if (!databaseUrl) {

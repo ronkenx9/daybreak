@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     const { slug } = await readJsonObject(req);
     if (typeof slug !== 'string') throw new HttpError(400, 'Invalid circle');
     const res = await joinCircle(user.id, slug);
-    if (!res.ok) throw new HttpError(400, 'Unknown circle');
+    if (!res.ok) throw new HttpError(res.reason === 'holding_required' ? 403 : 400, res.reason === 'holding_required' ? 'Refresh a verified holding to unlock this circle' : 'Unknown circle');
     return Response.json({ ok: true });
   } catch (e) { return errorResponse(e); }
 }

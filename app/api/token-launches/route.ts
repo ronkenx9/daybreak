@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     if (!await claimLaunchForDeployment(record.operationId, record.launchId)) throw new HttpError(409, 'This launch is already being processed');
     const result = await deployToken(bankrLaunchRequest(intent, walletAddress, false));
     if (!result.success || !result.txHash || !result.tokenAddress || !result.poolId) throw new Error('UNKNOWN_DEPLOY_RESULT');
-    await setLaunchStatus({ operationId: record.operationId, launchId: record.launchId, status: 'confirmed', txHash: result.txHash, tokenAddress: result.tokenAddress, poolId: result.poolId });
+    await setLaunchStatus({ operationId: record.operationId, launchId: record.launchId, status: 'confirmed', txHash: result.txHash, tokenAddress: result.tokenAddress, poolId: result.poolId, ticker: intent.ticker });
     return Response.json({ success: true, tokenAddress: result.tokenAddress, poolId: result.poolId, txHash: result.txHash, chain: 'base', ticker: intent.ticker });
   } catch (error) {
     if (record && !(error instanceof HttpError)) await setLaunchStatus({ operationId: record.operationId, launchId: record.launchId, status: error instanceof BankrHttpError && error.status < 500 ? 'failed' : 'unknown', errorClass: error instanceof BankrHttpError ? error.code : 'unknown' }).catch(() => {});

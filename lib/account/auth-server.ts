@@ -55,6 +55,24 @@ export async function requireUserWithWallet(req: Request) {
   return { user, walletAddress: address.toLowerCase() };
 }
 
+// Holdings can only unlock a circle after Privy confirms that the requested
+// address is linked to the signed-in identity. A public address alone is not
+// proof of ownership.
+export async function requireUserOwningWallet(req: Request, requestedAddress: string) {
+  const user = await requireUser(req);
+  if (!/^0x[0-9a-f]{40}$/i.test(requestedAddress)) throw new HttpError(400, 'Invalid wallet address');
+  let identity: Awaited<ReturnType<PrivyClient['getUserById']>>;
+  try { identity = await privy().getUserById(user.privyDid); }
+  catch { throw new HttpError(503, 'Your linked wallets could not be loaded'); }
+  const candidates = [identity.wallet, ...identity.linkedAccounts]
+    .filter((account): account is NonNullable<typeof account> => Boolean(account && 'address' in account))
+    .map((account) => String((account as { address: unknown }).address).toLowerCase())
+    .filter((address) => /^0x[0-9a-f]{40}$/.test(address));
+  const address = requestedAddress.toLowerCase();
+  if (!candidates.includes(address)) throw new HttpError(409, 'Link this wallet to your Daybreak account before using its holdings');
+  return { user, walletAddress: address as `0x${string}` };
+}
+
 export async function readJsonObject(req: Request, maxBytes = 16_384): Promise<Record<string, unknown>> {
   const declared = Number(req.headers.get('content-length') ?? 0);
   if (Number.isFinite(declared) && declared > maxBytes) throw new HttpError(413, 'Request body is too large');

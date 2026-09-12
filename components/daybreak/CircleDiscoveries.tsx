@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bookmark, Flag, Ban, Send, Check } from 'lucide-react';
 import { authedFetch } from '@/lib/account/api-client';
@@ -15,12 +15,14 @@ interface Discovery {
 
 // The circle's real shared-discovery feed: members post an asset + note, others
 // save/report/block. Auth + membership gated; nothing here is sample data.
-export default function CircleDiscoveries({ slug, isMember, onJoin }: { slug: string; isMember: boolean; onJoin: () => void }) {
+export default function CircleDiscoveries({ slug, isMember, onJoin, tickers }: { slug: string; isMember: boolean; onJoin: () => void; tickers?: string[] }) {
   const { authenticated } = useAccountState();
   const qc = useQueryClient();
   const key = ['discoveries', slug];
   const q = useQuery({ queryKey: key, queryFn: () => authedFetch<{ discoveries: Discovery[] }>(`/api/discoveries?circle=${slug}`), enabled: authenticated && isMember, retry: false });
-  const [ticker, setTicker] = useState(TOKENS[0].ticker);
+  const available = tickers?.length ? TOKENS.filter((token) => tickers.includes(token.ticker)) : TOKENS;
+  const [ticker, setTicker] = useState(available[0]?.ticker ?? TOKENS[0].ticker);
+  useEffect(() => { setTicker(available[0]?.ticker ?? TOKENS[0].ticker); }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
   const [note, setNote] = useState('');
   const inv = () => qc.invalidateQueries({ queryKey: key });
   const share = useMutation({ mutationFn: () => authedFetch('/api/discoveries', { method: 'POST', body: JSON.stringify({ circleSlug: slug, subjectType: 'stock', subjectId: ticker, subjectLabel: TOKENS.find((t) => t.ticker === ticker)?.name, note }) }), onSuccess: () => { setNote(''); inv(); } });
@@ -36,7 +38,7 @@ export default function CircleDiscoveries({ slug, isMember, onJoin }: { slug: st
   return <section className="db-disc" aria-label="Circle discoveries">
     <div className="db-disc-composer">
       <label className="sr-only" htmlFor="disc-stock">Stock to share</label>
-      <select id="disc-stock" value={ticker} onChange={(e) => setTicker(e.target.value)}>{TOKENS.map((t) => <option key={t.ticker} value={t.ticker}>{t.ticker} · {t.name}</option>)}</select>
+      <select id="disc-stock" value={ticker} onChange={(e) => setTicker(e.target.value)}>{available.map((t) => <option key={t.ticker} value={t.ticker}>{t.ticker} · {t.name}</option>)}</select>
       <input aria-label="Note" placeholder="Add a note — why is this worth a look?" maxLength={280} value={note} onChange={(e) => setNote(e.target.value)} />
       <button className="db-button db-blue-button" disabled={share.isPending} onClick={() => share.mutate()}><Send size={15} /> {share.isPending ? 'Sharing…' : 'Share'}</button>
     </div>
