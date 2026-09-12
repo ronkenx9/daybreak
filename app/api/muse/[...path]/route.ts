@@ -19,13 +19,19 @@ export async function GET(req:Request,ctx:Context){try{const {path}=await ctx.pa
  }catch(e){return errorResponse(e);}}
 export async function POST(req:Request,ctx:Context){let running:{userId:string;id:string}|undefined;try{
  const user=await requireUser(req);requireWriteCapacity(user.id);const {path}=await ctx.params;const body=await readJsonObject(req,8_000_000);
- if(path[0]==='quote'){const {walletAddress}=await requireUserWithWallet(req);return Response.json((await museRequest(user.id,{action:'quote',id:body.id,kind:body.kind,asset:body.asset,payer:walletAddress,capsuleId:body.capsuleId,input:body.input})).data);}
+  if(path[0]==='quote'){const {walletAddress}=await requireUserWithWallet(req);return Response.json((await museRequest(user.id,{action:'quote',id:body.id,kind:body.kind,asset:body.asset,payer:walletAddress,capsuleId:body.capsuleId,direct:body.direct===true,input:body.input})).data);}
  if(path[0]==='publish'&&uuid(body.id)){if(!await store.publishJob(user.id,body.id))throw new HttpError(404,'Finished creation not found');return Response.json({imageUrl:`https://www.daybreakcircles.lol/api/muse/art/${body.id}`});}
   if(path[0]==='capsules'){if(!uuid(body.requestId))throw new HttpError(400,'Missing request ID');return Response.json((await museRequest(user.id,{action:'create',input:body.input,txHash:body.txHash},body.requestId)).data);}
   if(path[0]==='moment'){if(typeof body.ticker!=='string'||!TOKENS.some(t=>t.ticker===body.ticker))throw new HttpError(400,'Choose a stock for the moment');const cached=await store.latestAgentMoment(body.ticker);if(cached)return Response.json({moment:cached,cached:true});const company=TOKENS.find(t=>t.ticker===body.ticker)?.name??body.ticker;const fresh=await museRequest(user.id,{action:'moment',ticker:body.ticker,company});if(typeof fresh.data?.moment!=='string'||!fresh.data.moment.trim())throw new HttpError(502,'The moment did not land. Try again.');const text=fresh.data.moment.slice(0,280);await store.saveAgentMoment(body.ticker,text);return Response.json({moment:text,cached:false});}
   if(path[0]!=='forge')throw new HttpError(404,'Not found');
-  if(!uuid(body.id)||!uuid(body.capsuleId)||typeof body.moment!=='string'||body.moment.length>800||!TOKENS.some(t=>t.ticker===body.ticker))throw new HttpError(400,'Choose a stock, Capsule and a moment of up to 800 characters');
+  if(!uuid(body.id)||typeof body.moment!=='string'||body.moment.length>800||!TOKENS.some(t=>t.ticker===body.ticker))throw new HttpError(400,'Choose a stock and a moment of up to 800 characters');
+  const momentText: string = body.moment;
+  const capsuleId: string | null = typeof body.capsuleId==='string'?body.capsuleId:null;
+  // Direct generation needs no capsule; the legacy capsule path still accepts one.
+  const direct=body.direct===true||!body.capsuleId;
+  if(!direct&&!uuid(body.capsuleId))throw new HttpError(400,'Choose a visual world or generate directly');
   const kind=body.kind==='banner'?'banner':'pfp';
+  const format=kind;
   const pullGroup=typeof body.pullGroup==='string'&&uuid(body.pullGroup)?body.pullGroup:null;
   const lane=body.lane==='news'||body.lane==='nostalgia'||body.lane==='agent'?body.lane:null;
   // Free daily pull: one free meme pull per user per UTC day. The day is consumed
@@ -41,15 +47,15 @@ export async function POST(req:Request,ctx:Context){let running:{userId:string;i
   let freePullClaimed=kind==='pfp'&&prior?(prior as {free?:unknown}).free===true:false;
   let createdFree=false;
   if(!prior&&kind==='pfp'&&body.freePull===true){
-   createdFree=await store.createFreeJob(user.id,body.id,String(body.ticker),body.capsuleId,fingerprint,kind,pullGroup,lane,body.moment,dayUtc);
+   createdFree=await store.createFreeJob(user.id,body.id,String(body.ticker),capsuleId,fingerprint,kind,pullGroup,lane,momentText,dayUtc);
    if(!createdFree){const raced=await store.job(user.id,body.id);if(raced)return Response.json(raced,{status:202});throw new HttpError(402,'Free daily pull already used — pay for this pull');}
    freePullClaimed=true;
   }
   if(prior?.status==='completed')return Response.json(prior);
   if(prior&&!await store.retryJob(user.id,body.id,fingerprint))return Response.json(prior,{status:202});
-  if(!prior&&!createdFree&&!await store.createJob(user.id,body.id,String(body.ticker),body.capsuleId,fingerprint,kind,pullGroup,lane,body.moment,false))return Response.json({id:body.id,status:'pending'},{status:202});
+  if(!prior&&!createdFree&&!await store.createJob(user.id,body.id,String(body.ticker),capsuleId,fingerprint,kind,pullGroup,lane,momentText,false))return Response.json({id:body.id,status:'pending'},{status:202});
   running={userId:user.id,id:body.id};
-  const result=await museRequest(user.id,{action:'forge',capsuleId:body.capsuleId,input:{moment:body.moment},txHash:body.txHash,freePull:freePullClaimed},body.id);
+  const result=await museRequest(user.id,{action:'forge',capsuleId:body.capsuleId,direct,format,input:{moment:momentText},txHash:body.txHash,freePull:freePullClaimed},body.id);
  const image=typeof result.data.image==='string'&&/^data:image\/(png|jpeg|webp);base64,/.test(result.data.image)?result.data.image:null;
  if(!image||!result.receipt)throw new HttpError(502,'Muse did not return completed artwork. Your request was saved. Please check its status before trying again.');
  // Test credits never earn promotional points. Only provider-confirmed settled production jobs do.
