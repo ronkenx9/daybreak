@@ -1,5 +1,19 @@
 # Daybreak remediation review — 12 September 2026
 
+## Resolution update — 12 September 2026
+
+The five reliability findings below are now resolved across Daybreak and Muse:
+
+- Solana launch recovery derives and stores the signed transaction signature before submission, scopes the record to the authenticated Privy user, binds signing to the reviewed Solana wallet, and renders recovered receipts from the immutable saved intent.
+- Muse recovery retains the full forge operation through wallet confirmation. Unsafe legacy records are rejected instead of guessed as PFP operations.
+- A failed free pull can only expose the paid alternative after a definite terminal failure. Pending and completed jobs reconcile without a payment prompt, and the paid alternative gets a new request ID rather than mutating the free job or its zero-cost reservation.
+- Muse free-execution locks now use expiring, token-owned leases. Paid and free cleanup run independently with `Promise.allSettled`.
+- News snapshots are stored per ticker with their original successful-fetch timestamp. In accordance with the product requirement, the latest saved stories remain available indefinitely during an outage, but mixed/old coverage is reported as stale and displayed as **Latest available**; an unrelated ticker refresh cannot renew an old story.
+
+The follow-up hardening items are also addressed: the free entitlement and job row are created atomically, the database verifier covers all current schema tables, OpenLaunch uses actual Uniswap pool tick bounds and verifies the quote is a deployed token contract before salt discovery, and the signing wallet is rechecked immediately before a Solana signature. The remaining in-app stock/LP transaction surface is product scope, not a defect in the currently shipped read-only LP view.
+
+Verification after the fixes: 27 Daybreak acceptance groups, Daybreak TypeScript, Muse TypeScript, both production builds, Muse atomic credit-retry, and Muse stale-calibration recovery all pass. No real-funds transaction was performed.
+
 Reviewed Daybreak `f49c953` against `9c6b2c7`, and Muse `4b44a2d` against `bf071d8`. Review only; no application edits, payments, launches or database mutations. The earlier report describes the previous revision; this document supersedes its status where noted.
 
 ## Verification and improvements

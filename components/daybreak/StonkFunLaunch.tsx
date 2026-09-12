@@ -120,6 +120,9 @@ export default function StonkFunLaunch({ ticker, artUrl, initial }: { ticker: st
     if (!prepared || !operationKey) return;
     setPhase('signing'); setError('');
     try {
+      if (account.solanaWallet !== prepared.intent.creatorWallet) {
+        throw new Error('The connected Solana wallet changed. Review the launch again before signing.');
+      }
       const signedTransaction = await account.signSolanaTransaction(prepared.paymentTransaction);
       const paymentSignature = signedTransactionSignature(signedTransaction);
       const submittedOp: StonkOp = { ...prepared.intent, state: 'submitted', paymentSignature, updatedAt: Date.now() };

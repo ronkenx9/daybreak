@@ -13,6 +13,10 @@ export const OPENLAUNCH_FACTORY: Record<number, Address> = {
   4663: '0x815542E8b392389A1389E22E588E4B62A67Ade72',
 };
 export const TICK_SPACING = 200;
+// Uniswap v4 TickMath bounds, rounded inward to usable ticks for this pool's
+// fixed spacing. int24 accepts a wider range that PoolManager cannot initialize.
+export const MIN_START_TICK = Math.ceil(-887_272 / TICK_SPACING) * TICK_SPACING;
+export const MAX_START_TICK = Math.floor(887_272 / TICK_SPACING) * TICK_SPACING;
 export const MAX_LP_FEE = 30_000; // 3% (10_000 = 1%)
 export const SPLIT_BPS = 10_000;
 export const MAX_RECIPIENTS = 7;
@@ -23,6 +27,7 @@ const FACTORY_ABI = [
   { name: 'launch', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'p', type: 'tuple', components: [{ name: 'name', type: 'string' }, { name: 'symbol', type: 'string' }, { name: 'metadataURI', type: 'string' }, { name: 'quote', type: 'address' }, { name: 'supply', type: 'uint256' }, { name: 'startTick', type: 'int24' }, { name: 'lpFee', type: 'uint24' }, { name: 'salt', type: 'bytes32' }, { name: 'recipients', type: 'tuple[]', components: [{ name: 'payout', type: 'address' }, { name: 'bps', type: 'uint16' }] }] }], outputs: [{ name: 'token', type: 'address' }, { name: 'tokenId', type: 'uint256' }] },
   { name: 'launchCount', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
 ] as const;
+const QUOTE_ABI = [{ name: 'decimals', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint8' }] }] as const;
 
 export interface SplitEntry { payout: Address; bps: number }
 
@@ -35,7 +40,7 @@ export function tickForStartPrice(tokenPriceQuote: number, quoteDecimals: number
   if (!Number.isFinite(tokenPriceQuote) || tokenPriceQuote <= 0) throw new Error('Start price must be positive');
   const raw = (1 / tokenPriceQuote) * 10 ** (tokenDecimals - quoteDecimals);
   const tick = Math.round(Math.log(raw) / Math.log(1.0001) / TICK_SPACING) * TICK_SPACING;
-  if (!Number.isSafeInteger(tick) || tick < -(2 ** 23) || tick > 2 ** 23 - 1) throw new Error('Start price out of tick range');
+  if (!Number.isSafeInteger(tick) || tick < MIN_START_TICK || tick > MAX_START_TICK) throw new Error('Start price out of pool tick range');
   return tick;
 }
 
@@ -89,6 +94,7 @@ export function buildLaunchParams(b: LaunchBuild) {
   if (!/^0x[a-fA-F0-9]{40}$/.test(b.quote)) throw new Error('Bad quote address');
   if (b.supplyRaw <= 0n) throw new Error('Supply must be positive');
   if (!Number.isInteger(b.startTick) || b.startTick % TICK_SPACING !== 0) throw new Error(`startTick must be a multiple of ${TICK_SPACING}`);
+  if (b.startTick < MIN_START_TICK || b.startTick > MAX_START_TICK) throw new Error(`startTick must be between ${MIN_START_TICK} and ${MAX_START_TICK}`);
   if (!Number.isInteger(b.lpFee) || b.lpFee < 0 || b.lpFee > MAX_LP_FEE) throw new Error(`lpFee must be 0–${MAX_LP_FEE}`);
   const supply = b.supplyRaw;
   return {
@@ -103,6 +109,20 @@ export function randomBaseSalt(): Hex {
   return `0x${Array.from(bytes).map((x) => x.toString(16).padStart(2, '0')).join('')}` as Hex;
 }
 
+// Enforced before salt search so an EOA, an undeployed address, or a token with
+// unexpected units cannot make a launch transaction that is validly signed but
+// economically misconfigured.
+export async function verifyQuoteToken(client: PublicClient, chainId: number, quote: Address, expectedDecimals?: number): Promise<number> {
+  if (!OPENLAUNCH_FACTORY[chainId]) throw new Error(`openlaunch not deployed on chain ${chainId}`);
+  if (!/^0x[a-fA-F0-9]{40}$/.test(quote) || /^0x0{40}$/i.test(quote)) throw new Error('Bad quote address');
+  const code = await client.getBytecode({ address: quote });
+  if (!code || code === '0x') throw new Error('Quote token is not a deployed contract');
+  const decimals = Number(await client.readContract({ address: quote, abi: QUOTE_ABI, functionName: 'decimals' }));
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 36) throw new Error('Quote token decimals are invalid');
+  if (expectedDecimals !== undefined && decimals !== expectedDecimals) throw new Error(`Quote token decimals changed: expected ${expectedDecimals}, got ${decimals}`);
+  return decimals;
+}
+
 // One view call: returns the salt whose predicted token sorts above the quote
 // (required for ERC20 quotes) plus the predicted token address.
 export async function findSalt(
@@ -112,6 +132,7 @@ export async function findSalt(
 ): Promise<{ salt: Hex; token: Address }> {
   const factory = OPENLAUNCH_FACTORY[chainId];
   if (!factory) throw new Error(`openlaunch not deployed on chain ${chainId}`);
+  await verifyQuoteToken(client, chainId, args.quote);
   const [salt, token] = await client.readContract({
     address: factory, abi: FACTORY_ABI, functionName: 'findSalt',
     args: [launcher, randomBaseSalt(), args.name, args.symbol, args.supply, args.metadataURI, args.quote, BigInt(maxTries)],
