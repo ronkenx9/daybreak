@@ -13,7 +13,7 @@ export async function GET() {
   try {
     const data = await cached('feed', () => { if (Date.now() < nextUpstream) throw Error('cooldown'); nextUpstream = Date.now() + 8000; return fetchNewsFeed(); });
     lastGood = data;
-    return NextResponse.json({ ...data, stale: false }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ ...data, stale: data.stale ?? false }, { headers: { 'Cache-Control': 'no-store' } });
   } catch {
     if (lastGood) return NextResponse.json({ ...lastGood, stale: true }, { headers: { 'Cache-Control': 'no-store' } });
     return NextResponse.json({ error: 'News feed is temporarily unavailable.', items: [] }, { status: 503, headers: { 'Retry-After': '30' } });

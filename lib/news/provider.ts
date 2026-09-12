@@ -1,4 +1,5 @@
 import 'server-only';
+import { saveSnapshot, loadSnapshot } from './cache';
 
 // Finnhub company-news is keyed by real ticker symbol and returns headline, url,
 // source, image and timestamp already scoped to the company, so there's no need
@@ -66,8 +67,14 @@ async function fetchSymbolNews(ticker: string, limit: number): Promise<FeedItem[
 // ---- Per-company feed (stock workspace) ----
 export async function fetchCompanyNews(ticker: string) {
   if (!Object.hasOwn(COMPANY_QUERIES, ticker)) throw new Error('Unsupported company');
-  const articles: Article[] = (await fetchSymbolNews(ticker, 8)).map(({ ticker: _t, ...rest }) => rest);
-  return { ticker, articles, checkedAt: Date.now(), provider: 'Finnhub' };
+  const fresh: Article[] = (await fetchSymbolNews(ticker, 8)).map(({ ticker: _t, ...rest }) => rest);
+  if (fresh.length) {
+    await saveSnapshot(`company:${ticker}`, fresh);
+    return { ticker, articles: fresh, checkedAt: Date.now(), provider: 'Finnhub', stale: false };
+  }
+  const recycled = await loadSnapshot<Article[]>(`company:${ticker}`, 72 * 3600_000);
+  if (recycled?.length) return { ticker, articles: recycled, checkedAt: Date.now(), provider: 'Finnhub', stale: true };
+  throw new Error('News provider unavailable');
 }
 
 // ---- Cross-stock ticker feed (always-on marquee) ----
@@ -79,7 +86,7 @@ const FEED_TTL = 12 * 3600_000; // keep last-good headlines up to 12h
 const feedStore = new Map<string, { items: FeedItem[]; at: number }>();
 let feedCursor = 0;
 
-export async function fetchNewsFeed(): Promise<{ items: FeedItem[]; checkedAt: number; provider: string }> {
+export async function fetchNewsFeed(): Promise<{ items: FeedItem[]; checkedAt: number; provider: string; stale?: boolean }> {
   const batch: string[] = [];
   for (let i = 0; i < 6; i++) batch.push(FEED_ORDER[(feedCursor + i) % FEED_ORDER.length]);
   feedCursor = (feedCursor + 6) % FEED_ORDER.length;
@@ -93,8 +100,15 @@ export async function fetchNewsFeed(): Promise<{ items: FeedItem[]; checkedAt: n
   for (const [, v] of feedStore) if (now - v.at < FEED_TTL) merged.push(...v.items);
   merged.sort((a, b) => (Date.parse(b.seenAt) || 0) - (Date.parse(a.seenAt) || 0));
 
-  // Only fail when we truly have nothing cached; otherwise serve last-good so the
-  // marquee keeps moving even when this poll returned no fresh items.
-  if (!merged.length) throw new Error('News provider unavailable');
-  return { items: merged.slice(0, 20), checkedAt: now, provider: 'Finnhub' };
+  // Fresh items win and refresh the persisted snapshot. On a total miss (cold
+  // instance, slow weekend), serve the snapshot up to 72h old so the marquee,
+  // circle strips and meme chips never starve. Only fail with truly nothing.
+  if (merged.length) {
+    const items = merged.slice(0, 20);
+    await saveSnapshot('ticker-feed', items);
+    return { items, checkedAt: now, provider: 'Finnhub', stale: false };
+  }
+  const recycled = await loadSnapshot<FeedItem[]>('ticker-feed', 72 * 3600_000);
+  if (recycled?.length) return { items: recycled.slice(0, 20), checkedAt: now, provider: 'Finnhub', stale: true };
+  throw new Error('News provider unavailable');
 }

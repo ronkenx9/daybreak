@@ -1,4 +1,4 @@
-import { index, pgTable, uuid, text, date, integer, boolean, timestamp, uniqueIndex, primaryKey } from 'drizzle-orm/pg-core';
+import { index, pgTable, uuid, text, date, integer, boolean, timestamp, uniqueIndex, primaryKey, jsonb } from 'drizzle-orm/pg-core';
 
 // One internal user per verified Privy identity. We key on the Privy DID, never
 // on email or wallet address (those can change or be shared).
@@ -308,3 +308,19 @@ export const freePullDays = pgTable('free_pull_days', {
   day: date('day').notNull(),
   createdAt: timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
 },t=>({pk:primaryKey({columns:[t.userId,t.day]})}));
+
+// Last-good news snapshots so cold instances and slow weekends still serve.
+// Rows are rewritten on each successful fetch; readers accept up to 72h old.
+export const feedSnapshots = pgTable('feed_snapshots', {
+  key: text('key').primaryKey(),
+  items: jsonb('items').notNull(),
+  updatedAt: timestamp('updated_at',{withTimezone:true}).notNull().defaultNow(),
+});
+
+// Inbound webhook event log (e.g. Finnhub). Append-only audit; pruned by the writer.
+export const webhookEvents = pgTable('webhook_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  source: text('source').notNull(),
+  payload: jsonb('payload').notNull(),
+  receivedAt: timestamp('received_at',{withTimezone:true}).notNull().defaultNow(),
+});
