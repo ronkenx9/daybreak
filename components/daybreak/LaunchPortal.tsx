@@ -7,7 +7,8 @@ import { authedFetch } from '@/lib/account/api-client';
 import { TOKENS } from '@/lib/base/tokens';
 import { useAccountState } from './AccountProvider';
 import { StockIcon, TypeBadge } from './Identity';
-import StonkFunLaunch from './StonkFunLaunch';
+import dynamic from 'next/dynamic';
+const StonkFunLaunch = dynamic(() => import('./StonkFunLaunch'));
 
 interface Draft { tokenName: string; tokenSymbol: string; description: string; image: string; websiteUrl: string; tweetUrl: string; ticker: string; quoteOnlyFees: boolean }
 interface Preview {

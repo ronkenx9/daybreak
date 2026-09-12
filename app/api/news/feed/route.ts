@@ -7,6 +7,7 @@ const cached = createRequestCache<Awaited<ReturnType<typeof fetchNewsFeed>>>(10 
 const allowed = createRateLimit(60);
 let nextUpstream = 0;
 let lastGood: Awaited<ReturnType<typeof fetchNewsFeed>> | null = null;
+const LAST_GOOD_MAX_AGE = 72 * 3600_000;
 
 export async function GET() {
   if (!allowed()) return NextResponse.json({ error: 'Please retry shortly', items: [] }, { status: 429, headers: { 'Retry-After': '60' } });
@@ -15,7 +16,7 @@ export async function GET() {
     lastGood = data;
     return NextResponse.json({ ...data, stale: data.stale ?? false }, { headers: { 'Cache-Control': 'no-store' } });
   } catch {
-    if (lastGood) return NextResponse.json({ ...lastGood, stale: true }, { headers: { 'Cache-Control': 'no-store' } });
+    if (lastGood && Date.now() - lastGood.checkedAt < LAST_GOOD_MAX_AGE) return NextResponse.json({ ...lastGood, stale: true }, { headers: { 'Cache-Control': 'no-store' } });
     return NextResponse.json({ error: 'News feed is temporarily unavailable.', items: [] }, { status: 503, headers: { 'Retry-After': '30' } });
   }
 }

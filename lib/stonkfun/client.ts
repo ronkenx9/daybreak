@@ -48,8 +48,10 @@ export async function launchStatus(paymentSignature: string): Promise<SubmitResu
   return call(`/launches/${paymentSignature}`);
 }
 
-export async function pollLaunch(paymentSignature: string, onTick?: () => void): Promise<string> {
+export async function pollLaunch(paymentSignature: string, onTick?: () => void, deadlineMs = 10 * 60_000): Promise<string> {
+  const started = Date.now();
   for (;;) {
+    if (Date.now() - started > deadlineMs) throw new StonkFunError('timeout-unknown', 'Still no confirmation — the launch may be on chain. Check status before retrying.', 504);
     const s = await launchStatus(paymentSignature);
     if (s.status === 'completed' && s.mint) return s.mint;
     if (s.status !== 'processing') throw new Error('Launch did not complete');

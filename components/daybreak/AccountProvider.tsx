@@ -2,7 +2,6 @@
 
 import { PrivyProvider, usePrivy, useWallets } from '@privy-io/react-auth';
 import { useWallets as useSolanaWallets, useSignTransaction as useSignSolanaTx, useCreateWallet as useCreateSolWallet } from '@privy-io/react-auth/solana';
-import { Transaction } from '@solana/web3.js';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { PRIVY_APP_ID, isAuthConfigured } from '@/lib/account/config';
 
@@ -99,6 +98,8 @@ function AccountBridge({ children }: { children: ReactNode }) {
         // fallback: create one, then ask the user to sign again.
         const w = solWallets[0];
         if (!w) { await createSolWallet(); throw new Error('Solana wallet created. Sign again to continue.'); }
+        // web3.js loads on demand so Solana signing never weighs down first paint.
+        const { Transaction } = await import('@solana/web3.js');
         const tx = Transaction.from(b64ToBytes(unsignedBase64));
         const out = await privySignTx({ transaction: tx.serialize({ requireAllSignatures: false }), wallet: w });
         return bytesToB64(out.signedTransaction);

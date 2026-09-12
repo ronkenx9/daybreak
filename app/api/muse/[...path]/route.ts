@@ -33,13 +33,19 @@ export async function POST(req:Request,ctx:Context){let running:{userId:string;i
   // keeps replays ("Check paid request" reuses the same job id and skips the
   // claim) from ever minting extra free pulls. Banner second pulls are always paid.
   const dayUtc=new Date().toISOString().slice(0,10);
-  const freePullClaimed=body.freePull===true&&kind==='pfp';
-  if(freePullClaimed){
-   const priorFree=await store.job(user.id,body.id);
-   if(!priorFree){if(!await store.claimFreePullDay(user.id,dayUtc))throw new HttpError(402,'Free daily pull already used — pay for this pull');}
-  }
-  const fingerprint=createHash('sha256').update(JSON.stringify({capsule:body.capsuleId,ticker:body.ticker,moment:body.moment,kind})).digest('hex');
+  // Entitlement binds to the STORED job, never to request input: a retry of an
+  // existing job reuses that job's free flag; only brand-new jobs read the
+  // request flag (after claiming the day). paidRetry forces the paid path and
+  // flips a free-created pending job to paid.
   const prior=await store.job(user.id,body.id);
+  const paidRetry=body.paidRetry===true;
+  let freePullClaimed=false;
+  if(kind==='pfp'&&!paidRetry){
+   if(prior)freePullClaimed=(prior as {free?:unknown}).free===true;
+   else if(body.freePull===true){if(!await store.claimFreePullDay(user.id,dayUtc))throw new HttpError(402,'Free daily pull already used — pay for this pull');freePullClaimed=true;}
+  }
+  if(paidRetry&&prior&&(prior as {free?:unknown}).free===true)await store.setJobPaid(user.id,body.id);
+  const fingerprint=createHash('sha256').update(JSON.stringify({capsule:body.capsuleId,ticker:body.ticker,moment:body.moment,kind})).digest('hex');
   if(prior?.status==='completed')return Response.json(prior);
   if(prior&&!await store.retryJob(user.id,body.id,fingerprint))return Response.json(prior,{status:202});
   if(!prior&&!await store.createJob(user.id,body.id,String(body.ticker),body.capsuleId,fingerprint,kind,pullGroup,lane,body.moment,freePullClaimed))return Response.json({id:body.id,status:'pending'},{status:202});

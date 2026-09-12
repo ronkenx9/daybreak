@@ -26,19 +26,22 @@ const FACTORY_ABI = [
 
 export interface SplitEntry { payout: Address; bps: number }
 
-// Contract price is 1.0001^tick raw token per raw quote. Convert a human price
-// (quote tokens per 1 launched token) into raw units using both decimals,
-// then snap to the tick grid.
+// Contract price is 1.0001^tick RAW TOKEN per RAW QUOTE. A human price is
+// QUOTE per TOKEN, so raw token-per-quote is its RECIPROCAL scaled by decimals:
+// 1 raw quote buys (1/P) human tokens = (1/P)*10^td raw tokens per 10^qd raw
+// quote... i.e. raw = (1/P) * 10^(td-qd). Getting this backwards misprices by
+// ~1/P^2 — verify against priceForTick, never trust a round-trip alone.
 export function tickForStartPrice(tokenPriceQuote: number, quoteDecimals: number, tokenDecimals = LAUNCH_TOKEN_DECIMALS): number {
   if (!Number.isFinite(tokenPriceQuote) || tokenPriceQuote <= 0) throw new Error('Start price must be positive');
-  const raw = tokenPriceQuote * 10 ** (tokenDecimals - quoteDecimals);
+  const raw = (1 / tokenPriceQuote) * 10 ** (tokenDecimals - quoteDecimals);
   const tick = Math.round(Math.log(raw) / Math.log(1.0001) / TICK_SPACING) * TICK_SPACING;
   if (!Number.isSafeInteger(tick) || tick < -(2 ** 23) || tick > 2 ** 23 - 1) throw new Error('Start price out of tick range');
   return tick;
 }
 
 export function priceForTick(tick: number, quoteDecimals: number, tokenDecimals = LAUNCH_TOKEN_DECIMALS): number {
-  return 1.0001 ** tick / 10 ** (tokenDecimals - quoteDecimals);
+  const raw = 1.0001 ** tick; // raw token per raw quote
+  return 1 / (raw / 10 ** (tokenDecimals - quoteDecimals)); // human quote per token
 }
 
 // Market cap (USD) + supply + quote USD price -> human quote-per-token start price.
@@ -62,8 +65,19 @@ export function encodeSplit(entries: SplitEntry[]): { payout: Address; bps: numb
 
 export interface LaunchBuild {
   name: string; symbol: string; metadataURI: string; quote: Address;
-  supplyHuman: number; startTick: number; lpFee: number;
+  supplyRaw: bigint; startTick: number; lpFee: number;
   recipients: SplitEntry[];
+}
+
+// Exact decimal-string -> raw bigint. Never route token amounts through floats:
+// 1e9 * 1e18 overflows float precision and silently mints the wrong supply.
+export function parseSupplyHuman(human: string, decimals = LAUNCH_TOKEN_DECIMALS): bigint {
+  const m = /^(\d+)(?:\.(\d+))?$/.exec(human.trim());
+  if (!m) throw new Error('Supply must be a decimal number');
+  const frac = (m[2] ?? '').slice(0, decimals).padEnd(decimals, '0');
+  const raw = BigInt(m[1]) * 10n ** BigInt(decimals) + BigInt(frac || '0');
+  if (raw <= 0n) throw new Error('Supply must be positive');
+  return raw;
 }
 
 export function buildLaunchParams(b: LaunchBuild) {
@@ -73,11 +87,10 @@ export function buildLaunchParams(b: LaunchBuild) {
   if (!/^[A-Z0-9]{2,10}$/.test(symbol)) throw new Error('Symbol must be 2–10 letters or numbers');
   if (!/^https:\/\//.test(b.metadataURI) && !b.metadataURI.startsWith('ar://')) throw new Error('Metadata URI must be https:// or ar:// (Arweave, permanent — the URI is immutable)');
   if (!/^0x[a-fA-F0-9]{40}$/.test(b.quote)) throw new Error('Bad quote address');
-  if (!(b.supplyHuman > 0) || !Number.isFinite(b.supplyHuman)) throw new Error('Supply must be positive');
+  if (b.supplyRaw <= 0n) throw new Error('Supply must be positive');
   if (!Number.isInteger(b.startTick) || b.startTick % TICK_SPACING !== 0) throw new Error(`startTick must be a multiple of ${TICK_SPACING}`);
   if (!Number.isInteger(b.lpFee) || b.lpFee < 0 || b.lpFee > MAX_LP_FEE) throw new Error(`lpFee must be 0–${MAX_LP_FEE}`);
-  const supply = BigInt(Math.floor(b.supplyHuman * 10 ** LAUNCH_TOKEN_DECIMALS));
-  if (supply <= 0n) throw new Error('Supply must be positive');
+  const supply = b.supplyRaw;
   return {
     name, symbol, metadataURI: b.metadataURI, quote: b.quote as Address, supply,
     startTick: b.startTick, lpFee: b.lpFee, recipients: encodeSplit(b.recipients),
