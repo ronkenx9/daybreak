@@ -22,6 +22,7 @@ const FINNHUB_SYMBOL: Record<string, string> = {
 
 export interface Article { title: string; url: string; source: string; seenAt: string; image: string }
 export interface FeedItem extends Article { ticker: string }
+interface StoredFeed<T> { items: T[]; successfulAt: number }
 
 const FINNHUB_BASE = 'https://finnhub.io/api/v1/company-news';
 
@@ -85,6 +86,16 @@ async function fetchSymbolNews(ticker: string, limit: number): Promise<FeedItem[
   return mapItems(ticker, await r.json().catch(() => null), limit);
 }
 
+async function storedFeed<T extends { seenAt?: string }>(key: string): Promise<StoredFeed<T> | null> {
+  const value = await loadSnapshot<StoredFeed<T> | T[]>(key, null);
+  if (!value) return null;
+  if (Array.isArray(value)) {
+    const successfulAt = Math.max(0, ...value.map((item) => Date.parse(item.seenAt ?? '') || 0));
+    return value.length ? { items: value, successfulAt } : null;
+  }
+  return Array.isArray(value.items) && value.items.length ? value : null;
+}
+
 // ---- Per-company feed (stock workspace) ----
 export async function fetchCompanyNews(ticker: string) {
   if (!Object.hasOwn(COMPANY_QUERIES, ticker)) throw new Error('Unsupported company');
@@ -93,11 +104,12 @@ export async function fetchCompanyNews(ticker: string) {
     fresh = (await fetchSymbolNews(ticker, 8)).map(({ ticker: _t, ...rest }) => rest);
   } catch { fresh = []; }
   if (fresh.length) {
-    await saveSnapshot(`company:${ticker}`, fresh);
-    return { ticker, articles: fresh, checkedAt: Date.now(), provider: 'Finnhub', stale: false };
+    const successfulAt = Date.now();
+    await saveSnapshot(`company:${ticker}`, { items: fresh, successfulAt });
+    return { ticker, articles: fresh, checkedAt: successfulAt, provider: 'Finnhub', stale: false };
   }
-  const recycled = await loadSnapshot<Article[]>(`company:${ticker}`, 72 * 3600_000);
-  if (recycled?.length) return { ticker, articles: recycled, checkedAt: Date.now(), provider: 'Finnhub', stale: true };
+  const recycled = await storedFeed<Article>(`company:${ticker}`);
+  if (recycled) return { ticker, articles: recycled.items, checkedAt: recycled.successfulAt, provider: 'Finnhub', stale: true };
   throw new Error('News provider unavailable');
 }
 
@@ -106,49 +118,52 @@ export async function fetchCompanyNews(ticker: string) {
 // batch, and everything still fresh is merged, so a headline that fails to
 // refresh keeps showing until it ages out — the marquee never empties on a miss.
 const FEED_ORDER = ['NVDA', 'TSLA', 'COIN', 'MSTR', 'CRCL', 'META', 'GOOGL', 'MSFT', 'AAPL', 'AMZN', 'INTC', 'SNDK'];
-const FEED_TTL = 12 * 3600_000; // keep last-good headlines up to 12h
 const feedStore = new Map<string, { items: FeedItem[]; at: number }>();
 let feedCursor = 0;
 
-export async function fetchNewsFeed(): Promise<{ items: FeedItem[]; checkedAt: number; provider: string; stale?: boolean }> {
+export async function fetchNewsFeed(): Promise<{ items: FeedItem[]; checkedAt: number; provider: string; stale?: boolean; coverage?: { freshTickers: string[]; cachedTickers: string[] } }> {
   const batch: string[] = [];
   for (let i = 0; i < 6; i++) batch.push(FEED_ORDER[(feedCursor + i) % FEED_ORDER.length]);
   feedCursor = (feedCursor + 6) % FEED_ORDER.length;
 
   const results = await Promise.allSettled(batch.map((t) => fetchSymbolNews(t, 3)));
   const freshTickers = new Set<string>();
+  const snapshotWrites:Promise<void>[]=[];
   results.forEach((res, i) => {
     if (res.status === 'fulfilled' && res.value.length) {
-      feedStore.set(batch[i], { items: res.value, at: Date.now() });
+      const at=Date.now();
+      feedStore.set(batch[i], { items: res.value, at });
+      snapshotWrites.push(saveSnapshot(`ticker-feed:${batch[i]}`, { items: res.value, successfulAt: at }));
       freshTickers.add(batch[i]);
     }
   });
+  await Promise.allSettled(snapshotWrites);
 
-  const now = Date.now(); const merged: FeedItem[] = [];
-  for (const [, v] of feedStore) if (now - v.at < FEED_TTL) merged.push(...v.items);
-  // Cold instances and partial polls backfill from the persisted snapshot for
-  // tickers this round did not refresh — every covered ticker stays warm even
-  // though each poll only refreshes six.
-  if (freshTickers.size < FEED_ORDER.length) {
-    const snap = await loadSnapshot<FeedItem[]>('ticker-feed', 72 * 3600_000);
-    if (snap?.length) {
-      const seen = new Set(merged.map((m) => m.url));
-      for (const item of snap) {
-        if (!freshTickers.has(item.ticker) && !seen.has(item.url)) { merged.push(item); seen.add(item.url); }
-      }
-    }
+  // Each ticker keeps its own original successful-fetch timestamp. Old coverage
+  // remains available during quiet periods without being made young again when
+  // a different ticker refreshes.
+  const missing=FEED_ORDER.filter((ticker)=>!feedStore.has(ticker));
+  const saved=await Promise.all(missing.map(async(ticker)=>({ticker,value:await storedFeed<FeedItem>(`ticker-feed:${ticker}`)})));
+  for(const entry of saved)if(entry.value)feedStore.set(entry.ticker,{items:entry.value.items,at:entry.value.successfulAt});
+  const merged: FeedItem[] = [];
+  for (const [, v] of feedStore) merged.push(...v.items);
+  // Read the pre-per-ticker snapshot only as a migration fallback. It is never
+  // re-saved, so old items cannot have their age reset by unrelated refreshes.
+  if (!merged.length) {
+    const legacy=await storedFeed<FeedItem>('ticker-feed');
+    if(legacy)for(const item of legacy.items)merged.push(item);
   }
   merged.sort((a, b) => (Date.parse(b.seenAt) || 0) - (Date.parse(a.seenAt) || 0));
 
-  // Fresh items win and refresh the persisted snapshot. On a total miss serve
-  // the snapshot so the marquee, circle strips and meme chips never starve.
-  // stale:true whenever this response leans on anything unfresh.
+  // The feed intentionally remains populated with the latest available stories.
+  // `stale` says whether any visible coverage came from an earlier successful
+  // fetch; `checkedAt` preserves that source age instead of the request time.
   if (merged.length) {
-    const items = merged.slice(0, 20);
-    if (freshTickers.size) await saveSnapshot('ticker-feed', items);
-    return { items, checkedAt: now, provider: 'Finnhub', stale: !freshTickers.size };
+    const seen=new Set<string>();const items=merged.filter(item=>{if(seen.has(item.url))return false;seen.add(item.url);return true;}).slice(0,20);
+    const visibleTickers=new Set(items.map(item=>item.ticker));
+    const checkedAt=Math.max(0,...[...visibleTickers].map(ticker=>feedStore.get(ticker)?.at??0));
+    const cachedTickers=[...visibleTickers].filter(ticker=>!freshTickers.has(ticker));
+    return { items, checkedAt, provider: 'Finnhub', stale: cachedTickers.length>0, coverage:{freshTickers:[...visibleTickers].filter(ticker=>freshTickers.has(ticker)),cachedTickers} };
   }
-  const recycled = await loadSnapshot<FeedItem[]>('ticker-feed', 72 * 3600_000);
-  if (recycled?.length) return { items: recycled.slice(0, 20), checkedAt: now, provider: 'Finnhub', stale: true };
   throw new Error('News provider unavailable');
 }

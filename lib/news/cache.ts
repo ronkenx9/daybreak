@@ -10,9 +10,11 @@ export async function saveSnapshot(key: string, items: unknown): Promise<void> {
   } catch { /* feed stays live without cache */ }
 }
 
-export async function loadSnapshot<T>(key: string, maxAgeMs: number): Promise<T | null> {
+export async function loadSnapshot<T>(key: string, maxAgeMs: number | null): Promise<T | null> {
   try {
-    const rows = await getDb().execute(sql`SELECT items FROM feed_snapshots WHERE key=${key} AND updated_at>NOW()-(${maxAgeMs}::bigint * INTERVAL '1 millisecond')`);
+    const rows = maxAgeMs == null
+      ? await getDb().execute(sql`SELECT items FROM feed_snapshots WHERE key=${key}`)
+      : await getDb().execute(sql`SELECT items FROM feed_snapshots WHERE key=${key} AND updated_at>NOW()-(${maxAgeMs}::bigint * INTERVAL '1 millisecond')`);
     const items = rows[0]?.items;
     if (!items) return null;
     return (typeof items === 'string' ? JSON.parse(items) : items) as T;

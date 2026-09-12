@@ -8,7 +8,7 @@ import NewsDiscussion from './NewsDiscussion';
 import type { NewsStory } from './NewsTicker';
 
 interface Article { title: string; url: string; source: string; seenAt: string; image: string }
-interface Feed { ticker: string; articles: Article[]; checkedAt: number }
+interface Feed { ticker: string; articles: Article[]; checkedAt: number; stale?: boolean }
 
 export default function CompanyNews({ ticker, token, initialStory = null }: { ticker: string; token: string; initialStory?: NewsStory | null }) {
   const [selected, setSelected] = useState<Article | null>(initialStory);
@@ -31,9 +31,9 @@ export default function CompanyNews({ ticker, token, initialStory = null }: { ti
       </div>
       <NewsDiscussion ticker={ticker} url={selected.url}/>
     </> : <MemeChart token={token}/>}
-    {q.isPending && <p role="status">Finding recent coverage…</p>}{q.isError && <p role="status">{selected ? 'More company news is temporarily unavailable.' : 'News is temporarily unavailable.'}{q.data ? ' Previously loaded articles are below.' : ''}</p>}
+    {q.data?.stale&&<p role="status" className="db-data-notice">Showing the latest available coverage · last successful refresh {q.data.checkedAt?new Date(q.data.checkedAt).toLocaleString():'unknown'}.</p>}{q.isPending && <p role="status">Finding recent coverage…</p>}{q.isError && <p role="status">{selected ? 'More company news is temporarily unavailable.' : 'News is temporarily unavailable.'}{q.data ? ' Previously loaded articles are below.' : ''}</p>}
     {articles.length === 0 && q.data && <p>No matching coverage found in the past week.</p>}
     {articles.length > 0 && <div className="db-news-rail" aria-label="Latest articles">{articles.map((article) => <button key={article.url} aria-pressed={selected?.url === article.url} onClick={() => setSelected(article)}><span>{article.source}</span><strong>{article.title}</strong><small>{article.seenAt ? new Date(article.seenAt).toLocaleDateString() : 'Recent'}</small><ArrowRight size={16}/></button>)}</div>}
-    <p className="db-small-note"><MessageCircle size={14}/> News opens inside Daybreak so the article, market context and discussion stay together. Article discovery by <a href="https://www.gdeltproject.org/" target="_blank" rel="noreferrer">GDELT</a>.</p>
+    <p className="db-small-note"><MessageCircle size={14}/> News opens inside Daybreak so the article, market context and discussion stay together. Article discovery by <a href="https://finnhub.io/" target="_blank" rel="noreferrer">Finnhub</a>.</p>
   </section>;
 }

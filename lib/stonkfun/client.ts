@@ -40,6 +40,34 @@ export async function prepareLaunch(input: PrepareInput): Promise<Prepared> {
 
 export interface SubmitResult { status: 'completed' | 'processing'; mint?: string; paymentSignature?: string }
 
+// A Solana transaction starts with a shortvec signature count followed by 64-byte
+// signatures. Derive the payment signature before submit so an accepted request
+// can always be reconciled even when its HTTP response is lost.
+export function signedTransactionSignature(signedBase64: string): string {
+  const raw = Uint8Array.from(atob(signedBase64), (c) => c.charCodeAt(0));
+  let count = 0; let shift = 0; let offset = 0;
+  for (;;) {
+    if (offset >= raw.length || shift > 21) throw new Error('Invalid signed Solana transaction');
+    const byte = raw[offset++]; count |= (byte & 0x7f) << shift;
+    if (!(byte & 0x80)) break;
+    shift += 7;
+  }
+  if (count < 1 || raw.length < offset + 64) throw new Error('Signed transaction has no signature');
+  const signature = raw.slice(offset, offset + 64);
+  if (signature.every((byte) => byte === 0)) throw new Error('Wallet returned an unsigned transaction');
+  const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  const digits = [0];
+  for (const byte of signature) {
+    let carry = byte;
+    for (let i = 0; i < digits.length; i++) { carry += digits[i] << 8; digits[i] = carry % 58; carry = Math.floor(carry / 58); }
+    while (carry) { digits.push(carry % 58); carry = Math.floor(carry / 58); }
+  }
+  let result = '';
+  for (const byte of signature) { if (byte !== 0) break; result += alphabet[0]; }
+  for (let i = digits.length - 1; i >= 0; i--) result += alphabet[digits[i]];
+  return result;
+}
+
 export async function submitLaunch(args: { signedQuote: unknown; signedTransaction: string; logo?: string }): Promise<SubmitResult> {
   return call<SubmitResult>('/launches/submit', { method: 'POST', body: JSON.stringify(args) });
 }

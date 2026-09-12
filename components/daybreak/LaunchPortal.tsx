@@ -63,8 +63,8 @@ export default function LaunchPortal() {
     <div className="db-launch-layout">
       <div>
       <div className="db-create-news-row" role="tablist" aria-label="Launch endpoint">
-        <button type="button" role="tab" aria-selected={endpoint === 'bankr'} onClick={() => setEndpoint('bankr')}><strong>Base</strong><span>Bankr · Uniswap v4</span></button>
-        <button type="button" role="tab" aria-selected={endpoint === 'stonkfun'} onClick={() => setEndpoint('stonkfun')}><strong>Solana</strong><span>StonkFun · stock quote</span></button>
+        <button type="button" role="tab" aria-selected={endpoint === 'bankr'} onClick={() => setEndpoint('bankr')}><img className="db-endpoint-logo" src="/bankr-logo.png" alt="Bankr" width={28} height={28}/><strong>Base</strong><span>Bankr · Uniswap v4</span></button>
+        <button type="button" role="tab" aria-selected={endpoint === 'stonkfun'} onClick={() => setEndpoint('stonkfun')}><img className="db-endpoint-logo" src="/stonkfun-logo.png" alt="StonkFun" width={28} height={28}/><strong>Solana</strong><span>StonkFun · stock quote</span></button>
       </div>
       {endpoint === 'stonkfun' ? <StonkFunLaunch ticker={draft.ticker} artUrl={draft.image} initial={{ name: draft.tokenName, symbol: draft.tokenSymbol, description: draft.description }}/> : <>
       <form className="db-launch-form" onSubmit={(event) => { event.preventDefault(); if (account.authenticated) void simulate(); else account.login(); }}>

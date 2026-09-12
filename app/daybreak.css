@@ -915,6 +915,7 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-app[data-theme="dark"] .db-create-news-row button{background:#141a2b;border-color:#283049}
 .db-create-news-row button:hover{border-color:#c9d3f2;transform:translateY(-2px)}
 .db-create-news-row button strong{font-size:11px;color:var(--db-blue);font-weight:700}
+.db-endpoint-logo{width:28px;height:28px;border-radius:8px;object-fit:cover}
 .db-create-news-row button span{font-size:12px;color:var(--db-ink);line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .db-create-news-row button small{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--db-muted)}
 .db-create-news-plain{flex:0 0 auto;max-width:260px;display:flex;flex-direction:column;gap:3px;padding:10px 12px;border:1px dashed var(--db-line);border-radius:13px;background:transparent}

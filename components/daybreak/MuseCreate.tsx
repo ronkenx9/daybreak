@@ -19,10 +19,11 @@ type Creation={id:string;status:string;image?:string;error?:string;eligible?:boo
 type PullItem={id:string;status:string;kind?:string;ticker?:string;created_at?:string;has_image?:boolean};
 type CommunityItem={id:string;ticker:string;image:string};
 type Pulls={freeLeft:number;pulls:PullItem[];community:CommunityItem[]};
+type RecoveryOp={id:string;kind:'forge'|'create';input:unknown;capsuleId?:string;stock:string;ckind?:'pfp'|'banner';pullGroup?:string|null;lane?:'news'|'nostalgia'|'agent'|null;txHash?:string};
 function useCreationPoll(value:Creation|null,setValue:(c:Creation|null)=>void){const id=value?.id;const status=value?.status;useEffect(()=>{if(status!=='pending'||!id)return;const timer=setInterval(()=>{void authedFetch<Creation>(`/api/muse/jobs/${id}`).then(setValue).catch(()=>null);},5000);return()=>clearInterval(timer);} // eslint-disable-next-line react-hooks/exhaustive-deps
 ,[id,status]);}
 export default function MuseCreate({initialStock}:{initialStock?:string}){
-   const account=useAccountState();const [stock,setStock]=useState(initialStock||'AAPL');const [snapshot,setSnapshot]=useState<Snapshot|null>(null);const [capsule,setCapsule]=useState('');const [moment,setMoment]=useState('');const [lane,setLane]=useState<'news'|'nostalgia'|'agent'|null>(null);const [error,setError]=useState('');const [busy,setBusy]=useState(false);const [creation,setCreation]=useState<Creation|null>(null);const [bannerCreation,setBannerCreation]=useState<Creation|null>(null);const seedRef=useRef('');const [adding,setAdding]=useState(false);const [name,setName]=useState('');const [refs,setRefs]=useState<string[]>([]);const [rights,setRights]=useState(false);const [asset,setAsset]=useState('USDC');const [paymentStatus,setPaymentStatus]=useState('');const [recoverable,setRecoverable]=useState(false);const [pulls,setPulls]=useState<Pulls|null>(null);const [freeFailed,setFreeFailed]=useState<string|null>(null);const attemptRef=useRef<{id:string;input:{moment:string};capsuleId:string;ticker:string}|null>(null);
+   const account=useAccountState();const [stock,setStock]=useState(initialStock||'AAPL');const [snapshot,setSnapshot]=useState<Snapshot|null>(null);const [capsule,setCapsule]=useState('');const [moment,setMoment]=useState('');const [lane,setLane]=useState<'news'|'nostalgia'|'agent'|null>(null);const [error,setError]=useState('');const [busy,setBusy]=useState(false);const [creation,setCreation]=useState<Creation|null>(null);const [bannerCreation,setBannerCreation]=useState<Creation|null>(null);const seedRef=useRef('');const [adding,setAdding]=useState(false);const [name,setName]=useState('');const [refs,setRefs]=useState<string[]>([]);const [rights,setRights]=useState(false);const [asset,setAsset]=useState('USDC');const [paymentStatus,setPaymentStatus]=useState('');const [recoverable,setRecoverable]=useState(false);const [pulls,setPulls]=useState<Pulls|null>(null);const [freeFailed,setFreeFailed]=useState<string|null>(null);const attemptRef=useRef<RecoveryOp|null>(null);
  const refresh=useCallback(async()=>{if(!account.authenticated)return;try{const value=await authedFetch<Snapshot>('/api/muse/snapshot');setSnapshot(value);setCapsule(old=>value.capsules.some(c=>c.id===old)?old:value.capsules.find(c=>c.status==='ready')?.id||'');setError('');}catch(e){setError(e instanceof Error?e.message:'Creation is unavailable');}try{setPulls(await authedFetch<Pulls>('/api/muse/pulls'));}catch{setPulls(null);}},[account.authenticated]);
  const news=useQuery({queryKey:['news-feed'],queryFn:async({signal})=>{const r=await fetch('/api/news/feed',{signal});const d=await r.json();if(!r.ok)throw new Error('news');return d as {items:{ticker:string;title:string;source:string}[]};},staleTime:5*60_000,retry:1});
  useEffect(()=>{const p=new URLSearchParams(location.search);const ticker=initialStock||p.get('stock');if(TOKENS.some(t=>t.ticker===ticker))setStock(ticker!);const m=p.get('moment');if(m)setMoment(m.slice(0,800));},[initialStock]);
@@ -30,14 +31,14 @@ export default function MuseCreate({initialStock}:{initialStock?:string}){
  useEffect(()=>{if(!snapshot?.capsules.some(c=>c.status==='calibrating'))return;const id=setInterval(()=>void refresh(),8000);return()=>clearInterval(id);},[snapshot,refresh]);
   useCreationPoll(creation,setCreation);useCreationPoll(bannerCreation,setBannerCreation);
  const selected=snapshot?.capsules.find(c=>c.id===capsule);const price=snapshot?.config.prices.forge;
- async function pay(kind:'forge'|'create',id:string,input:unknown){
+ async function pay(operation:RecoveryOp){
   setPaymentStatus('Preparing your fee…');
-  const quote=await authedFetch<{to:string;value:string;data:string;amountRaw:string;recipient:string;chainId:number}>('/api/muse/quote',{method:'POST',body:JSON.stringify({id,kind,asset,capsuleId:kind==='forge'?capsule:undefined,input})});
+  const quote=await authedFetch<{to:string;value:string;data:string;amountRaw:string;recipient:string;chainId:number}>('/api/muse/quote',{method:'POST',body:JSON.stringify({id:operation.id,kind:operation.kind,asset,capsuleId:operation.kind==='forge'?operation.capsuleId:undefined,input:operation.input})});
   if(quote.chainId!==8453||quote.recipient.toLowerCase()!==snapshot?.payments.recipient.toLowerCase())throw new Error('Payment details changed. Refresh before paying.');
   if(quote.amountRaw==='0')return undefined;
   setPaymentStatus('Confirm the fee in your wallet');
   const txHash=await account.payCreationTransfer({to:quote.to,value:quote.value,data:quote.data});
-  sessionStorage.setItem(`daybreak-muse-payment:${account.user?.id}`,JSON.stringify({id,kind,input,capsuleId:kind==='forge'?capsule:undefined,stock,txHash}));
+  saveSession({...operation,txHash});
   setRecoverable(true);setPaymentStatus('Confirming your payment…');
   await paymentClient.waitForTransactionReceipt({hash:txHash as Hex,confirmations:3,timeout:120000});
   return txHash;
@@ -55,11 +56,12 @@ export default function MuseCreate({initialStock}:{initialStock?:string}){
     const seed=seedRef.current||moment.trim();
     const input=isBanner?{moment:bannerArt(company,seed||`Epic wide art for the ${stock} community.`)}:{moment:pfpArt(company,moment.trim()||`${stock} community avatar.`)};
     const pullGroup=isBanner&&creation?creation.id:null;
-    attemptRef.current={id,input,capsuleId:capsule,ticker:stock};
-    const postForge=(tx?:string,free?:boolean,paidRetry?:boolean)=>authedFetch<Creation>('/api/muse/forge',{method:'POST',body:JSON.stringify({id,capsuleId:capsule,ticker:stock,moment:input.moment,kind:ckind,pullGroup,lane,txHash:tx,freePull:free===true,paidRetry:paidRetry===true})});
+    const operation:RecoveryOp={id,kind:'forge',input,capsuleId:capsule,stock,ckind,pullGroup,lane};
+    attemptRef.current=operation;
+    const postForge=(tx?:string,free?:boolean)=>authedFetch<Creation>('/api/muse/forge',{method:'POST',body:JSON.stringify({id,capsuleId:operation.capsuleId,ticker:operation.stock,moment:input.moment,kind:ckind,pullGroup,lane,txHash:tx,freePull:free===true})});
     const setResult=(r:Creation)=>{if(isBanner)setBannerCreation(r);else{setCreation(r);seedRef.current=input.moment;}};
     const busyMsg=isBanner?'Forging your banner…':'Forging your PFP…';
-    const recordSession=(tx?:string)=>saveSession({id,kind:'forge',input,capsuleId:capsule,stock,txHash:tx,ckind,pullGroup,lane});
+    const recordSession=(tx?:string)=>saveSession({...operation,txHash:tx});
     try{
       const attemptFree=!isBanner&&(pulls?.freeLeft??0)>0;
       let result:Creation;
@@ -72,9 +74,8 @@ export default function MuseCreate({initialStock}:{initialStock?:string}){
         }catch(e){
           const definite=e instanceof Error&&/already used/i.test(e.message);
           if(!definite){
-            try{const existing=await authedFetch<Creation>(`/api/muse/jobs/${id}`);setResult(existing);}
-            catch{setCreation(null);}
-            setFreeFailed(e instanceof Error?e.message:'Free pull could not finish');
+            try{const existing=await authedFetch<Creation>(`/api/muse/jobs/${id}`);setResult(existing);if(existing.status==='failed')setFreeFailed(existing.error||'Free pull failed.');else if(existing.status==='completed')sessionStorage.removeItem(`daybreak-muse-payment:${account.user?.id}`);else setError('Your free pull is still processing. Check it again shortly.');}
+            catch{setCreation(null);setError('The free pull status is unknown. Check it again before starting a paid pull.');}
           }else{
             setCreation(null);
             setFreeFailed('Free daily pull already used.');
@@ -84,7 +85,7 @@ export default function MuseCreate({initialStock}:{initialStock?:string}){
         }
       }else{
         recordSession();
-        const txHash=await pay('forge',id,input);
+        const txHash=await pay(operation);
         recordSession(txHash);
         setPaymentStatus(busyMsg);
         if(isBanner)setBannerCreation({id,status:'pending'});else setCreation({id,status:'pending'});
@@ -96,9 +97,9 @@ export default function MuseCreate({initialStock}:{initialStock?:string}){
     }catch(e){setError(e instanceof Error?e.message:'Creation could not finish');}
     finally{setBusy(false);setPaymentStatus('');}
   }
-  async function payInstead(){const a=attemptRef.current;if(!a||!account.authenticated)return;setBusy(true);setError('');try{const txHash=await pay('forge',a.id,a.input);saveSession({id:a.id,kind:'forge',input:a.input,capsuleId:a.capsuleId,stock:a.ticker,txHash,ckind:'pfp',pullGroup:null,lane});setPaymentStatus('Creating your image…');setCreation({id:a.id,status:'pending'});const result=await authedFetch<Creation>('/api/muse/forge',{method:'POST',body:JSON.stringify({id:a.id,capsuleId:a.capsuleId,ticker:a.ticker,moment:a.input.moment,kind:'pfp',pullGroup:null,lane,txHash,paidRetry:true})});setCreation(result);seedRef.current=a.input.moment;setFreeFailed(null);if(result.status==='completed')sessionStorage.removeItem(`daybreak-muse-payment:${account.user?.id}`);void refresh();}catch(e){setError(e instanceof Error?e.message:'Creation could not finish');}finally{setBusy(false);setPaymentStatus('');}}
+  async function payInstead(){const prior=attemptRef.current;if(!prior||!account.authenticated)return;setBusy(true);setError('');try{const paid:RecoveryOp={...prior,id:crypto.randomUUID(),ckind:'pfp',pullGroup:null};attemptRef.current=paid;saveSession(paid);const txHash=await pay(paid);setPaymentStatus('Creating your image…');setCreation({id:paid.id,status:'pending'});const result=await authedFetch<Creation>('/api/muse/forge',{method:'POST',body:JSON.stringify({id:paid.id,capsuleId:paid.capsuleId,ticker:paid.stock,moment:(paid.input as {moment:string}).moment,kind:'pfp',pullGroup:null,lane:paid.lane??null,txHash})});setCreation(result);seedRef.current=(paid.input as {moment:string}).moment;setFreeFailed(null);if(result.status==='completed')sessionStorage.removeItem(`daybreak-muse-payment:${account.user?.id}`);void refresh();}catch(e){setError(e instanceof Error?e.message:'Creation could not finish');}finally{setBusy(false);setPaymentStatus('');}}
  async function addReferences(files:FileList|null){if(!files)return;setError('');try{const chosen=Array.from(files).slice(0,4);if(chosen.some(f=>!['image/png','image/jpeg','image/webp'].includes(f.type)||f.size>1_300_000))throw new Error('Choose JPG, PNG or WebP references under 1.3 MB each.');const values=await Promise.all(chosen.map(f=>new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=reject;reader.readAsDataURL(f);})));setRefs(values);}catch(e){setError(e instanceof Error?e.message:'Could not read references');}}
- async function createCapsule(){setBusy(true);setError('');const id=crypto.randomUUID();const input={name,statement:`A visual world for the ${stock} community.`,references:refs,rightsConfirmed:rights};try{const txHash=await pay('create',id,input);await authedFetch('/api/muse/capsules',{method:'POST',body:JSON.stringify({requestId:id,input,txHash})});sessionStorage.removeItem(`daybreak-muse-payment:${account.user?.id}`);setAdding(false);setRefs([]);void refresh();}catch(e){setError(e instanceof Error?e.message:'Could not create the visual world');}finally{setBusy(false);setPaymentStatus('');}}
+ async function createCapsule(){setBusy(true);setError('');const id=crypto.randomUUID();const input={name,statement:`A visual world for the ${stock} community.`,references:refs,rightsConfirmed:rights};const operation:RecoveryOp={id,kind:'create',input,stock};try{saveSession(operation);const txHash=await pay(operation);await authedFetch('/api/muse/capsules',{method:'POST',body:JSON.stringify({requestId:id,input,txHash})});sessionStorage.removeItem(`daybreak-muse-payment:${account.user?.id}`);setAdding(false);setRefs([]);void refresh();}catch(e){setError(e instanceof Error?e.message:'Could not create the visual world');}finally{setBusy(false);setPaymentStatus('');}}
   async function recover(){const raw=sessionStorage.getItem(`daybreak-muse-payment:${account.user?.id}`);if(!raw)return;setBusy(true);setError('');try{const saved=JSON.parse(raw);setPaymentStatus('Checking your paid request…');if(saved.txHash)await paymentClient.waitForTransactionReceipt({hash:saved.txHash,confirmations:3,timeout:120000});if(saved.kind==='forge'){const ckind=saved.ckind==='banner'?'banner':'pfp';const replayFree=!saved.txHash&&ckind!=='banner';const done=await authedFetch<Creation>('/api/muse/forge',{method:'POST',body:JSON.stringify({id:saved.id,capsuleId:saved.capsuleId,ticker:saved.stock,moment:saved.input.moment,kind:ckind,pullGroup:saved.pullGroup??null,lane:saved.lane??null,txHash:saved.txHash,freePull:replayFree})});if(ckind==='banner')setBannerCreation(done);else setCreation(done);}else{await authedFetch('/api/muse/capsules',{method:'POST',body:JSON.stringify({requestId:saved.id,input:saved.input,txHash:saved.txHash})});}void refresh();}catch(e){setError(e instanceof Error?e.message:'Could not recover your request');}finally{setBusy(false);setPaymentStatus('');}}
   async function useArtwork(id:string){setBusy(true);try{await authedFetch('/api/muse/publish',{method:'POST',body:JSON.stringify({id})});location.assign(`/app/launch?stock=${stock}&creation=${id}`);}catch(e){setError(e instanceof Error?e.message:'Could not use artwork');setBusy(false);}}
  return <section className="db-create"><header className="db-create-heading"><div><span className="db-eyebrow">Made with Muse</span><h2>Make a meme<br/>worth sharing.</h2><p>Pick a stock, describe the moment, and we generate the image.</p></div>{account.authenticated&&snapshot&&<label className="db-create-currency">Pay with<select value={asset} onChange={e=>setAsset(e.target.value)}>{snapshot.payments.assets.map(a=><option value={a.symbol} key={a.symbol}>{a.label}</option>)}</select></label>}</header>

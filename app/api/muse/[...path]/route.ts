@@ -33,22 +33,21 @@ export async function POST(req:Request,ctx:Context){let running:{userId:string;i
   // keeps replays ("Check paid request" reuses the same job id and skips the
   // claim) from ever minting extra free pulls. Banner second pulls are always paid.
   const dayUtc=new Date().toISOString().slice(0,10);
-  // Entitlement binds to the STORED job, never to request input: a retry of an
-  // existing job reuses that job's free flag; only brand-new jobs read the
-  // request flag (after claiming the day). paidRetry forces the paid path and
-  // flips a free-created pending job to paid.
+  // Entitlement binds to the stored job, never to mutable retry input. A paid
+  // fallback uses a new request ID, preserving the original free job and its
+  // idempotency history.
   const prior=await store.job(user.id,body.id);
-  const paidRetry=body.paidRetry===true;
-  let freePullClaimed=false;
-  if(kind==='pfp'&&!paidRetry){
-   if(prior)freePullClaimed=(prior as {free?:unknown}).free===true;
-   else if(body.freePull===true){if(!await store.claimFreePullDay(user.id,dayUtc))throw new HttpError(402,'Free daily pull already used — pay for this pull');freePullClaimed=true;}
-  }
-  if(paidRetry&&prior&&(prior as {free?:unknown}).free===true)await store.setJobPaid(user.id,body.id);
   const fingerprint=createHash('sha256').update(JSON.stringify({capsule:body.capsuleId,ticker:body.ticker,moment:body.moment,kind})).digest('hex');
+  let freePullClaimed=kind==='pfp'&&prior?(prior as {free?:unknown}).free===true:false;
+  let createdFree=false;
+  if(!prior&&kind==='pfp'&&body.freePull===true){
+   createdFree=await store.createFreeJob(user.id,body.id,String(body.ticker),body.capsuleId,fingerprint,kind,pullGroup,lane,body.moment,dayUtc);
+   if(!createdFree){const raced=await store.job(user.id,body.id);if(raced)return Response.json(raced,{status:202});throw new HttpError(402,'Free daily pull already used — pay for this pull');}
+   freePullClaimed=true;
+  }
   if(prior?.status==='completed')return Response.json(prior);
   if(prior&&!await store.retryJob(user.id,body.id,fingerprint))return Response.json(prior,{status:202});
-  if(!prior&&!await store.createJob(user.id,body.id,String(body.ticker),body.capsuleId,fingerprint,kind,pullGroup,lane,body.moment,freePullClaimed))return Response.json({id:body.id,status:'pending'},{status:202});
+  if(!prior&&!createdFree&&!await store.createJob(user.id,body.id,String(body.ticker),body.capsuleId,fingerprint,kind,pullGroup,lane,body.moment,false))return Response.json({id:body.id,status:'pending'},{status:202});
   running={userId:user.id,id:body.id};
   const result=await museRequest(user.id,{action:'forge',capsuleId:body.capsuleId,input:{moment:body.moment},txHash:body.txHash,freePull:freePullClaimed},body.id);
  const image=typeof result.data.image==='string'&&/^data:image\/(png|jpeg|webp);base64,/.test(result.data.image)?result.data.image:null;

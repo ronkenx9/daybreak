@@ -28,7 +28,7 @@ export default function NewsTicker({ onOpenStory }: { onOpenStory: (story: NewsS
   const run = [...items, ...items];
   return (
     <div className="db-ticker" aria-label="Live market news">
-      <span className="db-ticker-badge"><Radio size={13} /> {q.data?.stale ? 'Recent news' : 'Live news'}</span>
+      <span className="db-ticker-badge"><Radio size={13} /> {q.data?.stale ? 'Latest available' : 'Live news'}</span>
       <div className="db-ticker-viewport">
         <div className="db-ticker-track">
           {run.map((it, i) => {
