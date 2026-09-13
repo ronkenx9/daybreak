@@ -31,7 +31,7 @@ export default function DaybreakTokenPanel({ address }: { address?: string }) {
     <section className="db-dayc" aria-label="Daybreak token">
       <div className="db-dayc-head">
         <div className="db-dayc-id">
-          <span className="db-dayc-mark" aria-hidden="true">◧</span>
+          <span className="db-dayc-mark" aria-hidden="true"><img src="/assets/daybreak-icon-v2.svg" alt="" width="30" height="30" /></span>
           <div>
             <strong>Daybreak</strong>
             <small>DAYC · Base</small>

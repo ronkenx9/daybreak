@@ -1071,7 +1071,8 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-app[data-theme="dark"] .db-dayc{background:#141a2b;border-color:#283049}
 .db-dayc-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .db-dayc-id{display:flex;align-items:center;gap:12px}
-.db-dayc-mark{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:22px;color:#fff;background:conic-gradient(from 210deg,#3a63ff,#0210ef,#3a63ff);box-shadow:inset 0 1px 1px rgba(255,255,255,.35)}
+.db-dayc-mark{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:#eef2ff;box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 2px 6px #12265710}
+.db-app[data-theme="dark"] .db-dayc-mark{background:#e7ecff}
 .db-dayc-id strong{display:block;font-family:var(--db-display);font-size:17px;font-weight:600}
 .db-dayc-id small{font-size:11px;color:var(--db-muted);letter-spacing:.4px}
 .db-dayc-price{text-align:right}
