@@ -1091,3 +1091,13 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-dayc-actions{display:flex;align-items:center;gap:16px}
 .db-dayc-actions .db-button{min-height:44px;border-radius:14px;font-size:13px}
 @media(max-width:640px){.db-dayc-stats{grid-template-columns:1fr}.db-dayc-actions{flex-wrap:wrap}}
+
+/* ---- Stats dashboard ---- */
+.db-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:8px}
+.db-stat-tile{background:var(--db-white,#fff);border:1px solid var(--db-line);border-radius:22px;padding:24px 22px;display:flex;flex-direction:column;gap:4px}
+.db-app[data-theme="dark"] .db-stat-tile{background:#141a2b;border-color:#283049}
+.db-stat-tile>strong{font-family:var(--db-dot);font-weight:900;font-size:clamp(30px,4vw,44px);line-height:1;letter-spacing:1px;font-variant-numeric:tabular-nums}
+.db-stat-tile>span{font-family:var(--db-display);font-size:14px;font-weight:600;margin-top:8px}
+.db-stat-tile>small{font-size:11px;color:var(--db-muted)}
+@media(max-width:900px){.db-stat-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.db-stat-grid{grid-template-columns:1fr 1fr;gap:10px}.db-stat-tile{padding:18px 16px;border-radius:18px}}
