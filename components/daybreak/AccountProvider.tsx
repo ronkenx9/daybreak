@@ -57,8 +57,14 @@ function AccountBridge({ children }: { children: ReactNode }) {
     const email: string | null =
       u?.email?.address ?? u?.google?.email ?? u?.apple?.email ??
       linked.find((a) => typeof a?.type === 'string' && a.type.includes('oauth'))?.email ?? null;
+    // Privy tags BOTH embedded EVM and Solana wallets as type 'wallet', so never
+    // trust the first 'wallet' match — require a real 0x EVM address. Prefer the
+    // EVM wallets hook, then the primary wallet, then any linked EVM account.
+    const isEvm = (a: unknown): a is string => typeof a === 'string' && /^0x[0-9a-fA-F]{40}$/.test(a);
     const wallet: string | null =
-      u?.wallet?.address ?? linked.find((a) => a?.type === 'wallet')?.address ?? null;
+      wallets.map((w) => w.address).find(isEvm)
+      ?? [u?.wallet?.address, ...linked.map((a) => a?.address)].find(isEvm)
+      ?? null;
     const label = email ?? (wallet ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : 'Your account');
     const solanaWallet: string | null = solWallets[0]?.address ?? null;
     return {
