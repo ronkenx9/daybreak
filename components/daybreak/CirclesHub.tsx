@@ -20,6 +20,10 @@ interface Member { displayName: string; handle: string | null; avatar: number; a
 export default function CirclesHub() {
   const account = useAccountState();
   const { address, isConnected } = useAccount();
+  // The Privy embedded wallet is linked to the account, so it can verify holdings
+  // without connecting an external wallet. Prefer a connected external wallet.
+  const embedded = account.authenticated ? account.user?.wallet ?? undefined : undefined;
+  const verifyAddress = (isConnected ? address : undefined) ?? embedded;
   const [circles, setCircles] = useState<Circle[]>([]);
   const [activeSlug, setActiveSlug] = useState('');
   const [members, setMembers] = useState<Member[]>([]);
@@ -69,10 +73,10 @@ export default function CirclesHub() {
   };
 
   const sync = async () => {
-    if (!address) return;
+    if (!verifyAddress) return;
     setWorking(true); setNotice('');
     try {
-      const result = await authedFetch<{ eligibility: { tickers: string[] } }>('/api/holdings/sync', { method: 'POST', body: JSON.stringify({ address }) });
+      const result = await authedFetch<{ eligibility: { tickers: string[] } }>('/api/holdings/sync', { method: 'POST', body: JSON.stringify({ address: verifyAddress }) });
       setNotice(result.eligibility.tickers.length ? `Unlocked from verified holdings: ${result.eligibility.tickers.join(', ')}.` : 'Wallet verified. No supported stock balances were found.');
       await load();
     } catch (error) {
@@ -96,7 +100,7 @@ export default function CirclesHub() {
   return <>
     <section className="db-circle-proof db-glass">
       <div><span className="db-eyebrow">Private proof, social access</span><h2>Hold the stock. Unlock the room.</h2><p>Daybreak checks a wallet linked to your account and stores only short-lived eligibility—not balances. Other members never see your wallet or position size.</p></div>
-      <div className="db-circle-proof-actions"><ConnectButton/>{isConnected && <button className="db-button db-blue-button" disabled={working} onClick={sync}><RefreshCw size={16}/>{working ? 'Verifying…' : 'Verify holdings'}</button>}</div>
+      <div className="db-circle-proof-actions"><ConnectButton/>{verifyAddress && <button className="db-button db-blue-button" disabled={working} onClick={sync}><RefreshCw size={16}/>{working ? 'Verifying…' : isConnected ? 'Verify holdings' : 'Verify my Daybreak wallet'}</button>}</div>
     </section>
     <div className="db-section-heading"><div><span className="db-eyebrow">Circles</span><h2>{recommended.length ? `${recommended.length} unlocked for you.` : 'Community, built around conviction.'}</h2></div><button className="db-button db-blue-button" onClick={() => setCreating((value) => !value)}><Plus size={16}/> Create circle</button></div>
     {creating && <form className="db-circle-create db-glass" onSubmit={create}><label>Circle name<input required minLength={3} maxLength={48} value={name} onChange={(event) => setName(event.target.value)} placeholder="Alphabet builders"/></label><label>What is it about?<input maxLength={180} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="News, ideas and conversation"/></label><label>Access<select value={gateMode} onChange={(event) => setGateMode(event.target.value)}><option value="any_stock">Hold any selected stock</option><option value="all_stocks">Hold every selected stock</option><option value="open">Open to everyone</option></select></label><fieldset><legend>Stocks for the circle</legend><div className="db-circle-ticker-picker">{TOKENS.map((token) => <button type="button" key={token.ticker} aria-pressed={tickers.includes(token.ticker)} onClick={() => setTickers((current) => current.includes(token.ticker) ? current.filter((ticker) => ticker !== token.ticker) : current.length < 5 ? [...current, token.ticker] : current)}>{token.ticker}</button>)}</div></fieldset><button className="db-button db-blue-button" disabled={working || (gateMode !== 'open' && !tickers.length)}>Publish circle</button></form>}
