@@ -8,9 +8,9 @@ import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://www.daybreakcircles.lol'),
-  title: 'Daybreak — Hold the stock. Find your people.',
+  title: 'Daybreak — A new day. A little more yours.',
   description:
-    'Verify your tokenized-stock holdings, unlock the matching circle, and create the culture around the market.',
+    'Discover the companies behind your everyday, explore stock circles, and make Daybreak your own.',
   icons: {
     icon: '/assets/daybreak-icon-v2.svg',
   },
