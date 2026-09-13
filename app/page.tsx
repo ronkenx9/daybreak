@@ -215,6 +215,7 @@ export default function Landing() {
             <Link href="/app">Discover companies</Link>
             <Link href="/app/groups">Find a circle</Link>
             <Link href="/app/holdings">Your holdings</Link>
+            <Link href="/stats">By the numbers</Link>
             <Link href="/app/profile">Make it yours</Link>
           </nav>
           <nav aria-label="Learn" className="db-dawn-col">
