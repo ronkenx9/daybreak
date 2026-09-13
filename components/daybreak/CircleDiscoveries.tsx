@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bookmark, Flag, Ban, Send, Check } from 'lucide-react';
 import { authedFetch } from '@/lib/account/api-client';
@@ -32,34 +32,47 @@ export default function CircleDiscoveries({ slug, isMember, onJoin, tickers }: {
   const block = useMutation({ mutationFn: (id: string) => authedFetch('/api/discoveries/block', { method: 'POST', body: JSON.stringify({ discoveryId: id }) }), onSuccess: inv });
   const remove = useMutation({ mutationFn: (id: string) => authedFetch(`/api/discoveries?id=${id}`, { method: 'DELETE' }), onSuccess: inv });
 
-  if (!authenticated) return <section className="db-disc"><div className="db-disc-empty"><h3>Share what you find.</h3><p>Sign in and join this circle to post discoveries and see what members are sharing.</p></div></section>;
-  if (!isMember) return <section className="db-disc"><div className="db-disc-empty"><h3>Join to see discoveries.</h3><p>Save this circle to share assets with a note and see what others are watching.</p><button className="db-button db-blue-button" onClick={onJoin}>Save this circle</button></div></section>;
+  // Chat reads oldest -> newest, but the API returns newest first.
+  const messages = q.data ? [...q.data.discoveries].reverse() : [];
+  const threadRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { endRef.current?.scrollIntoView({ block: 'end' }); }, [messages.length]);
+  const send = () => { if (!note.trim() || share.isPending) return; share.mutate(); };
 
-  return <section className="db-disc" aria-label="Circle discoveries">
-    <div className="db-disc-composer">
-      <label className="sr-only" htmlFor="disc-stock">Stock to share</label>
-      <select id="disc-stock" value={ticker} onChange={(e) => setTicker(e.target.value)}>{available.map((t) => <option key={t.ticker} value={t.ticker}>{t.ticker} · {t.name}</option>)}</select>
-      <input aria-label="Note" placeholder="Add a note — why is this worth a look?" maxLength={280} value={note} onChange={(e) => setNote(e.target.value)} />
-      <button className="db-button db-blue-button" disabled={share.isPending} onClick={() => share.mutate()}><Send size={15} /> {share.isPending ? 'Sharing…' : 'Share'}</button>
-    </div>
-    {share.isError && <p role="status" className="db-small-note">That couldn’t be shared. Please try again.</p>}
-    {q.isPending && <p role="status" className="db-small-note">Loading discoveries…</p>}
-    {q.isError && <p role="status" className="db-small-note">Discoveries are unavailable right now.</p>}
-    {q.data && q.data.discoveries.length === 0 && <p className="db-small-note">No discoveries yet — be the first to share one.</p>}
-    <div className="db-disc-list">{q.data?.discoveries.map((d) => <article key={d.id} className="db-disc-item">
-      <ProfileAvatar imageUrl={d.authorAvatarUrl} seed={d.authorAvatar ?? 0} size={40} />
-      <div className="db-disc-body">
-        <div className="db-disc-head"><strong>{d.authorName || 'A member'}</strong><span>{new Date(d.createdAt).toLocaleDateString()}</span></div>
-        <div className="db-disc-subject"><StockIcon ticker={d.subjectId} size={28} /><span>{d.subjectLabel || d.subjectId}</span></div>
-        {d.note && <p>{d.note}</p>}
-        <div className="db-disc-actions">
-          <button aria-pressed={d.savedByMe} onClick={() => (d.savedByMe ? unsave : save).mutate(d.id)}>{d.savedByMe ? <><Check size={14} /> Saved</> : <><Bookmark size={14} /> Save</>}</button>
-          {d.isMine
-            ? <button onClick={() => remove.mutate(d.id)}>Remove</button>
-            : <><button onClick={() => report.mutate(d.id)}><Flag size={14} /> Report</button><button onClick={() => block.mutate(d.id)}><Ban size={14} /> Block</button></>}
+  if (!authenticated) return <section className="db-chat"><div className="db-disc-empty"><h3>Join the conversation.</h3><p>Sign in and join this circle to chat and see what members are sharing.</p></div></section>;
+  if (!isMember) return <section className="db-chat"><div className="db-disc-empty"><h3>Join to open the chat.</h3><p>Save this circle to message members and share the stocks you’re watching.</p><button className="db-button db-blue-button" onClick={onJoin}>Save this circle</button></div></section>;
+
+  return <section className="db-chat" aria-label="Circle chat">
+    <div className="db-chat-thread" role="log" aria-live="polite" ref={threadRef}>
+      {q.isPending && <p className="db-chat-sys">Loading messages…</p>}
+      {q.isError && <p className="db-chat-sys">Messages are unavailable right now.</p>}
+      {q.data && messages.length === 0 && <p className="db-chat-sys">No messages yet — say the first thing.</p>}
+      {messages.map((d) => <div key={d.id} className={`db-chat-msg ${d.isMine ? 'mine' : 'theirs'}`}>
+        {!d.isMine && <ProfileAvatar imageUrl={d.authorAvatarUrl} seed={d.authorAvatar ?? 0} size={34} />}
+        <div className="db-chat-col">
+          {!d.isMine && <span className="db-chat-author">{d.authorName || 'A member'}</span>}
+          <div className="db-chat-bubble">
+            <span className="db-chat-asset"><StockIcon ticker={d.subjectId} size={24} />{d.subjectLabel || d.subjectId}</span>
+            {d.note && <p>{d.note}</p>}
+            <time className="db-chat-time" dateTime={d.createdAt}>{new Date(d.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>
+          </div>
+          <div className="db-chat-actions">
+            <button aria-pressed={d.savedByMe} title={d.savedByMe ? 'Saved' : 'Save'} onClick={() => (d.savedByMe ? unsave : save).mutate(d.id)}>{d.savedByMe ? <><Check size={13} /> Saved</> : <><Bookmark size={13} /> Save</>}</button>
+            {d.isMine
+              ? <button title="Remove" onClick={() => remove.mutate(d.id)}>Remove</button>
+              : <><button title="Report" aria-label="Report message" onClick={() => report.mutate(d.id)}><Flag size={13} /></button><button title="Block" aria-label="Block member" onClick={() => block.mutate(d.id)}><Ban size={13} /></button></>}
+          </div>
         </div>
-      </div>
-    </article>)}</div>
-    <p className="db-small-note">Discoveries are visible to this circle’s members. Saving copies it to your own collection. Reports go to moderation; blocking hides that member from you.</p>
+      </div>)}
+      <div ref={endRef} />
+    </div>
+    {share.isError && <p className="db-chat-sys" role="status">That couldn’t be sent. Please try again.</p>}
+    <div className="db-chat-composer">
+      <label className="sr-only" htmlFor="disc-stock">Stock to attach</label>
+      <select id="disc-stock" value={ticker} onChange={(e) => setTicker(e.target.value)}>{available.map((t) => <option key={t.ticker} value={t.ticker}>{t.ticker}</option>)}</select>
+      <input aria-label="Message the circle" placeholder="Message the circle…" maxLength={280} value={note} onChange={(e) => setNote(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} />
+      <button className="db-chat-send" aria-label="Send" disabled={share.isPending || !note.trim()} onClick={send}><Send size={17} /></button>
+    </div>
+    <p className="db-small-note db-chat-foot">Messages are visible to this circle’s members. Saving copies a stock to your collection; reports go to moderation; blocking hides that member from you.</p>
   </section>;
 }
