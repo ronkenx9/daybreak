@@ -1051,3 +1051,9 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-group-card>div{flex-wrap:wrap;margin-top:12px}
 .db-app[data-theme="dark"] .db-group-card.selected{border-color:#5668d8;background:#171d32;box-shadow:inset 3px 0 0 #8291ff}
 }
+
+/* ---- Community Spotlight: dark surfaces (was white-on-dark) ---- */
+.db-app[data-theme="dark"] .db-spotlight.is-compact{background:#101627;border-color:#242e49}
+.db-app[data-theme="dark"] .db-spotlight-card{background:#141a2b;border-color:#242e49}
+.db-app[data-theme="dark"] .db-spotlight-art{background:radial-gradient(circle at 50% 12%,#1c2748 0,#141a2b 72%)}
+.db-app[data-theme="dark"] .db-spotlight-action{background:#1c2550;color:#aeb9ff}
