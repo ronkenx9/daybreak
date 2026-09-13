@@ -1012,3 +1012,17 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-thesis-cta{margin-top:30px}
 @media(max-width:900px){.db-thesis-body figure{margin-inline:-60px}}
 @media(max-width:700px){.db-thesis-nav{height:78px}.db-thesis-nav .db-button{padding-inline:14px;font-size:11px}.db-thesis-head{padding-top:34px}.db-thesis-head>.db-text-link{margin-bottom:50px}.db-thesis-head h1{font-size:50px}.db-thesis-head>img{border-radius:18px;min-height:180px;object-fit:cover;object-position:65% center}.db-thesis-body{margin-top:55px;font-size:16px}.db-thesis-body h2{margin-top:66px}.db-thesis-body figure{margin:60px 0}.db-thesis-body blockquote{padding-left:22px}}
+
+/* ---- Dark-mode surfaces missed by earlier spot overrides (app-wide) ---- */
+.db-app[data-theme="dark"] .db-holding-row{background:#141a2b;border-color:#283049}
+.db-app[data-theme="dark"] .db-data-notice{background:#161d31;border-color:#2b3654;color:var(--db-ink)}
+.db-app[data-theme="dark"] .db-trade-sheet{background:#141a2b;border-color:#283049}
+.db-app[data-theme="dark"] .db-trade-network,.db-app[data-theme="dark"] .db-trade-amount>span:last-child,.db-app[data-theme="dark"] .db-trade-gate{background:#1b2236;border-color:#2f3a58}
+.db-app[data-theme="dark"] .db-trade-amount input{color:var(--db-ink)}
+
+/* ---- Crypto-first: metallic shine on headline values + glossy coins ---- */
+.db-shine,.db-portfolio-value h2,.db-holding-val>strong{background:linear-gradient(176deg,#4a5bd8 0%,#1b2c8e 46%,#0210ef 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;font-variant-numeric:tabular-nums}
+.db-app[data-theme="dark"] .db-shine,.db-app[data-theme="dark"] .db-portfolio-value h2,.db-app[data-theme="dark"] .db-holding-val>strong{background:linear-gradient(176deg,#ffffff 0%,#dbe6ff 46%,#9db3ff 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+.db-token{position:relative;overflow:hidden}
+.db-token::after{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(152deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.08) 34%,transparent 60%);pointer-events:none}
+.db-app[data-theme="dark"] .db-token::after{background:linear-gradient(152deg,rgba(255,255,255,.34) 0%,rgba(255,255,255,.04) 36%,transparent 62%)}
