@@ -35,6 +35,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Doto:wght@500;700;900&family=Space+Grotesk:wght@500;600;700&family=Inter+Tight:wght@400;500;600&display=swap" />
         {/*
           Arms the reveal system before first paint, so elements start hidden
           instead of flashing in and then snapping back. The failsafe drops the
