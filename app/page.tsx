@@ -51,6 +51,7 @@ export default function Landing() {
               <a href="#discover">The experience</a>
               <a href="#circles">Find your people</a>
               <Link href="/references">Our direction</Link>
+              <Link href="/stats">Stats</Link>
             </div>
             <Link className="db-nav-cta" href="/app">
               Open app <ArrowUpRight size={15} />
