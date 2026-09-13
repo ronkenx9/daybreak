@@ -428,7 +428,7 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 .db-profile-link .db-avatar{width:52px!important;height:52px!important}
 .db-profile-photo{display:inline-block;overflow:hidden;border-radius:50%;background:#e7ebf6;box-shadow:inset 0 0 0 1px #fff}.db-profile-photo img{display:block;width:100%;height:100%;object-fit:cover}.db-photo-actions{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;margin-top:18px}.db-photo-actions .db-button{min-height:42px;padding:0 17px;border-radius:13px;font-size:12px}.db-photo-actions .db-text-link{font-size:11px}.db-photo-actions>small{width:100%;text-align:center;color:var(--db-muted);font-size:10px;line-height:1.5}.db-photo-actions .db-photo-error{color:#b42318}
 .db-avatar-stage{display:flex;align-items:center;flex-direction:column;background:radial-gradient(ellipse at center,#e6ebff,transparent 70%);margin:-8px -10px 24px;padding:10px 0 20px}.db-avatar-stage .db-profile-photo{border:4px solid #fff;box-shadow:0 15px 38px #142e7a20}
-.db-avatar-stage-label{font-size:10px;text-transform:uppercase;letter-spacing:1.6px;color:var(--db-blue);margin-top:-6px}
+.db-avatar-stage-label{font-size:11px;font-weight:600;letter-spacing:.2px;color:var(--db-muted);margin-top:2px}
 .db-wardrobe-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:28px 0 14px;text-align:left}
 .db-wardrobe-heading h3{font-size:16px;font-weight:550;letter-spacing:-.3px}
 .db-wardrobe-heading>span{font-size:10px;color:var(--db-muted);white-space:nowrap}
