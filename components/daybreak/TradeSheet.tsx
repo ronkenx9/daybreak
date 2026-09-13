@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowRight, LoaderCircle, ShieldCheck, WalletCards } from 'lucide-react';
-import type { StockToken } from '@/lib/base/tokens';
+import { ArrowRight, ArrowUpRight, LoaderCircle, WalletCards } from 'lucide-react';
+import { buyUrl, type StockToken } from '@/lib/base/tokens';
 
 interface Quote {
   ticker: string;
@@ -59,9 +59,9 @@ export default function TradeSheet({ token }: { token: StockToken }) {
         <div><dt>Bankr fee</dt><dd>{quote.feeBps == null ? 'Unavailable' : `${quote.feeBps / 100}%`}</dd></div>
         <div><dt>Estimated network cost</dt><dd>{quote.networkCostsUsd == null ? 'Unavailable' : `$${quote.networkCostsUsd.toFixed(4)}`}</dd></div>
       </dl>
-      <div className="db-trade-gate"><WalletCards size={18}/><div><strong>Quote connected. Signing comes next.</strong><p>{quote.note}</p></div></div>
-      <button className="db-button db-blue-button" disabled aria-disabled="true"><ShieldCheck size={17}/> Execution wallet not linked</button>
+      <div className="db-trade-gate"><WalletCards size={18}/><div><strong>Reference quote.</strong><p>In-app signing is on the way. For now you can complete the buy on Base with your own wallet — Daybreak never moves your funds.</p></div></div>
+      <a className="db-button db-blue-button" href={buyUrl(token)} target="_blank" rel="noopener noreferrer"><ArrowUpRight size={17}/> Buy {token.ticker} on Base</a>
     </div>}
-    <p className="db-small-note">Quotes use the configured Bankr integration. Eligible jurisdictions outside the US only. A quote does not reserve a price or move funds.</p>
+    <p className="db-small-note">Quotes use the configured Bankr integration. Eligible jurisdictions outside the US only. A quote does not reserve a price or move funds; you sign the purchase yourself.</p>
   </section>;
 }

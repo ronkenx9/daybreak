@@ -1057,3 +1057,11 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-app[data-theme="dark"] .db-spotlight-card{background:#141a2b;border-color:#242e49}
 .db-app[data-theme="dark"] .db-spotlight-art{background:radial-gradient(circle at 50% 12%,#1c2748 0,#141a2b 72%)}
 .db-app[data-theme="dark"] .db-spotlight-action{background:#1c2550;color:#aeb9ff}
+
+/* ---- Dark-mode sweep: remaining in-app light surfaces ---- */
+.db-app[data-theme="dark"] .db-connect-menu{background:#141a2b;border-color:#283049;box-shadow:0 16px 40px #00000066}
+.db-app[data-theme="dark"] .db-wallet-chip{background:#1b2236;border-color:#2f3a58}
+.db-app[data-theme="dark"] .db-wallet-orb{background:radial-gradient(circle at 30% 22%,#dfe8ff,#3a63ff 60%,#0210ef);box-shadow:0 20px 40px #00000055}
+.db-app[data-theme="dark"] .db-meme-row{background:#141a2b;border-color:#283049}
+.db-app[data-theme="dark"] .db-meme-warn{background:#241a10;border-color:#5a3d1e}
+.db-app[data-theme="dark"] .db-lp-position{background:#141a2b;border-color:#283049}
