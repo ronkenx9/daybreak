@@ -975,9 +975,12 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-app select{-webkit-appearance:none;-moz-appearance:none;appearance:none;cursor:pointer;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%23657089" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>');background-repeat:no-repeat;background-position:right 4px center;padding-right:26px}
 .db-app select:focus-visible{outline:2px solid var(--db-blue);outline-offset:2px}
 .db-app[data-theme="dark"] select{background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%2395a1bd" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>')}
-/* The inline "Creating for" / "Pay with" selects get a soft pill so they read as tappable. */
-.db-create-stock select,.db-create-currency select{border:1px solid var(--db-line);border-radius:11px;background-color:#f8faff;padding:8px 26px 8px 12px}
-.db-app[data-theme="dark"] .db-create-stock select,.db-app[data-theme="dark"] .db-create-currency select{background-color:#1b2236;border-color:#2f3a58}
+/* Inline creation menus use a compact squircle, not a long capsule. */
+.db-create-stock select,.db-create-currency select{min-height:38px;border:0;border-radius:7px;background-color:#edf1f8;background-position:right 10px center;padding:8px 32px 8px 11px;box-shadow:inset 0 0 0 1px #dce3ef,0 1px 2px #1021470a;transition:background-color .18s var(--db-ease),box-shadow .18s var(--db-ease)}
+.db-create-stock select:hover,.db-create-currency select:hover{background-color:#e7ecf5;box-shadow:inset 0 0 0 1px #cfd8e8,0 2px 5px #10214710}
+.db-create-stock select:focus-visible,.db-create-currency select:focus-visible{outline:0;box-shadow:inset 0 0 0 1.5px var(--db-blue),0 0 0 3px #0210ef16}
+.db-app[data-theme="dark"] .db-create-stock select,.db-app[data-theme="dark"] .db-create-currency select{background-color:#1b2236;box-shadow:inset 0 0 0 1px #303b58,0 1px 2px #0004}
+.db-app[data-theme="dark"] .db-create-stock select:hover,.db-app[data-theme="dark"] .db-create-currency select:hover{background-color:#222b42;box-shadow:inset 0 0 0 1px #3a4667,0 2px 5px #0005}
 
 /* Pair mark: stock + community token separated by the moment that connects them. */
 .db-brand-mark .db-brand-mark-primary{fill:var(--db-blue)}
