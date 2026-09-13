@@ -743,6 +743,9 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 /* dialog */
 .db-app[data-theme="dark"] .db-dialog-overlay{background:#03060f80}
 .db-app[data-theme="dark"] .db-company-dialog{background:#121829;border-color:#283049;box-shadow:0 30px 120px #00000090}
+.db-app[data-theme="dark"] .db-signin-btn{background:#1b2236;border-color:#2f3a58;color:var(--db-ink)}
+.db-app[data-theme="dark"] .db-signin-btn:hover{background:#222b45;border-color:#3a4560}
+.db-app[data-theme="dark"] .db-signin-note{background:#161d31;border-color:#2f3a58}
 /* type badges */
 .db-app[data-theme="dark"] .db-type-badge{background:#1b2236;border-color:#2f3a58;color:var(--db-ink)}
 .db-app[data-theme="dark"] .db-type-badge.is-stock{background:#1c2550;border-color:#33407a;color:#aeb9ff}
