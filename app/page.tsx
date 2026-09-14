@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import LandingStories from '@/components/daybreak/LandingStories';
 import { ArrowUpRight, ArrowRight, Compass, Layers, Sun, Github } from 'lucide-react';
@@ -6,6 +8,7 @@ import { Wordmark, AvatarStack, StockIcon, Avatar, CharacterCrew } from '@/compo
 import CommunitySpotlight from '@/components/daybreak/CommunitySpotlight';
 
 import { Lines } from '@/components/daybreak/Lines';
+import { LanguagePicker, useLocale } from '@/components/daybreak/LocaleProvider';
 
 const PROOF = [
   { value: '13', label: 'Real stocks, tokenized on Base' },
@@ -39,6 +42,7 @@ const CIRCLES = [
 ];
 
 export default function Landing() {
+  const { t } = useLocale();
   return (
     <main className="db-landing">
       <ShareRedirect />
@@ -53,32 +57,32 @@ export default function Landing() {
               <Link href="/references">Our direction</Link>
               <Link href="/stats">Stats</Link>
             </div>
+            <LanguagePicker compact />
             <Link className="db-nav-cta" href="/app">
-              Open app <ArrowUpRight size={15} />
+              {t('action.openApp', 'Open app')} <ArrowUpRight size={15} />
             </Link>
           </nav>
 
           <div className="db-hero-copy" data-reveal>
             <span className="db-micro db-micro-light" style={{ '--i': 0 } as React.CSSProperties}>
-              Tokenized stocks on Base
+              {t('landing.tokenized', 'Tokenized stocks on Base')}
             </span>
             <h1>
-              <Lines lines={['Your world.', 'Your stocks.']} from={1} />
+              <Lines lines={[t('landing.hero1', 'Your world.'), t('landing.hero2', 'Your stocks.')]} from={1} />
             </h1>
             <p style={{ '--i': 4 } as React.CSSProperties}>
-              Discover tokenized stocks on Base through the interests, creators and
-              communities you follow.
+              {t('landing.heroBody', 'Discover tokenized stocks on Base through the interests, creators and communities you follow.')}
             </p>
             <div className="db-hero-actions" style={{ '--i': 5 } as React.CSSProperties}>
               <Link className="db-button db-white-button" href="/app">
-                Explore stocks <ArrowRight size={17} />
+                {t('action.exploreStocks', 'Explore stocks')} <ArrowRight size={17} />
               </Link>
               <Link className="db-button db-ghost-button" href="/app/groups">
-                Find your circle <ArrowUpRight size={17} />
+                {t('action.findCircle', 'Find your circle')} <ArrowUpRight size={17} />
               </Link>
             </div>
             <span className="db-caption" style={{ '--i': 6 } as React.CSSProperties}>
-              Explore first. Connect a wallet only when you trade.
+              {t('landing.walletNote', 'Explore first. Connect a wallet only when you trade.')}
             </span>
           </div>
         </div>
@@ -107,11 +111,10 @@ export default function Landing() {
         <div className="db-shell">
           <div className="db-section-head" data-reveal>
             <h2>
-              <Lines lines={['Every stock,', 'a token on Base.']} />
+              <Lines lines={[t('landing.everyStock1', 'Every stock,'), t('landing.everyStock2', 'a token on Base.')]} />
             </h2>
             <p>
-              Browse tokenized stocks like AAPL and NVDA with live onchain prices, the community
-              memecoins paired against them, and the pools where you can provide liquidity for fees.
+              {t('landing.everyStockBody', 'Browse tokenized stocks like AAPL and NVDA with live onchain prices, the community memecoins paired against them, and the pools where you can provide liquidity for fees.')}
             </p>
             <Link className="db-text-link" href="/app">
               Explore the collection <ArrowUpRight size={17} />
@@ -136,11 +139,10 @@ export default function Landing() {
         <div className="db-shell db-split">
           <div className="db-section-head" data-reveal>
             <h2>
-              <Lines lines={['Different interests.', 'Shared curiosity.']} />
+              <Lines lines={[t('landing.interests1', 'Different interests.'), t('landing.interests2', 'Shared curiosity.')]} />
             </h2>
             <p>
-              Find your people around the things you love. Explore stocks, shared discoveries and
-              a little personality, with sharing always on your terms.
+              {t('landing.interestsBody', 'Find your people around the things you love. Explore stocks, shared discoveries and a little personality, with sharing always on your terms.')}
             </p>
             <Link className="db-button db-blue-button" href="/app/groups">
               Explore circles <ArrowRight size={17} />

@@ -203,6 +203,11 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 @media(max-width:760px){
 .db-app{--db-pad:20px}
 .db-app-header{min-height:68px;padding:12px var(--db-pad);background:#fff}
+.db-app-header .db-language-picker{padding:0 7px;gap:4px}
+.db-app-header .db-language-picker select{width:34px;max-width:34px}
+.db-header-actions{gap:7px}
+.db-site-nav .db-language-picker{margin-left:auto}
+.db-site-nav .db-nav-cta{display:none}
 .db-app-nav{position:fixed;bottom:max(12px,env(safe-area-inset-bottom));left:16px;right:16px;background:#fff;border:1px solid var(--db-line);box-shadow:0 8px 30px #18223c1a;backdrop-filter:none}
 .db-app-nav a[aria-current=page]{background:#eef1ff}
 .db-app-content{padding:26px var(--db-pad) 110px}
@@ -853,6 +858,13 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 .db-chat-send:disabled{opacity:.4}
 .db-chat-send:not(:disabled):hover{transform:scale(1.06)}
 .db-chat-foot{margin-top:12px}
+.db-language-picker{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:0 10px;border:1px solid var(--db-line);border-radius:13px;background:#fff;color:var(--db-muted)}
+.db-language-picker select{max-width:96px;border:0;outline:0;background:transparent;color:var(--db-ink);font-size:12px;font-weight:600;cursor:pointer}
+.db-language-picker:focus-within{outline:2px solid var(--db-blue);outline-offset:2px}
+.db-language-picker.is-compact{min-height:36px;background:#ffffffd9;backdrop-filter:blur(14px)}
+.db-chat-translation{margin-top:8px;padding-top:8px;border-top:1px solid currentColor;opacity:.92}
+.db-chat-translation-error{font-size:11px;color:#b33b2e;margin-top:5px}
+.db-chat-actions .db-translate-button{color:var(--db-blue)}
 .db-app[data-theme="dark"] .db-chat-thread{background:linear-gradient(180deg,#0d1322,#0b1120);border-color:#222c46}
 .db-app[data-theme="dark"] .db-chat-msg.theirs .db-chat-bubble{background:#1a2338;border-color:#2b3654;color:var(--db-ink);box-shadow:none}
 .db-app[data-theme="dark"] .db-chat-actions button:hover{color:var(--db-ink);background:#ffffff12}
