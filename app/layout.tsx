@@ -9,9 +9,36 @@ import { LocaleProvider } from '@/components/daybreak/LocaleProvider';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://www.daybreakcircles.lol'),
-  title: 'Daybreak — A new day. A little more yours.',
+  title: {
+    default: 'Daybreak — Tokenized stocks find their people',
+    template: '%s — Daybreak',
+  },
   description:
-    'Discover the companies behind your everyday, explore stock circles, and make Daybreak your own.',
+    'Discover tokenized stocks on Base, join wallet-verified holder circles, follow memestock news, and find community-token pairing opportunities.',
+  applicationName: 'Daybreak',
+  authors: [{ name: 'Daybreak', url: 'https://www.daybreakcircles.lol' }],
+  creator: 'Daybreak',
+  publisher: 'Daybreak',
+  keywords: ['tokenized stocks', 'stocks on Base', 'memestocks', 'onchain communities', 'stock token data', 'x402 API'],
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    url: '/',
+    siteName: 'Daybreak',
+    title: 'Daybreak — Tokenized stocks find their people',
+    description: 'Wallet-verified stock circles, memestock news, and pairing intelligence for tokenized stocks on Base.',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'Daybreak — tokenized stocks find their people' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Daybreak — Tokenized stocks find their people',
+    description: 'Wallet-verified stock circles, memestock news, and pairing intelligence on Base.',
+    creator: '@kenn_ronin',
+    images: ['/opengraph-image'],
+  },
+  category: 'finance',
+  manifest: '/manifest.webmanifest',
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 } },
   icons: {
     icon: '/assets/daybreak-icon-v2.svg',
   },
@@ -36,6 +63,24 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebApplication',
+              name: 'Daybreak',
+              url: 'https://www.daybreakcircles.lol',
+              applicationCategory: 'FinanceApplication',
+              operatingSystem: 'Web',
+              description: 'Tokenized-stock discovery, wallet-verified circles, memestock news and paid pairing intelligence on Base.',
+              offers: [
+                { '@type': 'Offer', price: '0', priceCurrency: 'USD', category: 'Consumer app' },
+                { '@type': 'Offer', price: '0.005', priceCurrency: 'USDC', category: 'x402 pairing-intelligence API call' },
+              ],
+            }).replace(/</g, '\\u003c'),
+          }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Doto:wght@500;700;900&family=Space+Grotesk:wght@500;600;700&family=Inter+Tight:wght@400;500;600&display=swap" />

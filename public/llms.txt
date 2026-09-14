@@ -1,0 +1,21 @@
+# Daybreak
+
+> Daybreak helps tokenized stocks find their people through discovery, wallet-verified holder circles, memestock news, and stock-pairing intelligence on Base.
+
+Canonical site: https://www.daybreakcircles.lol
+Consumer app: https://www.daybreakcircles.lol/app
+Public stats: https://www.daybreakcircles.lol/stats
+Product thesis: https://www.daybreakcircles.lol/thesis
+Sources and references: https://www.daybreakcircles.lol/references
+
+## Paid agent data
+
+Endpoint: GET https://www.daybreakcircles.lol/api/v1/market/pairing-opportunities
+Protocol: x402 v2 through Circle Gateway
+Price: 0.005 USDC per request
+Payment network: Base (eip155:8453)
+Query parameters: `window=24h`, `minLiquidity=5000..1000000`, `limit=1..25`
+Returns: ranked community-token/stock pairs, stock-by-stock pairing coverage, overlooked stocks, methodology version, freshness, provenance, and caveats.
+An unpaid request returns HTTP 402 and a `PAYMENT-REQUIRED` header. Send the signed x402 payload in `PAYMENT-SIGNATURE`.
+
+This dataset is market-activity intelligence, not investment advice. Daybreak never asks an API buyer for a private key.
