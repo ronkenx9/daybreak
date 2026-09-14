@@ -1,6 +1,6 @@
 # Gates: x402 pairing intelligence and SEO release
 
-OWNS: GATES.md, package.json, package-lock.json, .env.example, app/api/v1/market/pairing-opportunities/**, app/layout.tsx, app/robots.ts, app/sitemap.ts, app/manifest.ts, app/opengraph-image.tsx, app/app/layout.tsx, lib/data/**, lib/x402/**, public/llms.txt, scripts/verify-x402-seo.mjs, docs/X402_DATA_API.md
+OWNS: GATES.md, package.json, package-lock.json, .env.example, app/api/v1/market/pairing-opportunities/**, app/layout.tsx, app/robots.ts, app/sitemap.ts, app/manifest.ts, app/opengraph-image.tsx, app/app/layout.tsx, lib/data/**, lib/x402/**, public/llms.txt, scripts/verify-x402-seo.mjs, scripts/verify-live-x402.mjs, docs/X402_DATA_API.md
 
 Scope: Ship a production-safe paid pairing-intelligence endpoint and complete Daybreak's search, social-share, and agent-discovery metadata without disturbing unrelated working-tree changes.
 
@@ -27,7 +27,12 @@ Scope: Ship a production-safe paid pairing-intelligence endpoint and complete Da
 - [x] G5: The complete application remains type-safe and production-buildable.
   CHECK: npm run type-check && npm run build
   EXPECT: Compiled successfully
-  EVIDENCE: automatic-evidence=v1; definition-sha256=22a8e9c83f37ce1bdc8c2588097b013e07f413e0614e579a2a344ea245ae6b85; exit=0; EXPECT=matched; output-sha256=edf07a4095f6a21e80d869ceb77803b9fd0c2fed9d96a29155d505f6753b645d; output-bytes=5498; shell=/bin/sh; cwd=/Users/gadgetplug/Documents/vibecoding/dayworld; path=74c3116f42e3/22 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=22a8e9c83f37ce1bdc8c2588097b013e07f413e0614e579a2a344ea245ae6b85; exit=0; EXPECT=matched; output-sha256=6533817a8b236b1a740f7cc532eb6cb35dfc3c168f737e023c9569ff853856c0; output-bytes=5498; shell=/bin/sh; cwd=/Users/gadgetplug/Documents/vibecoding/dayworld; path=74c3116f42e3/22 entries
 
 - [x] G6: The previously completed Daybreak and Muse translation commits are present on their tracked remotes.
   EVIDENCE: `origin/main` resolves to Daybreak `b2872ec1deb33108d6591d9a0af7a495765c2bb7` and Muse `090328ef9b07cd5c73ccf1826a7eb41b63b47c72` after successful pushes on 2026-09-14.
+
+- [x] G7: Production advertises the owner-provided seller address in a Base x402 v2 challenge at the configured 0.005 USDC price.
+  CHECK: node scripts/verify-live-x402.mjs 0xbF676Ef8A8886cd217265fD534987344ea0cc84B
+  EXPECT: live x402 seller verification passed
+  EVIDENCE: automatic-evidence=v1; definition-sha256=2b573422c1a4e5de565862de7b679c76b4e863494e37199399f4843b4f61b9be; exit=0; EXPECT=matched; output-sha256=e05868d79aede1b1e3ed71017734ed8a4c488f8150925f09005988fd54847c00; output-bytes=37; shell=/bin/sh; cwd=/Users/gadgetplug/Documents/vibecoding/dayworld; path=74c3116f42e3/22 entries
