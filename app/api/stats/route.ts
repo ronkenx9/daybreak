@@ -5,10 +5,12 @@ import { users, tokenLaunches, museCreations, circles, circleMemberships, circle
 
 export const dynamic = 'force-dynamic';
 
-interface Stats { accounts: number; launches: number; creations: number; circles: number; members: number; messages: number; communityTokens: number; wallets: number }
+interface Stats { accounts: number | null; launches: number | null; creations: number | null; circles: number | null; members: number | null; messages: number | null; communityTokens: number | null; wallets: number | null }
 let cache: { at: number; stats: Stats } | null = null;
 
-const one = async (p: Promise<{ v: number }[]>) => { try { const [r] = await p; return Number(r?.v ?? 0); } catch { return 0; } };
+// null = the count could not be read (distinct from a real 0), so the UI shows
+// "unknown", never a fabricated zero.
+const one = async (p: Promise<{ v: number }[]>): Promise<number | null> => { try { const [r] = await p; return Number(r?.v ?? 0); } catch { return null; } };
 
 export async function GET() {
   if (!isDbConfigured) return Response.json({ configured: false }, { headers: { 'Cache-Control': 'no-store' } });
@@ -25,6 +27,7 @@ export async function GET() {
     one(db.select({ v: count() }).from(linkedWallets)),
   ]);
   const stats: Stats = { accounts, launches, creations, circles: circleCount, members, messages, communityTokens: community, wallets };
-  cache = { at: Date.now(), stats };
+  // Only cache a fully-read snapshot; a partial read shouldn't be served for 60s.
+  if (Object.values(stats).every((v) => v !== null)) cache = { at: Date.now(), stats };
   return Response.json({ configured: true, ...stats });
 }

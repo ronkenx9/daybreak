@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import DaybreakTokenPanel from './DaybreakTokenPanel';
 
-interface Stats { configured: boolean; accounts?: number; launches?: number; creations?: number; circles?: number; members?: number; messages?: number; communityTokens?: number; wallets?: number }
+interface Stats { configured: boolean; accounts?: number | null; launches?: number | null; creations?: number | null; circles?: number | null; members?: number | null; messages?: number | null; communityTokens?: number | null; wallets?: number | null }
 
 const TILES: { key: keyof Stats; label: string; hint: string }[] = [
   { key: 'accounts', label: 'Accounts created', hint: 'People who signed up' },
@@ -28,7 +28,7 @@ export default function StatsBoard({ address }: { address?: string }) {
     <div className="db-stat-grid">
       {TILES.map((t) => (
         <div className="db-stat-tile" key={t.key}>
-          <strong className="db-shine">{q.isPending ? '—' : Number(d?.[t.key] ?? 0).toLocaleString('en-US')}</strong>
+          <strong className="db-shine">{(() => { const v = d?.[t.key]; return q.isPending || v == null || typeof v !== 'number' ? '—' : v.toLocaleString('en-US'); })()}</strong>
           <span>{t.label}</span>
           <small>{t.hint}</small>
         </div>
