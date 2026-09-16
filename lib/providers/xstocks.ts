@@ -38,6 +38,36 @@ function normEvent(n: Record<string, unknown>): CorporateEvent {
   };
 }
 
+export interface InstrumentFacts {
+  ticker: string; xSymbol: string; name: string; isin: string;
+  underlyingIsin: string | null; underlyingCountry: string | null; currency: string | null;
+  tradingHoursMode: string | null; tradingHalted: boolean; atomicHalted: boolean;
+  reserve: { sharesHeld: number | null; circulatingSupply: number | null; provider: string | null; asOf: string | null } | null;
+}
+
+export async function fetchInstrumentFacts(ticker: string): Promise<InstrumentFacts | null> {
+  const x = xstockByTicker(ticker);
+  if (!x) return null;
+  // Proof-of-reserves is a large, recency-ordered list; we link to the live PoR
+  // rather than paginate hundreds of rows per request to state a specific number.
+  const [asset, status] = await Promise.all([
+    xget<Record<string, unknown>>(`/assets/${x.xSymbol}`),
+    xget<{ isMarketTradingHalted?: boolean; isAtomicTradingHalted?: boolean }>(`/system/status/${x.xSymbol}`),
+  ]);
+  if (!asset) return null;
+  const trading = (asset.trading ?? {}) as Record<string, unknown>;
+  const underlying = (asset.underlying ?? {}) as Record<string, unknown>;
+  return {
+    ticker: x.ticker, xSymbol: x.xSymbol, name: String(asset.name ?? `${x.company} xStock`), isin: String(asset.isin ?? x.isin),
+    underlyingIsin: asset.underlyingIsin ? String(asset.underlyingIsin) : null,
+    underlyingCountry: underlying.listingCountry ? String(underlying.listingCountry) : null,
+    currency: trading.currency ? String(trading.currency) : null,
+    tradingHoursMode: trading.tradingHoursMode ? String(trading.tradingHoursMode) : null,
+    tradingHalted: Boolean(asset.isTradingHalted), atomicHalted: Boolean(status?.isAtomicTradingHalted),
+    reserve: null,
+  };
+}
+
 export async function fetchCorporateActions(ticker: string): Promise<CorporateActionsResult | null> {
   const x = xstockByTicker(ticker);
   if (!x) return null;

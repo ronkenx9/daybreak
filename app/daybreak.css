@@ -1179,3 +1179,13 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-ca-rows>div{display:flex;justify-content:space-between;gap:14px;font-size:12px}
 .db-ca-rows span{color:var(--db-muted)}
 .db-ca-rows b{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---- Instrument facts ---- */
+.db-facts{margin-top:22px}
+.db-facts-list{display:flex;flex-direction:column;border:1px solid var(--db-line);border-radius:16px;overflow:hidden;background:#fff}
+.db-app[data-theme="dark"] .db-facts-list{background:#141a2b;border-color:#283049}
+.db-facts-row{display:flex;justify-content:space-between;gap:18px;padding:12px 16px;font-size:12.5px;border-bottom:1px solid var(--db-line)}
+.db-app[data-theme="dark"] .db-facts-row{border-color:#232c44}
+.db-facts-row:last-child{border-bottom:0}
+.db-facts-row>span{color:var(--db-muted);flex:none}
+.db-facts-row>b{font-weight:600;text-align:right}
