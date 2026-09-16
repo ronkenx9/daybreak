@@ -1163,3 +1163,19 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-app[data-theme="dark"] .db-pin-button{border-color:#2f3a58}
 .db-card-pinned{color:var(--db-blue)!important;font-weight:700;display:inline-flex;align-items:center;gap:5px}
 @media(max-width:600px){.db-circle-head-actions{flex-wrap:wrap}.db-pin-button{font-size:11px}}
+
+/* ---- Corporate events (Events & impact) ---- */
+.db-ca{margin-top:22px}
+.db-ca-list{display:flex;flex-direction:column;gap:10px}
+.db-ca-item{border:1px solid var(--db-line);border-radius:16px;padding:14px 16px;background:#fff}
+.db-app[data-theme="dark"] .db-ca-item{background:#141a2b;border-color:#283049}
+.db-ca-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.db-ca-head strong{font-family:var(--db-display);font-size:14px;font-weight:600}
+.db-ca-status{font-size:10px;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:#eef1ff;color:#536294}
+.db-app[data-theme="dark"] .db-ca-status{background:#1c2550;color:#aeb9ff}
+.db-ca-status.s-scheduled{background:#e9f3dc;color:#5c793a}
+.db-ca-when{font-size:11px;color:var(--db-muted);margin:3px 0 10px}
+.db-ca-rows{display:flex;flex-direction:column;gap:6px}
+.db-ca-rows>div{display:flex;justify-content:space-between;gap:14px;font-size:12px}
+.db-ca-rows span{color:var(--db-muted)}
+.db-ca-rows b{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
