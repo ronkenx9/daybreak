@@ -1189,3 +1189,20 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-facts-row:last-child{border-bottom:0}
 .db-facts-row>span{color:var(--db-muted);flex:none}
 .db-facts-row>b{font-weight:600;text-align:right}
+
+/* ---- Solana swap quote ---- */
+.db-swapq{margin-top:22px}
+.db-swapq-amount{display:flex;flex-direction:column;gap:7px;font-size:11px;color:var(--db-muted)}
+.db-swapq-amount>span:last-child{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--db-line);border-radius:13px;padding:8px 12px}
+.db-app[data-theme="dark"] .db-swapq-amount>span:last-child{background:#141a2b;border-color:#283049}
+.db-swapq-amount input{min-width:0;flex:1;font-size:22px;font-variant-numeric:tabular-nums;border:0;outline:0;background:transparent;color:var(--db-ink)}
+.db-swapq-amount b{font-size:12px;color:var(--db-muted)}
+.db-swapq-out{margin-top:14px;border:1px solid var(--db-line);border-radius:16px;padding:14px 16px;background:#fff}
+.db-app[data-theme="dark"] .db-swapq-out{background:#141a2b;border-color:#283049}
+.db-swapq-route{display:flex;align-items:center;gap:10px;font-size:14px}
+.db-swapq-route strong{color:var(--db-blue);font-variant-numeric:tabular-nums}
+.db-swapq-out dl{margin:12px 0 0}
+.db-swapq-out dl>div{display:flex;justify-content:space-between;gap:14px;padding:6px 0;font-size:12px;border-top:1px solid var(--db-line)}
+.db-app[data-theme="dark"] .db-swapq-out dl>div{border-color:#232c44}
+.db-swapq-out dt{color:var(--db-muted)}
+.db-swapq-out dd{margin:0;font-variant-numeric:tabular-nums}

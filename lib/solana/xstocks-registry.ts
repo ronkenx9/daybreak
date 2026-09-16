@@ -15,6 +15,8 @@ import 'server-only';
 // Identity is the MINT, never the ticker or the StonkFun alias.
 
 export const TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
+// USDC on Solana (6 decimals) — the quote currency for xStock swaps.
+export const USDC_SOLANA_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
 export interface XStock {
   ticker: string;      // underlying equity ticker, e.g. AAPL
