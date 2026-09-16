@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, LockKeyhole, Plus, RefreshCw, ShieldCheck, Users } from 'lucide-react';
+import { Check, LockKeyhole, Pin, Plus, RefreshCw, ShieldCheck, Users } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import { authedFetch } from '@/lib/account/api-client';
 import { TOKENS } from '@/lib/base/tokens';
 import { useAccountState } from './AccountProvider';
+import { DAYBREAK_TOKEN, DAYC_PIN_PRICE, isPinSinkConfigured } from '@/lib/base/daybreak-token';
 import { Avatar, ProfileAvatar } from './Identity';
 import CircleDiscoveries from './CircleDiscoveries';
 import CircleNews from './CircleNews';
@@ -13,7 +14,7 @@ import ConnectButton from './ConnectButton';
 
 interface Circle {
   slug: string; name: string; description: string | null; kind: string; gateMode: string;
-  tickers: string[]; memberCount: number; joined: boolean; eligible: boolean; owned: boolean; tokenAddress: string | null;
+  tickers: string[]; memberCount: number; joined: boolean; eligible: boolean; owned: boolean; tokenAddress: string | null; pinned: boolean;
 }
 interface Member { displayName: string; handle: string | null; avatar: number; avatarUrl: string | null; role: string; verifiedTickers: string[] }
 
@@ -86,6 +87,21 @@ export default function CirclesHub() {
     } finally { setWorking(false); }
   };
 
+  const pin = async () => {
+    if (!active) return;
+    setWorking(true); setNotice('');
+    try {
+      const amountRaw = (BigInt(DAYC_PIN_PRICE) * 10n ** BigInt(DAYBREAK_TOKEN.decimals)).toString();
+      const { hash, from } = await account.payDaycPin(amountRaw);
+      setNotice('Payment sent — confirming your pin…');
+      const res = await authedFetch<{ pinned: boolean; hours: number }>('/api/circles/pin', { method: 'POST', body: JSON.stringify({ slug: active.slug, txHash: hash, from }) });
+      setNotice(`Pinned to the top for ${res.hours} hours.`);
+      await load(active.slug);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Pin could not be completed');
+    } finally { setWorking(false); }
+  };
+
   const create = async (event: React.FormEvent) => {
     event.preventDefault(); setWorking(true); setNotice('');
     try {
@@ -105,9 +121,9 @@ export default function CirclesHub() {
     <div className="db-section-heading"><div><span className="db-eyebrow">Circles</span><h2>{recommended.length ? `${recommended.length} unlocked for you.` : 'Community, built around conviction.'}</h2></div><button className="db-button db-blue-button" onClick={() => setCreating((value) => !value)}><Plus size={16}/> Create circle</button></div>
     {creating && <form className="db-circle-create db-glass" onSubmit={create}><label>Circle name<input required minLength={3} maxLength={48} value={name} onChange={(event) => setName(event.target.value)} placeholder="Alphabet builders"/></label><label>What is it about?<input maxLength={180} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="News, ideas and conversation"/></label><label>Access<select value={gateMode} onChange={(event) => setGateMode(event.target.value)}><option value="any_stock">Hold any selected stock</option><option value="all_stocks">Hold every selected stock</option><option value="open">Open to everyone</option></select></label><fieldset><legend>Stocks for the circle</legend><div className="db-circle-ticker-picker">{TOKENS.map((token) => <button type="button" key={token.ticker} aria-pressed={tickers.includes(token.ticker)} onClick={() => setTickers((current) => current.includes(token.ticker) ? current.filter((ticker) => ticker !== token.ticker) : current.length < 5 ? [...current, token.ticker] : current)}>{token.ticker}</button>)}</div></fieldset><button className="db-button db-blue-button" disabled={working || (gateMode !== 'open' && !tickers.length)}>Publish circle</button></form>}
     {notice && <p className="db-circle-notice" role="status">{notice}</p>}
-    {loading ? <div className="db-empty"><p>Loading circles…</p></div> : <div className="db-group-grid">{visible.map((circle, index) => <button key={circle.slug} className={`db-group-card group-${index % 3} ${active?.slug === circle.slug ? 'selected' : ''}`} onClick={() => setActiveSlug(circle.slug)} aria-pressed={active?.slug === circle.slug}><Avatar seed={index % 6} size={64}/><span>{circle.kind === 'stock' ? (circle.eligible ? 'Verified holding' : 'Stock circle') : circle.owned ? 'Created by you' : 'Community'}</span><h3>{circle.name}</h3><p>{circle.description}</p><div>{circle.tickers.map((ticker) => <span key={ticker}>{ticker}</span>)}<span>{circle.memberCount} {circle.memberCount === 1 ? 'member' : 'members'}</span></div></button>)}</div>}
+    {loading ? <div className="db-empty"><p>Loading circles…</p></div> : <div className="db-group-grid">{visible.map((circle, index) => <button key={circle.slug} className={`db-group-card group-${index % 3} ${active?.slug === circle.slug ? 'selected' : ''}`} onClick={() => setActiveSlug(circle.slug)} aria-pressed={active?.slug === circle.slug}><Avatar seed={index % 6} size={64}/><span className={circle.pinned ? 'db-card-pinned' : undefined}>{circle.pinned ? <><Pin size={11}/> Pinned</> : circle.kind === 'stock' ? (circle.eligible ? 'Verified holding' : 'Stock circle') : circle.owned ? 'Created by you' : 'Community'}</span><h3>{circle.name}</h3><p>{circle.description}</p><div>{circle.tickers.map((ticker) => <span key={ticker}>{ticker}</span>)}<span>{circle.memberCount} {circle.memberCount === 1 ? 'member' : 'members'}</span></div></button>)}</div>}
     {active && <>
-      <div className="db-section-heading db-disc-heading"><div><span className="db-eyebrow">{active.name}</span><h2>{active.joined ? 'Inside the circle.' : active.eligible ? 'You have access.' : 'A holding is required.'}</h2></div><button className="db-button db-blue-button" disabled={working || active.owned || (!active.joined && !active.eligible)} onClick={toggleJoin}>{active.owned ? <Check size={17}/> : active.joined ? <Check size={17}/> : active.eligible ? <Plus size={17}/> : <LockKeyhole size={17}/>} {active.owned ? 'Circle owner' : active.joined ? 'Leave circle' : active.eligible ? 'Join circle' : 'Locked'}</button></div>
+      <div className="db-section-heading db-disc-heading"><div><span className="db-eyebrow">{active.name}</span><h2>{active.joined ? 'Inside the circle.' : active.eligible ? 'You have access.' : 'A holding is required.'}</h2></div><div className="db-circle-head-actions">{isPinSinkConfigured && (active.joined || active.owned) && <button className="db-button db-pin-button" disabled={working} onClick={() => void pin()} title={`Pin this circle to the top for ${DAYC_PIN_PRICE.toLocaleString()} DAYC`}><Pin size={15}/> {active.pinned ? 'Pinned' : `Pin · ${DAYC_PIN_PRICE.toLocaleString()} DAYC`}</button>}<button className="db-button db-blue-button" disabled={working || active.owned || (!active.joined && !active.eligible)} onClick={toggleJoin}>{active.owned ? <Check size={17}/> : active.joined ? <Check size={17}/> : active.eligible ? <Plus size={17}/> : <LockKeyhole size={17}/>} {active.owned ? 'Circle owner' : active.joined ? 'Leave circle' : active.eligible ? 'Join circle' : 'Locked'}</button></div></div>
       <CircleDiscoveries slug={active.slug} isMember={active.joined} onJoin={toggleJoin} tickers={active.tickers}/>
       {active.tokenAddress && <p className="db-circle-token"><strong>Live community token</strong><code>{active.tokenAddress.slice(0, 8)}…{active.tokenAddress.slice(-6)}</code><a href={`https://basescan.org/token/${active.tokenAddress}`} target="_blank" rel="noreferrer">View on BaseScan ↗</a></p>}
       {active.tickers.length > 0 && <CircleNews key={active.tickers.join(',')} tickers={active.tickers} title={`${active.name} · latest stories`}/>}

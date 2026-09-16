@@ -55,8 +55,21 @@ export const circles = pgTable('circles', {
   tickers: jsonb('tickers').$type<string[]>().notNull().default([]),
   visibility: text('visibility').notNull().default('public'),
   status: text('status').notNull().default('active'),
+  pinnedUntil: timestamp('pinned_until', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// One row per paid circle pin. tx_hash is UNIQUE so a single DAYC payment can
+// never be replayed to pin more than once.
+export const circlePins = pgTable('circle_pins', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  circleId: uuid('circle_id').notNull().references(() => circles.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  txHash: text('tx_hash').notNull().unique(),
+  amountRaw: text('amount_raw').notNull(),
+  pinnedUntil: timestamp('pinned_until', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ circleLookup: index('circle_pins_circle_idx').on(t.circleId) }));
 
 // A short-lived proof that a verified, user-owned wallet held a supported stock.
 // Quantities are deliberately not stored: circles only need a yes/no eligibility

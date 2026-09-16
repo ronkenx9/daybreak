@@ -4,6 +4,7 @@ import { PrivyProvider, usePrivy, useWallets } from '@privy-io/react-auth';
 import { useWallets as useSolanaWallets, useSignTransaction as useSignSolanaTx, useCreateWallet as useCreateSolWallet } from '@privy-io/react-auth/solana';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { PRIVY_APP_ID, isAuthConfigured } from '@/lib/account/config';
+import { DAYBREAK_TOKEN, DAYC_TREASURY, isPinSinkConfigured } from '@/lib/base/daybreak-token';
 
 export type LoginMethod = 'google' | 'apple' | 'passkey' | 'wallet';
 
@@ -24,6 +25,7 @@ export interface AccountState {
   logout: () => void;
   linkWallet: () => void;
   payCreationTransfer: (transaction: {to:string;value:string;data:string}) => Promise<string>;
+  payDaycPin: (amountRaw: string) => Promise<{ hash: string; from: string }>; // DAYC -> treasury, user signs
   solanaWallet: string | null; // first linked Solana wallet (StonkFun launches)
   ensureSolanaWallet: () => Promise<string>; // address, creating embedded on first use
   signSolanaTransaction: (unsignedBase64: string) => Promise<string>; // returns signed tx base64
@@ -34,6 +36,7 @@ export interface AccountState {
 const ANON: AccountState = {
   configured: false, ready: true, authenticated: false, user: null, solanaWallet: null,
   login() {}, logout() {}, linkWallet() {}, payCreationTransfer: async () => { throw new Error("Sign in first"); },
+  payDaycPin: async () => { throw new Error("Sign in first"); },
   ensureSolanaWallet: async () => { throw new Error("Sign in first"); },
   signSolanaTransaction: async () => { throw new Error("Sign in first"); },
 };
@@ -89,6 +92,22 @@ function AccountBridge({ children }: { children: ReactNode }) {
         const hash=await provider.request({method:'eth_sendTransaction',params:[{from:signer.address,to,data,value:val>0n?`0x${val.toString(16)}`:'0x0',chainId:'0x2105'}]});
         if(typeof hash!=='string'||!/^0x[a-f0-9]{64}$/i.test(hash))throw new Error('Wallet did not return a payment transaction');
         return hash;
+      },
+      payDaycPin: async (amountRaw) => {
+        // Pay DAYC to the treasury to pin a circle. Recipient is the fixed treasury
+        // only; the user signs from their own embedded EVM wallet.
+        if(!isPinSinkConfigured)throw new Error('Pinning is not available yet.');
+        const amount=BigInt(amountRaw);
+        if(amount<=0n||amount>10n**30n)throw new Error('Invalid pin amount');
+        const signer=wallets.find(w=>w.address.toLowerCase()===wallet?.toLowerCase());
+        if(!signer)throw new Error('Your Daybreak wallet is still loading. Try again shortly.');
+        // ERC-20 transfer(treasury, amount) on the DAYC contract.
+        const data=('0xa9059cbb'+DAYC_TREASURY.slice(2).toLowerCase().padStart(64,'0')+amount.toString(16).padStart(64,'0')) as `0x${string}`;
+        await signer.switchChain(8453);
+        const provider=await signer.getEthereumProvider();
+        const hash=await provider.request({method:'eth_sendTransaction',params:[{from:signer.address,to:DAYBREAK_TOKEN.address,data,value:'0x0',chainId:'0x2105'}]});
+        if(typeof hash!=='string'||!/^0x[a-f0-9]{64}$/i.test(hash))throw new Error('Wallet did not return a payment transaction');
+        return { hash, from: signer.address };
       },
       ensureSolanaWallet: async () => {
         const existing = solWallets[0]?.address;

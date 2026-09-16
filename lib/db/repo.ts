@@ -1,7 +1,7 @@
 import 'server-only';
 import { and, count, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { getDb } from './client';
-import { users, profiles, profilePhotos, bookmarks, circles, circleMemberships, migrationImports, circleDiscoveries, discoverySaves, userBlocks, contentReports, newsComments, operations, tokenLaunches, linkedWallets, holdingEligibilities, communityTokens } from './schema';
+import { users, profiles, profilePhotos, bookmarks, circles, circleMemberships, migrationImports, circleDiscoveries, discoverySaves, userBlocks, contentReports, newsComments, operations, tokenLaunches, linkedWallets, holdingEligibilities, communityTokens, circlePins } from './schema';
 import { CIRCLES, CIRCLE_SLUGS } from './circles';
 import { DISCOVERY_CATALOG } from '@/lib/catalog';
 import { TOKENS, tokenForTicker } from '@/lib/base/tokens';
@@ -27,7 +27,7 @@ async function ensureCircles() {
 
 export interface CircleView {
   slug: string; name: string; description: string | null; kind: string; gateMode: string;
-  tickers: string[]; memberCount: number; joined: boolean; eligible: boolean; owned: boolean; tokenAddress: string | null;
+  tickers: string[]; memberCount: number; joined: boolean; eligible: boolean; owned: boolean; tokenAddress: string | null; pinned: boolean;
 }
 
 export async function listCircles(userId: string): Promise<CircleView[]> {
@@ -46,8 +46,23 @@ export async function listCircles(userId: string): Promise<CircleView[]> {
   return all.map((circle) => {
     const tickers = Array.isArray(circle.tickers) ? circle.tickers : [];
     const gateEligible = circleGateEligible(circle.gateMode, tickers, eligible);
-    return { slug: circle.slug, name: circle.name, description: circle.description, kind: circle.kind, gateMode: circle.gateMode, tickers, memberCount: memberCounts.get(circle.id) ?? 0, joined: joined.has(circle.id) && gateEligible, eligible: gateEligible, owned: circle.creatorUserId === userId, tokenAddress: tokens.find((token) => token.circleId === circle.id)?.address ?? null };
-  }).sort((a, b) => Number(b.joined) - Number(a.joined) || Number(b.eligible) - Number(a.eligible) || b.memberCount - a.memberCount);
+    const pinned = !!circle.pinnedUntil && new Date(circle.pinnedUntil).getTime() > Date.now();
+    return { slug: circle.slug, name: circle.name, description: circle.description, kind: circle.kind, gateMode: circle.gateMode, tickers, memberCount: memberCounts.get(circle.id) ?? 0, joined: joined.has(circle.id) && gateEligible, eligible: gateEligible, owned: circle.creatorUserId === userId, tokenAddress: tokens.find((token) => token.circleId === circle.id)?.address ?? null, pinned };
+  }).sort((a, b) => Number(b.pinned) - Number(a.pinned) || Number(b.joined) - Number(a.joined) || Number(b.eligible) - Number(a.eligible) || b.memberCount - a.memberCount);
+}
+
+// Records a paid pin (tx_hash UNIQUE = anti-replay) and pins the circle for the
+// window. Returns false if the circle is missing or the tx was already used.
+export async function pinCircle(userId: string, slug: string, txHash: string, amountRaw: string, hours: number): Promise<boolean> {
+  const db = getDb();
+  const [circle] = await db.select({ id: circles.id }).from(circles).where(and(eq(circles.slug, slug), eq(circles.status, 'active'))).limit(1);
+  if (!circle) return false;
+  const until = new Date(Date.now() + hours * 3_600_000);
+  try {
+    await db.insert(circlePins).values({ circleId: circle.id, userId, txHash: txHash.toLowerCase(), amountRaw, pinnedUntil: until });
+  } catch { return false; } // unique violation = tx already used
+  await db.update(circles).set({ pinnedUntil: until }).where(eq(circles.id, circle.id));
+  return true;
 }
 
 const CIRCLE_NAME = /^[\p{L}\p{N}][\p{L}\p{N} .&'’-]{2,47}$/u;
