@@ -26,6 +26,7 @@ import ProfilePhotoPicker from './ProfilePhotoPicker';
 import MotionBackground from './MotionBackground';
 import DaybreakTokenPanel from './DaybreakTokenPanel';
 import DaycMembership from './DaycMembership';
+import SolanaHoldings from './SolanaHoldings';
 import StatsBoard from './StatsBoard';
 import {memeMoment} from '@/lib/muse/prompt';
 import {CIRCLE_SLUGS} from '@/lib/db/circles';
@@ -74,6 +75,7 @@ return <div className="db-app" data-theme={dark?'dark':undefined}><MotionBackgro
 {page==='create'&&<MuseCreate/>}
 {page==='holdings'&&<><section className="db-holdings-summary db-glass"><div><span className="db-eyebrow">Your portfolio</span><h2>{isConnected?'Your wallet, in view.':'See what you own.'}</h2><p>Read supported Coinbase tokenized stocks on Base, wherever you bought them. Connecting does not move funds. Your public address is sent to our read API and RPC provider.</p><ConnectButton/></div><div className="db-wallet-orb"><Wallet size={52}/></div></section>
 {isConnected&&<Portfolio snapshot={snapshot} error={holdingsError} loading={holdingsLoading} refresh={refresh} refreshing={refreshing}/>}
+<SolanaHoldings/>
 <div className="db-section-heading"><h2>Daybreak token</h2></div>
 <DaybreakTokenPanel address={address}/>
 <div className="db-section-heading"><h2>Your saved companies</h2><span>{saved.length} saved {serverMode?'to your account':'on this device'}</span></div><div className="db-saved-list" data-reveal>{TOKENS.filter(t=>saved.includes(t.ticker)).map(t=><button key={t.ticker} onClick={()=>openToken(t)}><StockIcon ticker={t.ticker}/><span><strong>{t.name}</strong><small>{t.ticker} · Watchlist, not ownership</small></span><ChevronRight size={18}/></button>)}</div>{!saved.length&&<div className="db-empty"><Bookmark size={32}/><h3>A place for your favorites.</h3><p>Bookmark a company in Discover to find it here.</p></div>}<p className="db-small-note">Balances refresh periodically and on window focus. Saved companies are a watchlist, not ownership.</p></>}
