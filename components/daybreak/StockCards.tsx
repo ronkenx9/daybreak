@@ -1,6 +1,7 @@
 'use client';
 import { Bookmark } from 'lucide-react';
 import { StockIcon } from './Identity';
+import Sparkline from './Sparkline';
 import type { StockToken } from '@/lib/base/tokens';
 import type { StockPrice } from '@/lib/base/model';
 
@@ -46,6 +47,7 @@ export default function StockCards({ tokens, prices, pricesLoaded, pricesError, 
             </div>
             <div className="db-meme-card-body">
               <div className="db-meme-card-title"><strong>{token.ticker}</strong><span>{token.name}</span></div>
+              <div className="db-meme-card-spark"><span>24h</span><Sparkline token={token.token} /></div>
               <div className="db-meme-card-stats db-stock-card-stats">
                 <div><b>{token.onchainSymbol}</b><span>SYMBOL</span></div>
                 <div><b>{basis}</b><span>PRICE BASIS</span></div>

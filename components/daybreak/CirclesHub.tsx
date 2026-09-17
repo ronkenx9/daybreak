@@ -10,7 +10,6 @@ import { DAYBREAK_TOKEN, DAYC_PIN_PRICE, isPinSinkConfigured } from '@/lib/base/
 import { Avatar, ProfileAvatar } from './Identity';
 import CircleDiscoveries from './CircleDiscoveries';
 import CircleNews from './CircleNews';
-import ConnectButton from './ConnectButton';
 
 interface Circle {
   slug: string; name: string; description: string | null; kind: string; gateMode: string;
@@ -119,7 +118,7 @@ export default function CirclesHub() {
   return <>
     <section className="db-circle-proof db-glass">
       <div><span className="db-eyebrow">Private proof, social access</span><h2>Hold the stock. Unlock the room.</h2><p>Daybreak checks a wallet linked to your account and stores only short-lived eligibility—not balances. Other members never see your wallet or position size.</p></div>
-      <div className="db-circle-proof-actions"><ConnectButton/>{verifyAddress && <button className="db-button db-blue-button" disabled={working} onClick={sync}><RefreshCw size={16}/>{working ? 'Verifying…' : isConnected ? 'Verify holdings' : 'Verify my Daybreak wallet'}</button>}</div>
+      <div className="db-circle-proof-actions">{verifyAddress && <button className="db-button db-blue-button" disabled={working} onClick={sync}><RefreshCw size={16}/>{working ? 'Verifying…' : isConnected ? 'Verify holdings' : 'Verify my Daybreak wallet'}</button>}</div>
     </section>
     {trending.length > 0 && <section className="db-happening" aria-label="Happening now">
       <div className="db-section-heading"><div><span className="db-eyebrow">🔥 Happening now</span><h2>Where people are gathering.</h2></div></div>

@@ -3,11 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 interface Point { c: number }
+type ChartNetwork = 'base' | 'solana';
 
 // Tiny 24h price-action line for a token, drawn from the chart endpoint's closes.
 // The fetch is gated on visibility so a grid of cards doesn't fire dozens of
 // chart requests at once; missing data renders a flat baseline rather than error.
-export default function Sparkline({ token, up }: { token: string; up?: boolean }) {
+export default function Sparkline({ token, up, network = 'base' }: { token: string; up?: boolean; network?: ChartNetwork }) {
   const hostRef = useRef<SVGSVGElement>(null);
   const [seen, setSeen] = useState(false);
   useEffect(() => {
@@ -15,22 +16,26 @@ export default function Sparkline({ token, up }: { token: string; up?: boolean }
     if (!el || seen) return;
     const io = new IntersectionObserver((entries) => {
       if (entries.some((e) => e.isIntersecting)) { setSeen(true); io.disconnect(); }
-    }, { rootMargin: '200px' });
+    }, { rootMargin: '50px' });
     io.observe(el);
     return () => io.disconnect();
   }, [seen]);
   const q = useQuery({
-    queryKey: ['spark', token],
+    queryKey: ['spark', network, token],
     enabled: seen,
     queryFn: async ({ signal }) => {
-      const r = await fetch(`/api/memechart?token=${token}&tf=1H`, { signal });
+      const r = await fetch(`/api/memechart?network=${network}&token=${encodeURIComponent(token)}&tf=1H`, { signal });
+      if (!r.ok) throw new Error('chart unavailable');
       const d = await r.json();
       return (d.points as Point[] | undefined)?.map((p) => p.c).filter((n) => Number.isFinite(n)) ?? [];
     },
-    staleTime: 5 * 60_000, retry: false,
+    staleTime: 5 * 60_000,
+    retry: 1,
+    retryDelay: 10_000,
   });
   const vals = q.data ?? [];
-  const stroke = up === false ? '#e5484d' : '#9bec3f';
+  const chartUp = up ?? (vals.length < 2 || vals[vals.length - 1] >= vals[0]);
+  const stroke = chartUp ? '#9bec3f' : '#e5484d';
   const W = 240, H = 44;
   let d = '';
   if (vals.length > 1) {

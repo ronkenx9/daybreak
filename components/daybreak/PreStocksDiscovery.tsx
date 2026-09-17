@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, ArrowUpRight, ExternalLink, ImageIcon, X } from 'lucide-react';
+import Sparkline from './Sparkline';
 
 interface Quote {
   symbol: string; company: string; mint: string; image: string; externalUrl: string;
@@ -59,6 +60,7 @@ export default function PreStocksDiscovery() {
                     </div>
                     <div className="db-meme-card-body">
                       <div className="db-meme-card-title"><strong>{p.symbol}</strong><span>{p.company}</span></div>
+                      <div className="db-meme-card-spark"><span>24h</span><Sparkline token={p.mint} network="solana" /></div>
                       <div className="db-meme-card-stats db-stock-card-stats">
                         <div><b>{bn(p.impliedValuation)}</b><span>IMPLIED VAL</span></div>
                         <div><b>Pre-IPO</b><span>TYPE</span></div>

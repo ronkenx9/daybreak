@@ -712,6 +712,18 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
   background:radial-gradient(ellipse at 0 0,#17213f 0,transparent 50%),var(--db-bg);
   color-scheme:dark;
 }
+/* Keep the discovery hero in the dark palette. The deeper indigo panel gives
+   the pale headline, supporting copy and cream action distinct contrast roles. */
+.db-app[data-theme="dark"] .db-app-feature{
+  background:linear-gradient(135deg,#172451 0%,#263a8d 58%,#4058c7 100%);
+  color:#f8f9ff;
+  border:1px solid #5268c7;
+}
+.db-app[data-theme="dark"] .db-app-feature h2{color:#f8f9ff}
+.db-app[data-theme="dark"] .db-app-feature .db-overline{color:#bac6ff}
+.db-app[data-theme="dark"] .db-app-feature p{color:#d7defe}
+.db-app[data-theme="dark"] .db-app-feature .db-white-button{background:#f7f8ff;color:#172451}
+.db-app[data-theme="dark"] .db-app-feature .db-white-button:hover{background:#fff;color:#101a3d}
 /* surfaces */
 .db-app[data-theme="dark"] .db-app-header{background:#0b0f1ccc;border-bottom-color:#283049}
 .db-app[data-theme="dark"] .db-app-nav a:hover{background:#1a2136}
@@ -1313,11 +1325,13 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-happening-card strong{font-size:15px;font-weight:600;letter-spacing:-.3px;line-height:1.25}
 .db-happening-meta{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--db-muted)}
 
-/* Stock + pre-IPO cards: memestock card shell with a centered logo on a soft field */
+/* Stock + pre-IPO cards: full-bleed brand field with overlaid market data */
 .db-stock-card-art{display:grid;place-items:center;background:radial-gradient(circle at 50% 32%,#f1f5ff 0,#dfe7ff 100%)}
 .db-app[data-theme="dark"] .db-stock-card-art{background:radial-gradient(circle at 50% 32%,#1b2340 0,#121829 100%)}
-.db-stock-card-art .db-company-icon{width:72px;height:72px;border-radius:22px;font-size:34px}
-.db-prestock-logo-lg{width:72px;height:72px;border-radius:20px;object-fit:cover;background:#fff;box-shadow:0 6px 16px #16265912}
+.db-stock-card-art>.db-token{width:100%!important;height:100%!important;border:0;border-radius:0;box-shadow:none}
+.db-stock-card-art>.db-token img{width:64%!important;height:64%!important;object-fit:contain;filter:drop-shadow(0 14px 22px #07152d1f)}
+.db-stock-card-art>.db-token .db-token-mono{font-size:clamp(42px,5vw,74px)!important}
+.db-prestock-logo-lg{width:100%;height:100%;border-radius:0;object-fit:cover;background:#fff;box-shadow:none}
 .db-stock-card .db-meme-card-fav{color:#31405f;background:#ffffffcc}
 .db-app[data-theme="dark"] .db-stock-card .db-meme-card-fav{color:#c3ccea;background:#0b0f1ccc}
 .db-stock-card .db-meme-card-fav.is-on{color:var(--db-blue);background:#fff}
