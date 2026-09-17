@@ -18,6 +18,7 @@
     "@base-org/account": "^2.5.10",
     "@circle-fin/x402-batching": "^3.4.0",
     "@coinbase/wallet-sdk": "^4.3.7",
+    "@meteora-ag/dynamic-bonding-curve-sdk": "^1.5.12",
     "@privy-io/react-auth": "^3.40.0",
     "@privy-io/server-auth": "^1.32.5",
     "@solana-program/memo": "^0.10.0",
