@@ -1206,3 +1206,25 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-app[data-theme="dark"] .db-swapq-out dl>div{border-color:#232c44}
 .db-swapq-out dt{color:var(--db-muted)}
 .db-swapq-out dd{margin:0;font-variant-numeric:tabular-nums}
+
+/* PreStocks (pre-IPO) discovery lane + detail */
+.db-prestock-logo{width:44px;height:44px;border-radius:13px;object-fit:cover;background:#f0f2f8;flex-shrink:0}
+.db-app[data-theme="dark"] .db-prestock-logo{background:#222a40}
+.db-prestock-prem{font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;padding:4px 9px;border-radius:9px;background:#eef1ff;color:var(--db-muted)}
+.db-prestock-prem.up{background:#e6f6ec;color:#1a7f42}
+.db-prestock-prem.down{background:#fdecec;color:#b23b3b}
+.db-app[data-theme="dark"] .db-prestock-prem{background:#222a40;color:#95a1bd}
+.db-app[data-theme="dark"] .db-prestock-prem.up{background:#123020;color:#63d38f}
+.db-app[data-theme="dark"] .db-prestock-prem.down{background:#341a1a;color:#f08a8a}
+.db-prestock-headline{display:flex;align-items:center;gap:13px}
+.db-prestock-headline img{border-radius:12px;background:#f0f2f8}
+.db-prestock-headline h2{font-size:24px;font-weight:600;letter-spacing:-.6px;margin-top:2px}
+.db-prestock-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:18px 0}
+.db-prestock-stats>div{border:1px solid var(--db-line);border-radius:15px;padding:13px 15px;background:#f8faff}
+.db-app[data-theme="dark"] .db-prestock-stats>div{background:#141a2b;border-color:#283049}
+.db-prestock-stats span{display:block;font-size:11px;color:var(--db-muted)}
+.db-prestock-stats strong{display:block;font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:5px;letter-spacing:-.4px}
+.db-prestock-stats strong.up{color:#1a7f42}.db-prestock-stats strong.down{color:#b23b3b}
+.db-app[data-theme="dark"] .db-prestock-stats strong.up{color:#63d38f}.db-app[data-theme="dark"] .db-prestock-stats strong.down{color:#f08a8a}
+.db-company-dialog>.db-button.db-blue-button{width:100%;margin:4px 0 8px}
+.db-price small{display:block}

@@ -48,8 +48,15 @@ export default function MemeChart({ token, eventTime }: { token: string; up?: bo
   }, []);
 
   const paint = () => {
-    const pts = dataRef.current;
-    if (!priceRef.current || pts.length < 2) return;
+    const raw = dataRef.current;
+    if (!priceRef.current || raw.length < 2) return;
+    // lightweight-charts requires strictly ascending, unique timestamps. Upstream
+    // data can carry duplicate or out-of-order points; collapse duplicates (keep the
+    // last for a given second) and sort so setData never throws.
+    const byTime = new Map<number, typeof raw[number]>();
+    for (const p of raw) byTime.set(p.t, p);
+    const pts = [...byTime.values()].sort((a, b) => a.t - b.t);
+    if (pts.length < 2) return;
     if (kind === 'candles') (priceRef.current as ISeriesApi<'Candlestick'>).setData(pts.map((p) => ({ time: p.t as UTCTimestamp, open: p.o, high: p.h, low: p.l, close: p.c })));
     else (priceRef.current as ISeriesApi<'Line'>).setData(pts.map((p) => ({ time: p.t as UTCTimestamp, value: p.c })));
     volRef.current?.setData(pts.map((p) => ({ time: p.t as UTCTimestamp, value: p.v, color: (p.c >= p.o ? UP : DOWN) + '55' })));
