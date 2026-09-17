@@ -1325,3 +1325,10 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-stock-card-badge strong{font-size:12px}
 .db-stock-card-stats b{font-size:12px}
 .db-stock-card-stats span{white-space:nowrap}
+
+/* Featured platform-token card, inline beside the stock cards */
+.db-dayc-card{border-color:#c9d5ff}
+.db-app[data-theme="dark"] .db-dayc-card{border-color:#33407a}
+.db-dayc-card-art{background:radial-gradient(circle at 50% 30%,#2740ff 0,#0210ef 100%)}
+.db-dayc-card-tag{position:absolute;bottom:12px;left:12px;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:#ffffff2e;backdrop-filter:blur(6px);padding:5px 9px;border-radius:8px}
+.db-dayc-card .db-meme-card-title strong{color:var(--db-blue)}

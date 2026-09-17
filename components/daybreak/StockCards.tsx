@@ -9,7 +9,7 @@ import type { StockPrice } from '@/lib/base/model';
 // MemestockCards (.db-meme-card) so the lanes feel like one system.
 const fmtUsd = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
 
-export default function StockCards({ tokens, prices, pricesLoaded, pricesError, saved, onToggleSave, onOpen }: {
+export default function StockCards({ tokens, prices, pricesLoaded, pricesError, saved, onToggleSave, onOpen, feature }: {
   tokens: StockToken[];
   prices: Record<string, StockPrice | undefined>;
   pricesLoaded: boolean;
@@ -17,9 +17,11 @@ export default function StockCards({ tokens, prices, pricesLoaded, pricesError, 
   saved: string[];
   onToggleSave: (ticker: string) => void;
   onOpen: (token: StockToken) => void;
+  feature?: React.ReactNode; // an optional featured card rendered first (e.g. the platform token)
 }) {
   return (
     <div className="db-meme-cards db-stock-cards" data-reveal>
+      {feature}
       {tokens.map((token) => {
         const p = prices[token.ticker];
         const priceText = !pricesLoaded ? '—' : p && p.priceUsd != null && p.state !== 'paused' ? fmtUsd(p.priceUsd) : 'N/A';
