@@ -724,6 +724,7 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 .db-app[data-theme="dark"] .db-app-feature p{color:#d7defe}
 .db-app[data-theme="dark"] .db-app-feature .db-white-button{background:#f7f8ff;color:#172451}
 .db-app[data-theme="dark"] .db-app-feature .db-white-button:hover{background:#fff;color:#101a3d}
+.db-profile-merged{margin-top:42px}
 /* surfaces */
 .db-app[data-theme="dark"] .db-app-header{background:#0b0f1ccc;border-bottom-color:#283049}
 .db-app[data-theme="dark"] .db-app-nav a:hover{background:#1a2136}

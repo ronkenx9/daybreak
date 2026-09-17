@@ -1,2 +1,3 @@
-import DaybreakApp from '@/components/daybreak/DaybreakApp';
-export default function Page(){return <DaybreakApp page='holdings'/>}
+import { redirect } from 'next/navigation';
+
+export default function Page(){redirect('/app/profile')}
