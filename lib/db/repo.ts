@@ -2,7 +2,7 @@ import 'server-only';
 import { and, count, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { getDb } from './client';
 import { users, profiles, profilePhotos, bookmarks, circles, circleMemberships, migrationImports, circleDiscoveries, discoverySaves, userBlocks, contentReports, newsComments, operations, tokenLaunches, linkedWallets, holdingEligibilities, communityTokens, circlePins } from './schema';
-import { CIRCLES, CIRCLE_SLUGS } from './circles';
+import { CIRCLE_SLUGS } from './circles';
 import { DISCOVERY_CATALOG } from '@/lib/catalog';
 import { TOKENS, tokenForTicker } from '@/lib/base/tokens';
 import { circleGateEligible } from '@/lib/community/policy';
@@ -16,7 +16,8 @@ let circlesSeeded = false;
 async function ensureCircles() {
   if (circlesSeeded) return;
   const db = getDb();
-  await db.insert(circles).values(CIRCLES.map((c) => ({ ...c, tickers: [...c.tickers], kind: 'interest', gateMode: 'open' }))).onConflictDoNothing();
+  // Generic "interest" circles were demo filler with vague names and no owner —
+  // no longer seeded. Existing rows are hidden at read time in listCircles.
   await db.insert(circles).values(TOKENS.map((t) => ({
     slug: `holders-${t.ticker.toLowerCase()}`, name: `${t.name} holders`,
     description: `A verified circle for people holding ${t.onchainSymbol} on Base.`,
@@ -48,6 +49,14 @@ export async function listCircles(userId: string): Promise<CircleView[]> {
     const gateEligible = circleGateEligible(circle.gateMode, tickers, eligible);
     const pinned = !!circle.pinnedUntil && new Date(circle.pinnedUntil).getTime() > Date.now();
     return { slug: circle.slug, name: circle.name, description: circle.description, kind: circle.kind, gateMode: circle.gateMode, tickers, memberCount: memberCounts.get(circle.id) ?? 0, joined: joined.has(circle.id) && gateEligible, eligible: gateEligible, owned: circle.creatorUserId === userId, tokenAddress: tokens.find((token) => token.circleId === circle.id)?.address ?? null, pinned };
+  }).filter((c) => {
+    // Hide seeded clutter so real communities are findable:
+    // - the old generic "interest" circles are gone entirely
+    // - empty auto-seeded "X holders" circles show only once they have members
+    //   (or the viewer is already in / owns them)
+    if (c.kind === 'interest') return false;
+    if (c.kind === 'stock' && c.memberCount === 0 && !c.joined && !c.owned) return false;
+    return true;
   }).sort((a, b) => Number(b.pinned) - Number(a.pinned) || Number(b.joined) - Number(a.joined) || Number(b.eligible) - Number(a.eligible) || b.memberCount - a.memberCount);
 }
 

@@ -57,6 +57,9 @@ export default function CirclesHub() {
     authedFetch<{ members: Member[] }>(`/api/circles/members?slug=${encodeURIComponent(active.slug)}`).then((result) => setMembers(result.members)).catch(() => setMembers([]));
   }, [active?.slug, active?.joined]);
 
+  // Concept 3 — "happening now": the liveliest circles by real membership, so the
+  // page leads with momentum and social proof instead of a flat directory.
+  const trending = useMemo(() => [...circles].filter((c) => c.memberCount > 0).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.memberCount - a.memberCount).slice(0, 6), [circles]);
   const recommended = useMemo(() => circles.filter((circle) => circle.kind === 'stock' && circle.eligible), [circles]);
   const visible = useMemo(() => {
     const unlocked = new Set(recommended.map((circle) => circle.slug));
@@ -118,6 +121,14 @@ export default function CirclesHub() {
       <div><span className="db-eyebrow">Private proof, social access</span><h2>Hold the stock. Unlock the room.</h2><p>Daybreak checks a wallet linked to your account and stores only short-lived eligibility—not balances. Other members never see your wallet or position size.</p></div>
       <div className="db-circle-proof-actions"><ConnectButton/>{verifyAddress && <button className="db-button db-blue-button" disabled={working} onClick={sync}><RefreshCw size={16}/>{working ? 'Verifying…' : isConnected ? 'Verify holdings' : 'Verify my Daybreak wallet'}</button>}</div>
     </section>
+    {trending.length > 0 && <section className="db-happening" aria-label="Happening now">
+      <div className="db-section-heading"><div><span className="db-eyebrow">🔥 Happening now</span><h2>Where people are gathering.</h2></div></div>
+      <div className="db-happening-rail">{trending.map((circle, index) => <button key={circle.slug} className="db-happening-card" onClick={() => { setActiveSlug(circle.slug); document.querySelector('.db-disc-heading')?.scrollIntoView({ behavior: 'smooth' }); }}>
+        <div className="db-happening-top"><Avatar seed={index % 6} size={40}/>{index === 0 && !circle.pinned && <span className="db-happening-hot">Most active</span>}{circle.pinned && <span className="db-happening-hot db-pinned"><Pin size={10}/> Pinned</span>}</div>
+        <strong>{circle.name}</strong>
+        <span className="db-happening-meta"><Users size={13}/> {circle.memberCount} {circle.memberCount === 1 ? 'member' : 'members'}{circle.joined ? ' · you’re in' : ''}</span>
+      </button>)}</div>
+    </section>}
     <div className="db-section-heading"><div><span className="db-eyebrow">Circles</span><h2>{recommended.length ? `${recommended.length} unlocked for you.` : 'Community, built around conviction.'}</h2></div><button className="db-button db-blue-button" onClick={() => setCreating((value) => !value)}><Plus size={16}/> Create circle</button></div>
     {creating && <form className="db-circle-create db-glass" onSubmit={create}><label>Circle name<input required minLength={3} maxLength={48} value={name} onChange={(event) => setName(event.target.value)} placeholder="Alphabet builders"/></label><label>What is it about?<input maxLength={180} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="News, ideas and conversation"/></label><label>Access<select value={gateMode} onChange={(event) => setGateMode(event.target.value)}><option value="any_stock">Hold any selected stock</option><option value="all_stocks">Hold every selected stock</option><option value="open">Open to everyone</option></select></label><fieldset><legend>Stocks for the circle</legend><div className="db-circle-ticker-picker">{TOKENS.map((token) => <button type="button" key={token.ticker} aria-pressed={tickers.includes(token.ticker)} onClick={() => setTickers((current) => current.includes(token.ticker) ? current.filter((ticker) => ticker !== token.ticker) : current.length < 5 ? [...current, token.ticker] : current)}>{token.ticker}</button>)}</div></fieldset><button className="db-button db-blue-button" disabled={working || (gateMode !== 'open' && !tickers.length)}>Publish circle</button></form>}
     {notice && <p className="db-circle-notice" role="status">{notice}</p>}
