@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 import Dialog from './Dialog';
 import DaybreakTokenPanel from './DaybreakTokenPanel';
+import Sparkline from './Sparkline';
+import { DAYBREAK_TOKEN } from '@/lib/base/daybreak-token';
 
 interface Resp { priceUsd: number | null; change24: number | null; marketCapUsd: number | null }
 const money = (n: number | null) => n == null ? '—' : n >= 1 ? '$' + n.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '$' + n.toLocaleString('en-US', { maximumSignificantDigits: 2, minimumSignificantDigits: 2 });
@@ -39,6 +41,7 @@ export default function DaybreakTokenCard({ address }: { address?: string }) {
         </div>
         <div className="db-meme-card-body">
           <div className="db-meme-card-title"><strong>DAYC</strong><span>Daybreak</span></div>
+          <div className="db-meme-card-spark"><span>24h</span><Sparkline token={DAYBREAK_TOKEN.address} up={up} /></div>
           <div className="db-meme-card-stats db-stock-card-stats">
             <div><b>{compact(d?.marketCapUsd ?? null)}</b><span>MARKET CAP</span></div>
             <div><b>Base</b><span>NETWORK</span></div>

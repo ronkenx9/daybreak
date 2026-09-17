@@ -48,22 +48,25 @@ export default function PreStocksDiscovery() {
             {items.map((p) => {
               const up = p.premiumPct == null ? undefined : p.premiumPct >= 0;
               return (
-                <button className="db-meme-card db-stock-card" key={p.mint} onClick={() => setOpen(p)}>
-                  <div className="db-meme-card-art db-stock-card-art">
-                    <img className="db-prestock-logo db-prestock-logo-lg" src={p.image} alt="" width={72} height={72} onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
-                    <div className="db-meme-card-badge db-stock-card-badge">
-                      <div><span>PRICE</span><strong>{usd(p.tokenPrice)}</strong></div>
-                      {p.premiumPct != null && <div><span>PREM</span><strong className={up ? 'up' : 'down'}>{pct(p.premiumPct)}</strong></div>}
+                <div className="db-meme-card db-stock-card db-prestock-card" key={p.mint}>
+                  <button className="db-prestock-open" onClick={() => setOpen(p)}>
+                    <div className="db-meme-card-art db-stock-card-art">
+                      <img className="db-prestock-logo db-prestock-logo-lg" src={p.image} alt="" width={72} height={72} onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
+                      <div className="db-meme-card-badge db-stock-card-badge">
+                        <div><span>PRICE</span><strong>{usd(p.tokenPrice)}</strong></div>
+                        {p.premiumPct != null && <div><span>PREM</span><strong className={up ? 'up' : 'down'}>{pct(p.premiumPct)}</strong></div>}
+                      </div>
                     </div>
-                  </div>
-                  <div className="db-meme-card-body">
-                    <div className="db-meme-card-title"><strong>{p.symbol}</strong><span>{p.company}</span></div>
-                    <div className="db-meme-card-stats db-stock-card-stats">
-                      <div><b>{bn(p.impliedValuation)}</b><span>IMPLIED VAL</span></div>
-                      <div><b>Pre-IPO</b><span>TYPE</span></div>
+                    <div className="db-meme-card-body">
+                      <div className="db-meme-card-title"><strong>{p.symbol}</strong><span>{p.company}</span></div>
+                      <div className="db-meme-card-stats db-stock-card-stats">
+                        <div><b>{bn(p.impliedValuation)}</b><span>IMPLIED VAL</span></div>
+                        <div><b>Pre-IPO</b><span>TYPE</span></div>
+                      </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
+                  <a className="db-prestock-trade" href={p.externalUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>Trade on PreStocks <ExternalLink size={14} /></a>
+                </div>
               );
             })}
           </div>
