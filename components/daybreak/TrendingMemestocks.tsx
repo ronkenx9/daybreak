@@ -6,6 +6,7 @@ import {ArrowLeft,LayoutGrid,Rows3} from 'lucide-react';
 import MemestockDetail,{type MemeTokenData} from './MemestockDetail';
 import MemestockTable from './MemestockTable';
 import MemestockCards from './MemestockCards';
+import {useMemestockList} from './MemestockControls';
 
 interface TrendingMeme extends MemeTokenData{parentTicker:string;parentSymbol:string}
 interface Resp{tokens:TrendingMeme[];stale?:boolean;error?:string}
@@ -16,6 +17,7 @@ export default function TrendingMemestocks(){
  const [view,setView]=useState<'cards'|'table'>('cards');
  const q=useQuery({queryKey:['memecoins-trending'],staleTime:3*60000,retry:false,
   queryFn:async({signal})=>{const r=await fetch('/api/memecoins/trending',{signal});const d=await r.json();if(!r.ok)throw Error('Unavailable');return d as Resp}});
+ const {ranked,activeCol,controls}=useMemestockList(q.data?.tokens??[],true);
 
  if(sel){const company=tokenForTicker(sel.parentTicker);return <section className="db-memestocks db-trending"><button className="db-text-link db-meme-back" onClick={()=>setSel(null)}><ArrowLeft size={15}/> All memestocks</button><MemestockDetail token={sel} pairedWith={sel.parentSymbol} companyName={company?.name||sel.parentTicker}/></section>;}
 
@@ -27,11 +29,12 @@ export default function TrendingMemestocks(){
     <button aria-pressed={view==='table'} className={view==='table'?'active':''} onClick={()=>setView('table')}><Rows3 size={15}/> Table</button>
    </div>
   </div>
+  {q.data&&q.data.tokens.length>0&&controls}
   {q.isPending&&<p role="status">Reading Base liquidity pools…</p>}
   {q.isError&&<p role="status">Trending data is temporarily unavailable.</p>}
   {q.data?.stale&&<p role="status" className="db-data-notice">Refresh unavailable. Showing previous results.</p>}
   {q.data&&q.data.tokens.length===0&&<p>No memestocks are active right now.</p>}
   {q.data&&q.data.tokens.length>0&&(view==='cards'
-   ?<MemestockCards rows={q.data.tokens} showStock onSelect={(r)=>setSel(r as TrendingMeme)}/>
-   :<MemestockTable rows={q.data.tokens} showStock onSelect={(r)=>setSel(r as TrendingMeme)}/>)}</section>;
+   ?<MemestockCards rows={ranked} showStock onSelect={(r)=>setSel(r as TrendingMeme)}/>
+   :<MemestockTable rows={ranked} showStock activeCol={activeCol} onSelect={(r)=>setSel(r as TrendingMeme)}/>)}</section>;
 }

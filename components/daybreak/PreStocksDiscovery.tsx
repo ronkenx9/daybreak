@@ -44,21 +44,28 @@ export default function PreStocksDiscovery() {
         : items.length === 0 ? <p className="db-small-note">No pre-IPO companies available right now.</p>
         : <>
           {q.data?.stale && <p role="status" className="db-data-notice">Showing the latest available pre-IPO prices.</p>}
-          <div className="db-stock-grid" data-reveal>
-            {items.map((p) => (
-              <article className="db-company-card" key={p.mint}>
-                <div className="db-card-top">
-                  <img className="db-prestock-logo" src={p.image} alt="" width={44} height={44} onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
-                  {p.premiumPct != null && <span className={`db-prestock-prem${p.premiumPct >= 0 ? ' up' : ' down'}`}>{pct(p.premiumPct)}</span>}
-                </div>
-                <button className="db-company-open" onClick={() => setOpen(p)}>
-                  <span className="db-ticker">{p.symbol}</span>
-                  <h3>{p.company}</h3>
-                  <span className="db-price"><strong className="db-shine">{usd(p.tokenPrice)}</strong><small>Implied val {bn(p.impliedValuation)}</small></span>
-                  <span className="db-card-bottom">Open company <ArrowUpRight size={18} /></span>
+          <div className="db-meme-cards db-stock-cards" data-reveal>
+            {items.map((p) => {
+              const up = p.premiumPct == null ? undefined : p.premiumPct >= 0;
+              return (
+                <button className="db-meme-card db-stock-card" key={p.mint} onClick={() => setOpen(p)}>
+                  <div className="db-meme-card-art db-stock-card-art">
+                    <img className="db-prestock-logo db-prestock-logo-lg" src={p.image} alt="" width={72} height={72} onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
+                    <div className="db-meme-card-badge db-stock-card-badge">
+                      <div><span>PRICE</span><strong>{usd(p.tokenPrice)}</strong></div>
+                      {p.premiumPct != null && <div><span>PREM</span><strong className={up ? 'up' : 'down'}>{pct(p.premiumPct)}</strong></div>}
+                    </div>
+                  </div>
+                  <div className="db-meme-card-body">
+                    <div className="db-meme-card-title"><strong>{p.symbol}</strong><span>{p.company}</span></div>
+                    <div className="db-meme-card-stats db-stock-card-stats">
+                      <div><b>{bn(p.impliedValuation)}</b><span>IMPLIED VAL</span></div>
+                      <div><b>Pre-IPO</b><span>TYPE</span></div>
+                    </div>
+                  </div>
                 </button>
-              </article>
-            ))}
+              );
+            })}
           </div>
         </>}
       <p className="db-small-note">Pre-IPO tokens are backed 1:1 by SPV exposure and confer no ownership, voting, dividend or other legal rights. Prices from PreStocks; news discovery by GDELT.</p>

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import {ArrowLeft, Rocket} from 'lucide-react';
 import MemestockDetail,{type MemeTokenData} from './MemestockDetail';
 import MemestockTable from './MemestockTable';
+import {useMemestockList} from './MemestockControls';
 
 interface Resp{ticker:string;tokens:MemeTokenData[];disclaimer:string;stale?:boolean;error?:string}
 
@@ -15,6 +16,7 @@ export default function Memestocks({ticker}:{ticker:string}){
  const [sel,setSel]=useState<MemeTokenData|null>(null);
  const q=useQuery({queryKey:['memecoins',ticker],enabled:!!tok,staleTime:3*60000,retry:false,
   queryFn:async({signal})=>{const r=await fetch(`/api/memecoins?ticker=${encodeURIComponent(ticker)}`,{signal});const d=await r.json();if(!r.ok)throw Error(d.error||'Unavailable');return d as Resp}});
+ const {ranked,activeCol,controls}=useMemestockList(q.data?.tokens??[],false);
 
  if(!tok) return <section className="db-memestocks"><p className="db-small-note">Memestocks pair against a tokenized stock. {ticker} isn’t tokenized on Base yet, so there’s nothing to pair against.</p></section>;
  if(sel) return <section className="db-memestocks"><button className="db-text-link db-meme-back" onClick={()=>setSel(null)}><ArrowLeft size={15}/> All memestocks</button><MemestockDetail token={sel} pairedWith={tok.onchainSymbol} companyName={tok.name}/></section>;
@@ -25,5 +27,5 @@ export default function Memestocks({ticker}:{ticker:string}){
   {q.isError&&<p role="status">Memestock data is temporarily unavailable.</p>}
   {q.data?.stale&&<p role="status" className="db-data-notice">Refresh unavailable. Showing previous results.</p>}
   {q.data&&q.data.tokens.length===0&&<p>No community tokens are paired with {tok.onchainSymbol} yet.</p>}
-  {q.data&&q.data.tokens.length>0&&<MemestockTable rows={q.data.tokens} showStock={false} onSelect={setSel}/>}</section>;
+  {q.data&&q.data.tokens.length>0&&<>{controls}<MemestockTable rows={ranked} showStock={false} activeCol={activeCol} onSelect={setSel}/></>}</section>;
 }

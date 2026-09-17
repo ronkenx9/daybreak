@@ -1312,3 +1312,16 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-app[data-theme="dark"] .db-happening-hot.db-pinned{background:#25305a;color:#b3bcff}
 .db-happening-card strong{font-size:15px;font-weight:600;letter-spacing:-.3px;line-height:1.25}
 .db-happening-meta{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--db-muted)}
+
+/* Stock + pre-IPO cards: memestock card shell with a centered logo on a soft field */
+.db-stock-card-art{display:grid;place-items:center;background:radial-gradient(circle at 50% 32%,#f1f5ff 0,#dfe7ff 100%)}
+.db-app[data-theme="dark"] .db-stock-card-art{background:radial-gradient(circle at 50% 32%,#1b2340 0,#121829 100%)}
+.db-stock-card-art .db-company-icon{width:72px;height:72px;border-radius:22px;font-size:34px}
+.db-prestock-logo-lg{width:72px;height:72px;border-radius:20px;object-fit:cover;background:#fff;box-shadow:0 6px 16px #16265912}
+.db-stock-card .db-meme-card-fav{color:#31405f;background:#ffffffcc}
+.db-app[data-theme="dark"] .db-stock-card .db-meme-card-fav{color:#c3ccea;background:#0b0f1ccc}
+.db-stock-card .db-meme-card-fav.is-on{color:var(--db-blue);background:#fff}
+.db-app[data-theme="dark"] .db-stock-card .db-meme-card-fav.is-on{color:#9fb0ff;background:#1c2550}
+.db-stock-card-badge strong{font-size:12px}
+.db-stock-card-stats b{font-size:12px}
+.db-stock-card-stats span{white-space:nowrap}
