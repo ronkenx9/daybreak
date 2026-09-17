@@ -15,6 +15,7 @@ data or legal review are marked blocked with why — the plan's own discipline f
 | C1–C6 | Corporate actions (company event vs token treatment) + `/api/xstocks/corporate-actions` | AAPL dividends stepping multiplier 1.00266→1.00327 · `CORPORATE-ACTIONS-GATES.md` |
 | L1–L4 | Instrument facts / compliance panel + `/api/xstocks/facts` | real underlying ISINs; no-voting-rights + issuer-controls stated · `COMPLIANCE-GATES.md` |
 | S4 (quote) | Jupiter USDC→xStock quote + `/api/solana/swap-quote` | 25 USDC → 0.1161 NVDAx live · `S4-SWAP-GATES.md` |
+| P3 | Market-hours labels (live/pre/post/last close) from Pyth free sessions | session logic verified · `MARKET-HOURS-GATES.md` |
 | A8 | `/api/stats` unknown ≠ zero | null on read failure, em dash in UI |
 
 ## Blocked on an external input (build is ready; verification needs the input)
