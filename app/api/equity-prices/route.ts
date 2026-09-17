@@ -1,5 +1,6 @@
 import { fetchPythEquityPrices, isPythConfigured } from '@/lib/prices/pyth';
 import { readPrices } from '@/lib/base/prices';
+import { usMarketSession } from '@/lib/prices/market-hours';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,5 +32,6 @@ export async function GET(req: Request) {
       for (const t of need) out[t] = { priceUsd: null, source: 'unavailable', asOf: null, stale: true };
     }
   }
-  return Response.json({ prices: out, pyth: isPythConfigured }, { headers: { 'Cache-Control': 'private, max-age=20' } });
+  const market = usMarketSession();
+  return Response.json({ prices: out, pyth: isPythConfigured, market }, { headers: { 'Cache-Control': 'private, max-age=20' } });
 }
