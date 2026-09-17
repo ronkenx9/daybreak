@@ -725,6 +725,32 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 .db-app[data-theme="dark"] .db-app-feature .db-white-button{background:#f7f8ff;color:#172451}
 .db-app[data-theme="dark"] .db-app-feature .db-white-button:hover{background:#fff;color:#101a3d}
 .db-profile-merged{margin-top:42px}
+.db-you-overview{overflow:hidden;margin-bottom:34px;border:1px solid #dce4f5;border-radius:30px;background:rgba(255,255,255,.88);box-shadow:var(--db-shadow-md)}
+.db-you-main{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.8fr);align-items:center;padding:38px 42px 32px}
+.db-you-identity{display:flex;align-items:center;gap:24px;min-width:0}
+.db-you-avatar{flex:none;padding:7px;border:1px solid #d8e0fb;border-radius:50%;background:#edf1ff;box-shadow:0 14px 34px #193c9b1a}
+.db-you-avatar .db-profile-photo{display:block;border:4px solid #fff;border-radius:50%}
+.db-you-identity h2{font-family:var(--db-display);font-size:clamp(32px,4vw,48px);font-weight:550;letter-spacing:-1.6px;line-height:1;margin:9px 0 13px}
+.db-you-status{display:inline-flex;align-items:center;gap:7px;color:var(--db-muted);font-size:11px}
+.db-you-status svg{color:#20a272}
+.db-you-balance{min-width:0;padding:9px 0 9px 42px;border-left:1px solid var(--db-line)}
+.db-you-balance>strong{display:block;min-height:1.1em;margin:10px 0 7px;font-family:var(--db-dot);font-size:clamp(35px,5vw,58px);font-weight:900;letter-spacing:-1.4px;line-height:1;font-variant-numeric:tabular-nums}
+.db-you-balance>small{display:block;color:var(--db-muted);font-size:11px;line-height:1.5}
+.db-you-holdings{display:flex;align-items:center;gap:28px;margin:0 42px;padding:22px 0;border-top:1px solid var(--db-line)}
+.db-you-holdings-label{display:flex;align-items:center;gap:10px;flex:0 0 120px;color:var(--db-blue)}
+.db-you-holdings-label span,.db-you-holding span{min-width:0}
+.db-you-holdings-label strong,.db-you-holdings-label small,.db-you-holding strong,.db-you-holding small{display:block}
+.db-you-holdings-label strong{color:var(--db-ink);font-size:12px}.db-you-holdings-label small{margin-top:3px;color:var(--db-muted);font-size:9px}
+.db-you-holding-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));flex:1;min-width:0}
+.db-you-holding{display:flex;align-items:center;gap:10px;min-width:0;padding:0 18px;border-left:1px solid var(--db-line)}
+.db-you-holding strong{font-size:12px}.db-you-holding small{overflow:hidden;margin-top:4px;color:var(--db-muted);font-size:10px;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+.db-you-holdings-empty{color:var(--db-muted);font-size:12px;line-height:1.6}
+.db-you-actions{display:flex;justify-content:center;gap:0;border-top:1px solid var(--db-line);background:#f9faff}
+.db-you-actions .db-text-link{justify-content:center;min-width:210px;padding:18px 34px;font-size:12px}
+.db-you-actions .db-text-link+.db-text-link{border-left:1px solid var(--db-line)}
+.db-app[data-theme="dark"] .db-you-overview{background:#141a2b;border-color:#283049}
+.db-app[data-theme="dark"] .db-you-avatar{background:#202a49;border-color:#354267}.db-app[data-theme="dark"] .db-you-actions{background:#111726}
+@media(max-width:700px){.db-you-overview{border-radius:24px}.db-you-main{grid-template-columns:1fr;padding:26px 22px 22px}.db-you-identity{align-items:center;gap:16px}.db-you-avatar{padding:5px}.db-you-avatar .db-profile-photo,.db-you-avatar .db-avatar{width:88px!important;height:88px!important}.db-you-identity h2{font-size:31px;letter-spacing:-1px}.db-you-balance{margin-top:24px;padding:23px 0 0;border-top:1px solid var(--db-line);border-left:0}.db-you-balance>strong{font-size:40px}.db-you-holdings{display:block;margin:0 22px;padding:19px 0}.db-you-holdings-label{margin-bottom:16px}.db-you-holding-list{display:flex;overflow-x:auto;margin:0 -22px;padding:0 22px;scrollbar-width:none}.db-you-holding-list::-webkit-scrollbar{display:none}.db-you-holding{flex:0 0 145px;padding:0 15px}.db-you-holding:first-child{padding-left:0;border-left:0}.db-you-actions .db-text-link{min-width:0;flex:1;padding:16px 10px}.db-profile-merged{margin-top:30px}}
 /* surfaces */
 .db-app[data-theme="dark"] .db-app-header{background:#0b0f1ccc;border-bottom-color:#283049}
 .db-app[data-theme="dark"] .db-app-nav a:hover{background:#1a2136}
