@@ -1,6 +1,6 @@
 'use client';
 
-import { Pencil, RefreshCw, ShieldCheck, WalletCards } from 'lucide-react';
+import { ChevronRight, Pencil, ShieldCheck, WalletCards } from 'lucide-react';
 import { portfolio, positionUsdAtoms, usd, type HoldingsSnapshot } from '@/lib/base/model';
 import { ProfileAvatar, StockIcon } from './Identity';
 
@@ -13,9 +13,9 @@ interface ProfileOverviewProps {
   snapshot?: HoldingsSnapshot;
   loading: boolean;
   error: boolean;
-  refreshing: boolean;
   onEdit: () => void;
-  onRefresh: () => void;
+  onViewHoldings: () => void;
+  holdingsExpanded: boolean;
 }
 
 export default function ProfileOverview({
@@ -27,9 +27,9 @@ export default function ProfileOverview({
   snapshot,
   loading,
   error,
-  refreshing,
   onEdit,
-  onRefresh,
+  onViewHoldings,
+  holdingsExpanded,
 }: ProfileOverviewProps) {
   const totals = snapshot ? portfolio(snapshot.holdings, snapshot.prices) : null;
   const complete = snapshot?.status === 'complete' && totals?.missing === 0;
@@ -54,6 +54,7 @@ export default function ProfileOverview({
           : 'Reading supported holdings on Base';
 
   return (
+    <div className="db-you-overview-wrap">
     <section className="db-you-overview" aria-labelledby="db-you-name">
       <div className="db-you-main">
         <div className="db-you-identity">
@@ -79,10 +80,12 @@ export default function ProfileOverview({
         })}</div> : <p className="db-you-holdings-empty">{connected ? (loading ? 'Reading your holdings…' : 'No supported tokenized stocks found yet.') : 'Your supported stocks will appear here after you connect through Sign in.'}</p>}
       </div>
 
-      <div className="db-you-actions">
-        <button className="db-text-link" onClick={onEdit}><Pencil size={16}/> Edit profile</button>
-        <button className="db-text-link" disabled={!connected || refreshing} onClick={onRefresh}><RefreshCw size={16}/>{connected && refreshing ? 'Refreshing…' : 'Refresh holdings'}</button>
-      </div>
     </section>
+    <nav className="db-you-action-bar" aria-label="Profile actions">
+      <button className="db-text-link" onClick={onEdit}><Pencil size={17}/> Manage profile <ChevronRight size={17}/></button>
+      <span aria-hidden="true" />
+      <button className="db-text-link" onClick={onViewHoldings} aria-expanded={holdingsExpanded}>View holdings <ChevronRight size={17}/></button>
+    </nav>
+    </div>
   );
 }
