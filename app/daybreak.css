@@ -1433,6 +1433,30 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-happening-card strong{font-size:15px;font-weight:600;letter-spacing:-.3px;line-height:1.25}
 .db-happening-meta{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--db-muted)}
 
+/* Paper thesis creation: local-first composer and independent simulated markets. */
+.db-paper-top>div{display:flex;align-items:center;gap:14px}
+.db-paper-create{overflow:hidden;border:1px solid var(--db-line);border-radius:24px;background:#fff}
+.db-paper-create>header{max-width:760px;padding:32px 32px 25px}
+.db-paper-create>header h2{margin:10px 0 8px;font:500 clamp(34px,4.6vw,52px)/1.04 var(--db-display);letter-spacing:-.04em}
+.db-paper-create>header p{color:var(--db-muted);font-size:13px;line-height:1.65}
+.db-paper-create-grid{display:grid;grid-template-columns:minmax(0,1.18fr) minmax(300px,.82fr);gap:0;border-top:1px solid var(--db-line)}
+.db-paper-create .db-thesis-fields{padding:30px 32px}
+.db-paper-create .db-thesis-fields select{width:100%;min-height:48px;padding:0 42px 0 14px;border:1px solid var(--db-line);border-radius:14px;background:#fff;color:var(--db-ink);font:inherit}
+.db-paper-create .db-thesis-fields>.db-button{width:100%;margin-top:5px}
+.db-paper-create-review{display:flex;flex-direction:column;align-items:flex-start;padding:30px;border-left:1px solid var(--db-line);background:#f6f8ff}
+.db-paper-create-review .db-paper-badge{margin-top:18px}
+.db-paper-create-review h3{margin:15px 0 8px;font:500 25px/1.15 var(--db-display);letter-spacing:-.025em}
+.db-paper-create-review>p{min-height:54px;color:var(--db-muted);font-size:11px;line-height:1.6}
+.db-paper-create-review dl{width:100%;margin:23px 0 0;padding-top:8px;border-top:1px solid var(--db-line)}
+.db-paper-create-review dl>div{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--db-line);font-size:10px}
+.db-paper-create-review dt{color:var(--db-muted)}.db-paper-create-review dd{margin:0;text-align:right;font-weight:600}
+.db-paper-thesis-summary{margin:17px 0 0!important;padding-top:16px;border-top:1px solid var(--db-line);color:var(--db-muted)!important;font-size:11px!important;line-height:1.6!important}
+.db-app[data-theme="dark"] .db-paper-create{background:#121829;border-color:#283049}
+.db-app[data-theme="dark"] .db-paper-create .db-thesis-fields select{background:#121829;border-color:#283049;color:var(--db-ink)}
+.db-app[data-theme="dark"] .db-paper-create-review{background:#171f35;border-color:#283049}
+@media(max-width:900px){.db-paper-create-grid{grid-template-columns:1fr}.db-paper-create-review{border-top:1px solid var(--db-line);border-left:0}}
+@media(max-width:700px){.db-paper-top>div{align-items:flex-end;flex-direction:column;gap:8px}.db-paper-create>header,.db-paper-create .db-thesis-fields,.db-paper-create-review{padding:21px}.db-paper-create .db-thesis-field-pair{grid-template-columns:1fr}}
+
 /* Stock + pre-IPO cards: full-bleed brand field with overlaid market data */
 .db-stock-card-art{display:grid;place-items:center;background:radial-gradient(circle at 50% 32%,#f1f5ff 0,#dfe7ff 100%)}
 .db-app[data-theme="dark"] .db-stock-card-art{background:radial-gradient(circle at 50% 32%,#1b2340 0,#121829 100%)}
