@@ -1,89 +1,67 @@
 import 'server-only';
 import {
-  buildCurveWithMarketCap,
-  ActivationType, BaseFeeMode, CollectFeeMode, MigrationOption, MigrationFeeOption,
-  TokenType, TokenDecimal, TokenAuthorityOption,
+  ActivationType, BaseFeeMode, CollectFeeMode, MigrationFeeOption, MigrationOption,
+  TokenAuthorityOption, TokenDecimal, TokenType, buildCurveWithMarketCap,
   type ConfigParameters,
 } from '@meteora-ag/dynamic-bonding-curve-sdk';
 
-// Daybreak's EQUITY-TUNED Dynamic Bonding Curve config.
-//
-// Meteora DBC is normally configured for memecoins. This config is tuned for
-// equity-like assets (a community token themed to a stock / pre-IPO name), which is
-// the Meteora bounty's ask. Three deliberate choices differ from a meme launch:
-//
-// 1. Reference-anchored price band. Instead of an arbitrary market cap, the launch
-//    is anchored to a real reference: for a listed name we pass the live oracle-implied
-//    market cap; for a pre-IPO name we pass the PreStocks implied valuation. The curve
-//    starts at `initialMarketCap` and graduates at `migrationMarketCap`, both derived
-//    from that reference (see equityMarketCaps). This gives thin/newly tokenized pairs
-//    a sane price band rather than a random one.
-// 2. IPO-style decaying fee. An exponential fee scheduler starts high and decays to a
-//    low steady-state fee, mimicking IPO stabilization and taxing snipers on thin books
-//    at open. (Memecoin curves usually run a flat low fee.)
-// 3. Graduation into real liquidity. Migration goes to Meteora DAMM v2, so a graduated
-//    equity token lands in a proper AMM pool, not a dead curve.
-//
-// Everything here is a pure function over numbers, so the resulting ConfigParameters
-// are deterministic and unit-checkable (see DBC-GATES).
-
 export const DBC_PROGRAM_ID = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN';
 
-// Equity-tuned defaults. Fees in bps; durations in seconds.
-export const EQUITY_DBC_DEFAULTS = {
-  totalTokenSupply: 1_000_000_000, // 1B community token supply
-  startingFeeBps: 500,   // 5.0% at open — IPO-style stabilization / anti-snipe
-  endingFeeBps: 100,     // 1.0% steady state
-  feeDecayPeriods: 120,  // number of scheduler steps
-  feeDecaySeconds: 3600, // decay completes ~1h after activation
-  creatorTradingFeePercentage: 50, // creator takes half of trading fees
-  migrationFeeBps: MigrationFeeOption.FixedBps100, // 1% migration fee tier
-  // Price band as a multiple of the reference market cap. Launch below reference so
-  // the curve discovers up toward it; graduate above so DAMM v2 liquidity forms around it.
-  initialCapMultiple: 0.5,
-  migrationCapMultiple: 5,
+// Versioned economic terms. Both caps are denominated in the exact quote stock
+// token, never USD and never the underlying company's equity market cap.
+export const THESIS_CURVE_V1 = {
+  version: 'stock-quote-v1',
+  baseDecimals: 6,
+  initialMarketCapQuote: 100,
+  migrationMarketCapQuote: 1_000,
+  startingFeeBps: 200,
+  endingFeeBps: 100,
+  feeDecayPeriods: 120,
+  feeDecaySeconds: 3_600,
+  creatorTradingFeePercentage: 50,
+  creatorPermanentLockedLiquidityPercentage: 100,
 } as const;
 
-// Derive the DBC market-cap band (in quote units, e.g. USDC) from a real reference
-// valuation. Anchoring both ends to the reference is the equity-specific behaviour.
-export function equityMarketCaps(referenceValuationUsd: number): { initialMarketCap: number; migrationMarketCap: number } {
-  if (!Number.isFinite(referenceValuationUsd) || referenceValuationUsd <= 0) {
-    throw new Error('referenceValuationUsd must be a positive number');
+function tokenDecimal(decimals: number): TokenDecimal {
+  switch (decimals) {
+    case 6: return TokenDecimal.SIX;
+    case 8: return TokenDecimal.EIGHT;
+    case 9: return TokenDecimal.NINE;
+    default: throw new Error(`Unsupported DBC quote decimals: ${decimals}`);
   }
-  return {
-    initialMarketCap: Math.round(referenceValuationUsd * EQUITY_DBC_DEFAULTS.initialCapMultiple),
-    migrationMarketCap: Math.round(referenceValuationUsd * EQUITY_DBC_DEFAULTS.migrationCapMultiple),
+}
+
+export interface ThesisCurveInput { quoteDecimals: number }
+
+export interface ThesisCurveBuild {
+  config: ConfigParameters;
+  terms: {
+    version: typeof THESIS_CURVE_V1.version;
+    quoteDecimals: number;
+    initialMarketCapQuote: number;
+    migrationMarketCapQuote: number;
+    supplyMode: 'dynamic';
+    startingFeeBps: number;
+    endingFeeBps: number;
+    creatorTradingFeePercentage: number;
+    migratedLiquidityPermanentLockedPct: number;
   };
 }
 
-export interface EquityCurveInput {
-  // A real reference valuation in USD for the community token's price band. For a
-  // listed name use the oracle-implied cap; for a pre-IPO name use the PreStocks
-  // implied valuation (scaled to a sensible community-token cap by the caller).
-  referenceValuationUsd: number;
-  totalTokenSupply?: number;
-  quoteDecimals?: 6 | 9; // USDC = 6
-}
-
-// Build the equity-tuned ConfigParameters. Validated by the SDK before return, so a
-// bad input throws here rather than at pool-creation time on-chain.
-export function buildEquityCurve(input: EquityCurveInput): ConfigParameters {
-  const d = EQUITY_DBC_DEFAULTS;
-  const { initialMarketCap, migrationMarketCap } = equityMarketCaps(input.referenceValuationUsd);
-  const quoteDecimal = (input.quoteDecimals ?? 6) === 9 ? TokenDecimal.NINE : TokenDecimal.SIX;
-
-  const config = buildCurveWithMarketCap({
+export function buildThesisCurve(input: ThesisCurveInput): ThesisCurveBuild {
+  const d = THESIS_CURVE_V1;
+  const built = buildCurveWithMarketCap({
     token: {
-      tokenType: TokenType.Token2022, // match the xStocks / PreStocks Token-2022 ecosystem
-      tokenBaseDecimal: TokenDecimal.NINE,
-      tokenQuoteDecimal: quoteDecimal,
+      tokenType: TokenType.Token2022,
+      tokenBaseDecimal: TokenDecimal.SIX,
+      tokenQuoteDecimal: tokenDecimal(input.quoteDecimals),
       tokenAuthorityOption: TokenAuthorityOption.CreatorUpdateAuthority,
-      totalTokenSupply: input.totalTokenSupply ?? d.totalTokenSupply,
+      totalTokenSupply: 1_000_000_000,
       leftover: 0,
     },
     fee: {
       baseFeeParams: {
-        baseFeeMode: BaseFeeMode.FeeSchedulerExponential, // high -> low IPO-style decay
+        baseFeeMode: BaseFeeMode.FeeSchedulerExponential,
         feeSchedulerParam: {
           startingFeeBps: d.startingFeeBps,
           endingFeeBps: d.endingFeeBps,
@@ -91,40 +69,47 @@ export function buildEquityCurve(input: EquityCurveInput): ConfigParameters {
           totalDuration: d.feeDecaySeconds,
         },
       },
-      dynamicFeeEnabled: true, // extra fee on volatility — sensible for equity opens
+      dynamicFeeEnabled: true,
       collectFeeMode: CollectFeeMode.QuoteToken,
       creatorTradingFeePercentage: d.creatorTradingFeePercentage,
       poolCreationFee: 0,
       enableFirstSwapWithMinFee: false,
     },
     migration: {
-      migrationOption: MigrationOption.MET_DAMM_V2, // graduate into DAMM v2 liquidity
-      migrationFeeOption: d.migrationFeeBps,
+      migrationOption: MigrationOption.MET_DAMM_V2,
+      migrationFeeOption: MigrationFeeOption.FixedBps100,
       migrationFee: { feePercentage: 1, creatorFeePercentage: 50 },
     },
     liquidityDistribution: {
-      // DBC requires >=10% of migration liquidity permanently locked. Locking 10%
-      // on the creator side seeds durable post-graduation liquidity for the equity
-      // token rather than letting all of it be withdrawable.
       partnerPermanentLockedLiquidityPercentage: 0,
       partnerLiquidityPercentage: 0,
-      creatorPermanentLockedLiquidityPercentage: 10,
-      creatorLiquidityPercentage: 90,
+      creatorPermanentLockedLiquidityPercentage: d.creatorPermanentLockedLiquidityPercentage,
+      creatorLiquidityPercentage: 0,
     },
     lockedVesting: {
       totalLockedVestingAmount: 0, numberOfVestingPeriod: 0, cliffUnlockAmount: 0,
       totalVestingDuration: 0, cliffDurationFromMigrationTime: 0,
     },
     activationType: ActivationType.Timestamp,
-    initialMarketCap,
-    migrationMarketCap,
+    initialMarketCap: d.initialMarketCapQuote,
+    migrationMarketCap: d.migrationMarketCapQuote,
   });
 
-  // buildCurveWithMarketCap is the SDK's authoritative builder; its output is the
-  // canonical ConfigParameters passed straight into createConfigAndPool. The remaining
-  // structural params here are fixed constants that satisfy DBC's rules (>=10% locked
-  // migration liquidity, fee bounds 25..9900 bps, DAMM v2 migration), so the only
-  // variable is referenceValuationUsd, guarded above. Final on-chain validation happens
-  // when the creator's launch transaction is simulated before signing (see launch.ts).
-  return config;
+  // The deployed program's fixed-supply path requires a swap buffer the SDK's
+  // market-cap builder does not include. Dynamic supply is the proven mode.
+  const config = { ...built, tokenSupply: null } as ConfigParameters;
+  return {
+    config,
+    terms: {
+      version: d.version,
+      quoteDecimals: input.quoteDecimals,
+      initialMarketCapQuote: d.initialMarketCapQuote,
+      migrationMarketCapQuote: d.migrationMarketCapQuote,
+      supplyMode: 'dynamic',
+      startingFeeBps: d.startingFeeBps,
+      endingFeeBps: d.endingFeeBps,
+      creatorTradingFeePercentage: d.creatorTradingFeePercentage,
+      migratedLiquidityPermanentLockedPct: d.creatorPermanentLockedLiquidityPercentage,
+    },
+  };
 }

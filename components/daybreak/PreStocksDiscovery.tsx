@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, ArrowUpRight, ExternalLink, ImageIcon, X } from 'lucide-react';
 import Sparkline from './Sparkline';
-import ConvictionMarket from './ConvictionMarket';
+import Link from 'next/link';
 
 interface Quote {
   symbol: string; company: string; mint: string; image: string; externalUrl: string;
@@ -114,7 +114,7 @@ function PreStockDetail({ quote, onClose }: { quote: Quote; onClose: () => void 
 
         <a className="db-button db-blue-button" href={quote.externalUrl} target="_blank" rel="noopener noreferrer">Trade on PreStocks <ExternalLink size={15} /></a>
 
-        <ConvictionMarket symbol={quote.symbol} company={quote.company} externalUrl={quote.externalUrl} />
+        <section className="db-conviction"><div className="db-section-heading"><div><span className="db-eyebrow">Thesis markets</span><h3>Pair ideas with the exact stock token.</h3></div></div><p className="db-small-note">This PreStocks instrument is still being checked for direct quote-token support. Daybreak never substitutes USDC or another asset.</p><Link className="db-text-link" href={`/app/conviction?stock=${encodeURIComponent(quote.symbol)}`}>Explore verified thesis markets <ArrowRight size={15}/></Link></section>
 
         <section className="db-news" aria-label={`${quote.company} news`}>
           <div className="db-section-heading"><div><span className="db-eyebrow">Behind the pre-IPO</span><h3>Live company news</h3></div><button className="db-text-link" disabled={news.isFetching} onClick={() => void news.refetch()}>{news.isFetching ? 'Loading…' : 'Refresh'}</button></div>

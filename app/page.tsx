@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import LandingStories from '@/components/daybreak/LandingStories';
 import LandingInstrumentStory from '@/components/daybreak/LandingInstrumentStory';
-import { ArrowUpRight, ArrowRight, Building2, Newspaper, Users, Github } from 'lucide-react';
+import { ArrowUpRight, ArrowRight, Building2, Newspaper, Users, Github, Lightbulb } from 'lucide-react';
 import ShareRedirect from '@/components/daybreak/ShareRedirect';
 import { Wordmark, AvatarStack, StockIcon, Avatar, CharacterCrew } from '@/components/daybreak/Identity';
 import CommunitySpotlight from '@/components/daybreak/CommunitySpotlight';
@@ -14,7 +14,7 @@ import { LanguagePicker, useLocale } from '@/components/daybreak/LocaleProvider'
 const PROOF = [
   { value: '2', label: 'Networks, one company view' },
   { value: 'Exact', label: 'Contracts and mints checked' },
-  { value: 'USDC', label: 'Comparable quote reviews' },
+  { value: '10', label: 'Stock tokens available to pair' },
   { value: 'Private', label: 'Ownership proof, not balances' },
 ];
 
@@ -136,6 +136,27 @@ export default function Landing() {
         </div>
       </section>
 
+      <section className="db-section db-section-tint db-landing-conviction">
+        <div className="db-shell db-split">
+          <div className="db-section-head" data-reveal>
+            <span className="db-micro">Conviction markets</span>
+            <h2><Lines lines={['Pair a thesis.', 'With the stock itself.']} /></h2>
+            <p>Publish a clear case, choose the exact stock token people will use to back it, and make the pair permanent when you sign. Every market shows its mint, fees and lifecycle state.</p>
+            <Link className="db-button db-blue-button" href="/app/conviction">
+              Explore conviction <ArrowRight size={17} />
+            </Link>
+            <span className="db-section-note">No USDC fallback. Backing exchanges the selected stock token for the thesis token.</span>
+          </div>
+          <article className="db-landing-thesis-card" data-reveal>
+            <div className="db-thesis-company"><StockIcon ticker="AAPL" size={46}/><div><strong>Apple</strong><span>AAPLSERV / AAPLx · Solana</span></div><span className="db-thesis-stage">Example thesis</span></div>
+            <Lightbulb size={24}/>
+            <h3>Apple’s services business will drive its next phase of growth.</h3>
+            <p>Read the evidence and what would change the author’s mind before reviewing the exact onchain market.</p>
+            <div className="db-thesis-market-line"><span>Quote token</span><strong>AAPLx</strong></div>
+          </article>
+        </div>
+      </section>
+
       <section id="circles" className="db-section db-band-blue">
         <div className="db-shell db-split">
           <div className="db-section-head" data-reveal>
@@ -217,6 +238,7 @@ export default function Landing() {
             <h3>Explore</h3>
             <Link href="/app">Discover companies</Link>
             <Link href="/app/groups">Find a circle</Link>
+            <Link href="/app/conviction">Explore conviction</Link>
             <Link href="/app/holdings">Your holdings</Link>
             <Link href="/stats">By the numbers</Link>
             <Link href="/app/profile">Make it yours</Link>

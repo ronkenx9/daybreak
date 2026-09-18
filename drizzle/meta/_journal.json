@@ -120,6 +120,13 @@
       "when": 1789693047764,
       "tag": "0016_white_jamie_braddock",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789727100000,
+      "tag": "0017_thesis_markets",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,8 @@ const expectedTables = [
   'news_comments', 'circle_discoveries', 'discovery_saves', 'user_blocks',
   'content_reports', 'muse_creations', 'agent_moments', 'free_pull_days',
   'feed_snapshots', 'webhook_events', 'holding_eligibilities',
+  'theses', 'thesis_markets', 'thesis_updates', 'thesis_follows',
+  'thesis_comments', 'thesis_trade_quotes',
 ];
 
 if (!databaseUrl) {

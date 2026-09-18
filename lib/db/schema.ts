@@ -316,6 +316,116 @@ export const tokenLaunches = pgTable('token_launches', {
   circleLookup: index('token_launches_circle_idx').on(t.circleId),
 }));
 
+// A thesis is editorial content first. Its published argument and market identity
+// become immutable together; authors add updates instead of rewriting history.
+export const theses = pgTable('theses', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  slug: text('slug').notNull().unique(),
+  authorUserId: uuid('author_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  instrumentId: text('instrument_id').notNull(),
+  companyId: text('company_id').notNull(),
+  title: text('title').notNull(),
+  summary: text('summary').notNull(),
+  body: text('body').notNull(),
+  invalidation: text('invalidation').notNull(),
+  horizon: text('horizon'),
+  sources: jsonb('sources').$type<string[]>().notNull().default([]),
+  tokenName: text('token_name').notNull(),
+  tokenSymbol: text('token_symbol').notNull(),
+  status: text('status').notNull().default('draft'), // draft|ready|published|withdrawn
+  visibility: text('visibility').notNull().default('public'),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  authorLookup: index('theses_author_idx').on(t.authorUserId),
+  companyLookup: index('theses_company_idx').on(t.companyId),
+  statusLookup: index('theses_status_idx').on(t.status, t.publishedAt),
+}));
+
+export const thesisMarkets = pgTable('thesis_markets', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  thesisId: uuid('thesis_id').notNull().references(() => theses.id, { onDelete: 'cascade' }),
+  operationId: uuid('operation_id').references(() => operations.id, { onDelete: 'set null' }),
+  chainNamespace: text('chain_namespace').notNull().default('solana:mainnet'),
+  creatorWallet: text('creator_wallet').notNull(),
+  quoteMint: text('quote_mint').notNull(),
+  quoteDecimals: integer('quote_decimals').notNull(),
+  baseMint: text('base_mint').notNull(),
+  tokenBadge: text('token_badge').notNull(),
+  configAddress: text('config_address').notNull(),
+  poolAddress: text('pool_address').notNull(),
+  configVersion: text('config_version').notNull(),
+  terms: jsonb('terms').$type<Record<string, unknown>>().notNull(),
+  transactionMessageHash: text('transaction_message_hash').notNull(),
+  recentBlockhash: text('recent_blockhash').notNull(),
+  lastValidBlockHeight: integer('last_valid_block_height').notNull(),
+  txSignature: text('tx_signature'),
+  status: text('status').notNull().default('preview'), // preview|submitting|submitted|active|failed|unknown|migrated
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  uniqThesis: uniqueIndex('thesis_markets_thesis_idx').on(t.thesisId),
+  uniqPool: uniqueIndex('thesis_markets_pool_idx').on(t.chainNamespace, t.poolAddress),
+  operationLookup: index('thesis_markets_operation_idx').on(t.operationId),
+  statusLookup: index('thesis_markets_status_idx').on(t.status, t.updatedAt),
+}));
+
+export const thesisUpdates = pgTable('thesis_updates', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  thesisId: uuid('thesis_id').notNull().references(() => theses.id, { onDelete: 'cascade' }),
+  authorUserId: uuid('author_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  body: text('body').notNull(),
+  sources: jsonb('sources').$type<string[]>().notNull().default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ thesisLookup: index('thesis_updates_thesis_idx').on(t.thesisId, t.createdAt) }));
+
+export const thesisFollows = pgTable('thesis_follows', {
+  thesisId: uuid('thesis_id').notNull().references(() => theses.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ pk: primaryKey({ columns: [t.thesisId, t.userId] }) }));
+
+export const thesisComments = pgTable('thesis_comments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  thesisId: uuid('thesis_id').notNull().references(() => theses.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  body: text('body').notNull(),
+  status: text('status').notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ thesisLookup: index('thesis_comments_thesis_idx').on(t.thesisId, t.createdAt) }));
+
+// One immutable wallet review per thesis-market trade. The stored transaction
+// message binds the displayed pair, direction, input and slippage floor to the
+// transaction Daybreak will accept for broadcast.
+export const thesisTradeQuotes = pgTable('thesis_trade_quotes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  thesisMarketId: uuid('thesis_market_id').notNull().references(() => thesisMarkets.id, { onDelete: 'cascade' }),
+  operationId: uuid('operation_id').notNull().references(() => operations.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  walletAddress: text('wallet_address').notNull(),
+  direction: text('direction').notNull(), // buy | sell
+  inputMint: text('input_mint').notNull(),
+  outputMint: text('output_mint').notNull(),
+  inputAmountRaw: text('input_amount_raw').notNull(),
+  expectedOutputRaw: text('expected_output_raw').notNull(),
+  minimumOutputRaw: text('minimum_output_raw').notNull(),
+  slippageBps: integer('slippage_bps').notNull(),
+  transactionMessageHash: text('transaction_message_hash').notNull(),
+  recentBlockhash: text('recent_blockhash').notNull(),
+  lastValidBlockHeight: integer('last_valid_block_height').notNull(),
+  status: text('status').notNull().default('quoted'), // quoted|submitting|submitted|confirmed|failed|unknown|expired
+  txSignature: text('tx_signature'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  uniqOperation: uniqueIndex('thesis_trade_quotes_operation_idx').on(t.operationId),
+  marketLookup: index('thesis_trade_quotes_market_idx').on(t.thesisMarketId, t.createdAt),
+  userLookup: index('thesis_trade_quotes_user_idx').on(t.userId, t.createdAt),
+  statusLookup: index('thesis_trade_quotes_status_idx').on(t.status, t.expiresAt),
+}));
+
 export const feeObservations = pgTable('fee_observations', {
   id: uuid('id').defaultRandom().primaryKey(),
   launchId: uuid('launch_id').notNull().references(() => tokenLaunches.id, { onDelete: 'cascade' }),
