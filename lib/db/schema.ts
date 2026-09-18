@@ -79,12 +79,13 @@ export const holdingEligibilities = pgTable('holding_eligibilities', {
   ticker: text('ticker').notNull(),
   walletAddress: text('wallet_address').notNull(),
   tokenAddress: text('token_address').notNull(),
+  chainNamespace: text('chain_namespace').notNull().default('eip155:8453'),
   chainId: integer('chain_id').notNull().default(8453),
   blockNumber: text('block_number').notNull(),
   observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 }, (t) => ({
-  pk: primaryKey({ columns: [t.userId, t.ticker] }),
+  pk: primaryKey({ columns: [t.userId, t.ticker, t.walletAddress, t.chainNamespace] }),
   expiryLookup: index('holding_eligibilities_expiry_idx').on(t.userId, t.expiresAt),
 }));
 

@@ -24,6 +24,7 @@ export default function CirclesHub() {
   // without connecting an external wallet. Prefer a connected external wallet.
   const embedded = account.authenticated ? account.user?.wallet ?? undefined : undefined;
   const verifyAddress = (isConnected ? address : undefined) ?? embedded;
+  const solanaVerifyAddress = account.solanaWallet;
   const [circles, setCircles] = useState<Circle[]>([]);
   const [activeSlug, setActiveSlug] = useState('');
   const [members, setMembers] = useState<Member[]>([]);
@@ -89,6 +90,18 @@ export default function CirclesHub() {
     } finally { setWorking(false); }
   };
 
+  const syncSolana = async () => {
+    if (!solanaVerifyAddress) return;
+    setWorking(true); setNotice('');
+    try {
+      const result = await authedFetch<{ eligibility: { tickers: string[] } }>('/api/solana/holdings/sync', { method: 'POST', body: JSON.stringify({ address: solanaVerifyAddress }) });
+      setNotice(result.eligibility.tickers.length ? `Unlocked from verified Solana holdings: ${result.eligibility.tickers.join(', ')}.` : 'Solana wallet verified. No supported xStock balances were found.');
+      await load();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Solana holdings could not be verified');
+    } finally { setWorking(false); }
+  };
+
   const pin = async () => {
     if (!active) return;
     setWorking(true); setNotice('');
@@ -118,7 +131,10 @@ export default function CirclesHub() {
   return <>
     <section className="db-circle-proof db-glass">
       <div><span className="db-eyebrow">Private proof, social access</span><h2>Hold the stock. Unlock the room.</h2><p>Daybreak checks a wallet linked to your account and stores only short-lived eligibility—not balances. Other members never see your wallet or position size.</p></div>
-      <div className="db-circle-proof-actions">{verifyAddress && <button className="db-button db-blue-button" disabled={working} onClick={sync}><RefreshCw size={16}/>{working ? 'Verifying…' : isConnected ? 'Verify holdings' : 'Verify my Daybreak wallet'}</button>}</div>
+      <div className="db-circle-proof-actions">
+        {verifyAddress && <button className="db-button db-blue-button" disabled={working} onClick={sync}><RefreshCw size={16}/>{working ? 'Verifying…' : 'Verify Base holdings'}</button>}
+        {solanaVerifyAddress && <button className="db-button db-blue-button" disabled={working} onClick={syncSolana}><RefreshCw size={16}/>{working ? 'Verifying…' : 'Verify Solana holdings'}</button>}
+      </div>
     </section>
     {trending.length > 0 && <section className="db-happening" aria-label="Happening now">
       <div className="db-section-heading"><div><span className="db-eyebrow">🔥 Happening now</span><h2>Where people are gathering.</h2></div></div>

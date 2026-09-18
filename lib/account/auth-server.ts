@@ -73,6 +73,22 @@ export async function requireUserOwningWallet(req: Request, requestedAddress: st
   return { user, walletAddress: address as `0x${string}` };
 }
 
+// Solana mints and wallet addresses are case-sensitive. Only a Solana wallet in
+// Privy's verified linked-account set can produce eligibility evidence.
+export async function requireUserOwningSolanaWallet(req: Request, requestedAddress: string) {
+  const user = await requireUser(req);
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(requestedAddress)) throw new HttpError(400, 'Invalid Solana wallet address');
+  let identity: Awaited<ReturnType<PrivyClient['getUserById']>>;
+  try { identity = await privy().getUserById(user.privyDid); }
+  catch { throw new HttpError(503, 'Your linked wallets could not be loaded'); }
+  const candidates = identity.linkedAccounts
+    .filter((account) => account.type === 'wallet' && account.chainType === 'solana' && 'address' in account)
+    .map((account) => String((account as { address: unknown }).address))
+    .filter((address) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address));
+  if (!candidates.includes(requestedAddress)) throw new HttpError(409, 'Link this Solana wallet to your Daybreak account before using its holdings');
+  return { user, walletAddress: requestedAddress };
+}
+
 export async function readJsonObject(req: Request, maxBytes = 16_384): Promise<Record<string, unknown>> {
   const declared = Number(req.headers.get('content-length') ?? 0);
   if (Number.isFinite(declared) && declared > maxBytes) throw new HttpError(413, 'Request body is too large');

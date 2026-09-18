@@ -6,6 +6,8 @@ import { CIRCLE_SLUGS } from './circles';
 import { DISCOVERY_CATALOG } from '@/lib/catalog';
 import { TOKENS, tokenForTicker } from '@/lib/base/tokens';
 import { circleGateEligible } from '@/lib/community/policy';
+import { XSTOCKS } from '@/lib/solana/xstocks-registry';
+import type { SolanaHoldingsSnapshot } from '@/lib/solana/holdings';
 
 const COMPANY_ID = /^[a-z0-9_.-]{1,64}$/i;
 const SAVABLE_COMPANY_IDS = new Set([...TOKENS.map((t) => t.ticker), ...DISCOVERY_CATALOG.map((item) => item.id)]);
@@ -20,7 +22,7 @@ async function ensureCircles() {
   // no longer seeded. Existing rows are hidden at read time in listCircles.
   await db.insert(circles).values(TOKENS.map((t) => ({
     slug: `holders-${t.ticker.toLowerCase()}`, name: `${t.name} holders`,
-    description: `A verified circle for people holding ${t.onchainSymbol} on Base.`,
+    description: `A verified circle for people holding supported ${t.ticker} stock tokens.`,
     kind: 'stock', gateMode: 'any_stock', tickers: [t.ticker],
   }))).onConflictDoNothing();
   circlesSeeded = true;
@@ -55,7 +57,7 @@ export async function listCircles(userId: string): Promise<CircleView[]> {
     // - empty auto-seeded "X holders" circles show only once they have members
     //   (or the viewer is already in / owns them)
     if (c.kind === 'interest') return false;
-    if (c.kind === 'stock' && c.memberCount === 0 && !c.joined && !c.owned) return false;
+    if (c.kind === 'stock' && c.memberCount === 0 && !c.joined && !c.owned && !c.eligible) return false;
     return true;
   }).sort((a, b) => Number(b.pinned) - Number(a.pinned) || Number(b.joined) - Number(a.joined) || Number(b.eligible) - Number(a.eligible) || b.memberCount - a.memberCount);
 }
@@ -93,6 +95,7 @@ export async function createCircle(userId: string, input: { name: string; descri
 
 export async function syncHoldingEligibility(userId: string, walletAddress: string, snapshot: import('@/lib/base/model').HoldingsSnapshot) {
   const db = getDb();
+  const chainNamespace = 'eip155:8453';
   const now = new Date(snapshot.observedAt);
   const expiresAt = new Date(snapshot.observedAt + 24 * 60 * 60_000);
   const failed = new Set(snapshot.failedTokens);
@@ -100,10 +103,46 @@ export async function syncHoldingEligibility(userId: string, walletAddress: stri
   const positives = snapshot.holdings.filter((h) => checkedTickers.includes(h.ticker));
   await db.transaction(async (tx) => {
     await tx.insert(linkedWallets).values({ userId, address: walletAddress, namespace: 'eip155:8453', verifiedAt: now }).onConflictDoUpdate({ target: [linkedWallets.namespace, linkedWallets.address], set: { userId, verifiedAt: now } });
-    if (checkedTickers.length) await tx.delete(holdingEligibilities).where(and(eq(holdingEligibilities.userId, userId), inArray(holdingEligibilities.ticker, checkedTickers)));
-    if (positives.length) await tx.insert(holdingEligibilities).values(positives.map((h) => ({ userId, ticker: h.ticker, walletAddress, tokenAddress: h.token.toLowerCase(), chainId: snapshot.chainId, blockNumber: snapshot.blockNumber, observedAt: now, expiresAt })));
+    if (checkedTickers.length) await tx.delete(holdingEligibilities).where(and(
+      eq(holdingEligibilities.userId, userId),
+      eq(holdingEligibilities.walletAddress, walletAddress),
+      eq(holdingEligibilities.chainNamespace, chainNamespace),
+      inArray(holdingEligibilities.ticker, checkedTickers),
+    ));
+    if (positives.length) await tx.insert(holdingEligibilities).values(positives.map((h) => ({ userId, ticker: h.ticker, walletAddress, tokenAddress: h.token.toLowerCase(), chainNamespace, chainId: snapshot.chainId, blockNumber: snapshot.blockNumber, observedAt: now, expiresAt })));
   });
   return { tickers: positives.map((h) => h.ticker), expiresAt: expiresAt.toISOString(), status: snapshot.status };
+}
+
+export async function syncSolanaHoldingEligibility(userId: string, walletAddress: string, snapshot: SolanaHoldingsSnapshot) {
+  const db = getDb();
+  const chainNamespace = 'solana:mainnet';
+  const now = new Date(snapshot.observedAt);
+  const expiresAt = new Date(snapshot.observedAt + 24 * 60 * 60_000);
+  const checkedTickers = XSTOCKS.map((stock) => stock.ticker);
+  const positives = snapshot.holdings.filter((holding) => checkedTickers.includes(holding.ticker));
+  await db.transaction(async (tx) => {
+    await tx.insert(linkedWallets).values({ userId, address: walletAddress, namespace: chainNamespace, verifiedAt: now })
+      .onConflictDoUpdate({ target: [linkedWallets.namespace, linkedWallets.address], set: { userId, verifiedAt: now } });
+    await tx.delete(holdingEligibilities).where(and(
+      eq(holdingEligibilities.userId, userId),
+      eq(holdingEligibilities.walletAddress, walletAddress),
+      eq(holdingEligibilities.chainNamespace, chainNamespace),
+      inArray(holdingEligibilities.ticker, checkedTickers),
+    ));
+    if (positives.length) await tx.insert(holdingEligibilities).values(positives.map((holding) => ({
+      userId,
+      ticker: holding.ticker,
+      walletAddress,
+      tokenAddress: holding.mint,
+      chainNamespace,
+      chainId: 0,
+      blockNumber: String(snapshot.slot),
+      observedAt: now,
+      expiresAt,
+    })));
+  });
+  return { tickers: positives.map((holding) => holding.ticker), expiresAt: expiresAt.toISOString(), status: snapshot.status };
 }
 
 export async function listCircleMembers(userId: string, slug: string) {
@@ -117,7 +156,7 @@ export async function listCircleMembers(userId: string, slug: string) {
   const ids = rows.map((row) => row.userId);
   const badges = ids.length ? await db.select({ userId: holdingEligibilities.userId, ticker: holdingEligibilities.ticker }).from(holdingEligibilities).where(and(inArray(holdingEligibilities.userId, ids), sql`${holdingEligibilities.expiresAt} > now()`)) : [];
   const required = Array.isArray(circle.tickers) ? circle.tickers : [];
-  const members = rows.map((row) => ({ ...row, verifiedTickers: badges.filter((b) => b.userId === row.userId && (!required.length || required.includes(b.ticker))).map((b) => b.ticker) }))
+  const members = rows.map((row) => ({ ...row, verifiedTickers: [...new Set(badges.filter((b) => b.userId === row.userId && (!required.length || required.includes(b.ticker))).map((b) => b.ticker))] }))
     .filter((row) => circleGateEligible(circle.gateMode, required, row.verifiedTickers))
     .map(({ userId: _userId, ...row }) => row);
   return { ok: true as const, members };
