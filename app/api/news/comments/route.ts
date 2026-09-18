@@ -2,7 +2,7 @@ import { requireUser, errorResponse, HttpError, readJsonObject } from '@/lib/acc
 import { requireWriteCapacity } from '@/lib/account/request-guard';
 import { createKeyedRateLimit } from '@/lib/server/requests';
 import { articleIdentity } from '@/lib/news/url';
-import { tokenForTicker } from '@/lib/base/tokens';
+import { companyForSymbol } from '@/lib/assets/companies';
 import { circleNewsAccess, createNewsComment, listNewsComments, removeNewsComment } from '@/lib/db/repo';
 
 export const dynamic = 'force-dynamic';
@@ -10,7 +10,7 @@ const canComment = createKeyedRateLimit(12, 60_000);
 
 function identity(ticker: unknown, url: unknown, circleSlug?: unknown) {
   const value = articleIdentity(ticker, url, circleSlug);
-  if (!value || !tokenForTicker(value.ticker)) throw new HttpError(400, 'Invalid article');
+  if (!value || !companyForSymbol(value.ticker)) throw new HttpError(400, 'Invalid article');
   return value;
 }
 

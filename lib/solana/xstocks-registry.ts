@@ -35,7 +35,7 @@ export const XSTOCKS: XStock[] = SOLANA_XSTOCK_INSTRUMENTS.map((instrument) => {
   const company = COMPANY_BY_ID[instrument.companyId];
   if (!company || !instrument.isin) throw new Error(`Invalid xStock registry entry: ${instrument.identity}`);
   return {
-    ticker: company.ticker, company: company.name, xSymbol: instrument.symbol,
+    ticker: company.symbol, company: company.name, xSymbol: instrument.symbol,
     isin: instrument.isin, mint: instrument.identity, decimals: instrument.decimals,
   };
 });

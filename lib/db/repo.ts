@@ -8,6 +8,9 @@ import { TOKENS, tokenForTicker } from '@/lib/base/tokens';
 import { circleGateEligible } from '@/lib/community/policy';
 import { XSTOCKS } from '@/lib/solana/xstocks-registry';
 import type { SolanaHoldingsSnapshot } from '@/lib/solana/holdings';
+import { PRESTOCKS } from '@/lib/solana/prestocks-registry';
+import type { PreStockHoldingsSnapshot } from '@/lib/solana/prestocks-holdings';
+import { companyForSymbol } from '@/lib/assets/companies';
 
 const COMPANY_ID = /^[a-z0-9_.-]{1,64}$/i;
 const SAVABLE_COMPANY_IDS = new Set([...TOKENS.map((t) => t.ticker), ...DISCOVERY_CATALOG.map((item) => item.id)]);
@@ -23,8 +26,18 @@ async function ensureCircles() {
   await db.insert(circles).values(TOKENS.map((t) => ({
     slug: `holders-${t.ticker.toLowerCase()}`, name: `${t.name} holders`,
     description: `A verified circle for people holding supported ${t.ticker} stock tokens.`,
-    kind: 'stock', gateMode: 'any_stock', tickers: [t.ticker],
+    kind: 'stock', gateMode: 'any_stock', tickers: t.ticker === 'SPCX' ? ['SPCX', 'SPACEX'] : [t.ticker],
   }))).onConflictDoNothing();
+  await db.insert(circles).values(PRESTOCKS.filter((stock) => stock.symbol !== 'SPACEX').map((stock) => ({
+    slug: `holders-${stock.symbol.toLowerCase()}`, name: `${stock.company} holders`,
+    description: `A verified circle for people holding the supported PreStocks ${stock.company} instrument.`,
+    kind: 'stock', gateMode: 'any_stock', tickers: [stock.symbol],
+  }))).onConflictDoNothing();
+  await db.update(circles).set({
+    name: 'SpaceX holders',
+    description: 'A verified circle for people holding supported SpaceX instruments on Base or Solana.',
+    tickers: ['SPCX', 'SPACEX'],
+  }).where(eq(circles.slug, 'holders-spcx'));
   circlesSeeded = true;
 }
 
@@ -143,6 +156,37 @@ export async function syncSolanaHoldingEligibility(userId: string, walletAddress
     })));
   });
   return { tickers: positives.map((holding) => holding.ticker), expiresAt: expiresAt.toISOString(), status: snapshot.status };
+}
+
+export async function syncPreStockHoldingEligibility(userId: string, walletAddress: string, snapshot: PreStockHoldingsSnapshot) {
+  const db = getDb();
+  const chainNamespace = 'solana:prestocks:mainnet';
+  const now = new Date(snapshot.observedAt);
+  const expiresAt = new Date(snapshot.observedAt + 24 * 60 * 60_000);
+  const checkedTickers = PRESTOCKS.map((stock) => stock.symbol);
+  const positives = snapshot.holdings.filter((holding) => checkedTickers.includes(holding.symbol));
+  await db.transaction(async (tx) => {
+    await tx.insert(linkedWallets).values({ userId, address: walletAddress, namespace: chainNamespace, verifiedAt: now })
+      .onConflictDoUpdate({ target: [linkedWallets.namespace, linkedWallets.address], set: { userId, verifiedAt: now } });
+    await tx.delete(holdingEligibilities).where(and(
+      eq(holdingEligibilities.userId, userId),
+      eq(holdingEligibilities.walletAddress, walletAddress),
+      eq(holdingEligibilities.chainNamespace, chainNamespace),
+      inArray(holdingEligibilities.ticker, checkedTickers),
+    ));
+    if (positives.length) await tx.insert(holdingEligibilities).values(positives.map((holding) => ({
+      userId,
+      ticker: holding.symbol,
+      walletAddress,
+      tokenAddress: holding.mint,
+      chainNamespace,
+      chainId: 0,
+      blockNumber: String(snapshot.slot),
+      observedAt: now,
+      expiresAt,
+    })));
+  });
+  return { tickers: positives.map((holding) => holding.symbol), expiresAt: expiresAt.toISOString(), status: snapshot.status };
 }
 
 export async function listCircleMembers(userId: string, slug: string) {
@@ -345,7 +389,7 @@ export async function circleNewsAccess(userId: string, slug: string) {
     .where(and(eq(circles.slug, slug), eq(circles.status, 'active'), eq(circles.visibility, 'public')))
     .limit(1);
   if (!circle) return { ok: false as const, reason: 'missing' as const };
-  const tickers = [...new Set((Array.isArray(circle.tickers) ? circle.tickers : []).filter((ticker) => tokenForTicker(ticker)))];
+  const tickers = [...new Set((Array.isArray(circle.tickers) ? circle.tickers : []).filter((ticker) => companyForSymbol(ticker)))];
   const [membership] = await db.select({ id: circleMemberships.id }).from(circleMemberships)
     .where(and(eq(circleMemberships.userId, userId), eq(circleMemberships.circleId, circle.id), eq(circleMemberships.status, 'active')))
     .limit(1);
@@ -369,7 +413,7 @@ export async function createDiscovery(userId: string, input: { circleSlug: strin
     const ticker = input.subjectId.toUpperCase();
     const [circle] = await db.select({ tickers: circles.tickers }).from(circles).where(eq(circles.slug, input.circleSlug)).limit(1);
     const allowed = Array.isArray(circle?.tickers) ? circle.tickers : [];
-    if (!tokenForTicker(ticker) || (allowed.length > 0 && !allowed.includes(ticker))) return { ok: false as const, reason: 'subject' as const };
+    if (!companyForSymbol(ticker) || (allowed.length > 0 && !allowed.includes(ticker))) return { ok: false as const, reason: 'subject' as const };
     input.subjectId = ticker;
   }
   const [row] = await db.insert(circleDiscoveries).values({

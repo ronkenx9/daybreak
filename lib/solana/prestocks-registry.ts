@@ -1,4 +1,5 @@
 import 'server-only';
+import { COMPANY_BY_ID, PRESTOCK_INSTRUMENTS } from '@/lib/assets/companies';
 
 // PreStocks tokenized PRE-IPO companies on SOLANA — verified on-chain 2026-09-17 via
 // getMultipleAccounts + the PreStocks public API (https://prestocks.com/api/prestocks).
@@ -31,16 +32,11 @@ export interface PreStock {
 export const PRESTOCK_HAS_SCALED_UI_AMOUNT = true;
 export const PRESTOCKS_VERIFIED_AT = '2026-09-17';
 
-export const PRESTOCKS: PreStock[] = [
-  { symbol: 'ANDURIL', company: 'Anduril', mint: 'PresTj4Yc2bAR197Er7wz4UUKSfqt6FryBEdAriBoQB', decimals: 9, image: 'https://www.prestocks.com/logos/anduril.png', externalUrl: 'https://www.prestocks.com/anduril', newsQuery: '"Anduril"' },
-  { symbol: 'ANTHROPIC', company: 'Anthropic', mint: 'Pren1FvFX6J3E4kXhJuCiAD5aDmGEb7qJRncwA8Lkhw', decimals: 9, image: 'https://www.prestocks.com/logos/anthropic.png', externalUrl: 'https://www.prestocks.com/anthropic', newsQuery: '"Anthropic"' },
-  { symbol: 'FIGUREAI', company: 'Figure AI', mint: 'PreZad18qfPtbxNpMtMuAuX2zVpvkEU8DnJx56faCWd', decimals: 9, image: 'https://www.prestocks.com/logos/figureai.png', externalUrl: 'https://www.prestocks.com/figureai', newsQuery: '"Figure AI"' },
-  { symbol: 'KALSHI', company: 'Kalshi', mint: 'PreLWGkkeqG1s4HEfFZSy9moCrJ7btsHuUtfcCeoRua', decimals: 9, image: 'https://www.prestocks.com/logos/kalshi.png', externalUrl: 'https://www.prestocks.com/kalshi', newsQuery: '"Kalshi"' },
-  { symbol: 'NEURALINK', company: 'Neuralink', mint: 'PrekqLJvJ3qVdXmBGDiexvwUTF4rLFDa6HWS4HJbw9S', decimals: 9, image: 'https://www.prestocks.com/logos/neuralink.png', externalUrl: 'https://www.prestocks.com/neuralink', newsQuery: '"Neuralink"' },
-  { symbol: 'OPENAI', company: 'OpenAI', mint: 'PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF', decimals: 9, image: 'https://www.prestocks.com/logos/openai.png', externalUrl: 'https://www.prestocks.com/openai', newsQuery: '"OpenAI"' },
-  { symbol: 'POLYMARKET', company: 'Polymarket', mint: 'Pre8AREmFPtoJFT8mQSXQLh56cwJmM7CFDRuoGBZiUP', decimals: 9, image: 'https://www.prestocks.com/logos/polymarket.png', externalUrl: 'https://www.prestocks.com/polymarket', newsQuery: '"Polymarket"' },
-  { symbol: 'SPACEX', company: 'SpaceX', mint: 'PreANxuXjsy2pvisWWMNB6YaJNzr7681wJJr2rHsfTh', decimals: 9, image: 'https://www.prestocks.com/logos/spacex.png', externalUrl: 'https://www.prestocks.com/spacex', newsQuery: '"SpaceX"' },
-];
+export const PRESTOCKS: PreStock[] = PRESTOCK_INSTRUMENTS.map((instrument) => {
+  const company = COMPANY_BY_ID[instrument.companyId];
+  if (!company || !instrument.image || !instrument.externalUrl || !instrument.newsQuery) throw new Error(`Invalid PreStocks registry entry: ${instrument.identity}`);
+  return { symbol: instrument.symbol, company: company.name, mint: instrument.identity, decimals: instrument.decimals, image: instrument.image, externalUrl: instrument.externalUrl, newsQuery: instrument.newsQuery };
+});
 
 export const PRESTOCK_BY_SYMBOL: Record<string, PreStock> = Object.fromEntries(PRESTOCKS.map((p) => [p.symbol, p]));
 export const PRESTOCK_BY_MINT: Record<string, PreStock> = Object.fromEntries(PRESTOCKS.map((p) => [p.mint, p]));

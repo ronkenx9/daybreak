@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-const TICKER = /^[A-Z]{1,8}$/;
+const TICKER = /^[A-Z0-9]{1,16}$/;
 const SCOPE = /^[a-z0-9-]{3,64}$/;
 
 export function canonicalArticleUrl(input: unknown) {
