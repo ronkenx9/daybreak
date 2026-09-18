@@ -75,6 +75,13 @@ export async function listCircles(userId: string): Promise<CircleView[]> {
   }).sort((a, b) => Number(b.pinned) - Number(a.pinned) || Number(b.joined) - Number(a.joined) || Number(b.eligible) - Number(a.eligible) || b.memberCount - a.memberCount);
 }
 
+export async function listEligibleHoldingSymbols(userId: string): Promise<string[]> {
+  const rows = await getDb().select({ ticker: holdingEligibilities.ticker }).from(holdingEligibilities)
+    .where(and(eq(holdingEligibilities.userId, userId), sql`${holdingEligibilities.expiresAt} > now()`))
+    .orderBy(desc(holdingEligibilities.observedAt));
+  return [...new Set(rows.map((row) => row.ticker).filter((ticker) => Boolean(companyForSymbol(ticker))))];
+}
+
 // Records a paid pin (tx_hash UNIQUE = anti-replay) and pins the circle for the
 // window. Returns false if the circle is missing or the tx was already used.
 export async function pinCircle(userId: string, slug: string, txHash: string, amountRaw: string, hours: number): Promise<boolean> {

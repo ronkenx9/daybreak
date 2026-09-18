@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, MessageCircle } from 'lucide-react';
 import type { NewsStory } from './NewsTicker';
@@ -10,7 +10,7 @@ import { isPreStockSymbol } from '@/lib/solana/prestocks-symbols';
 // The server resolves the circle's configured tickers and returns a balanced,
 // access-checked feed. Discussions include the circle slug in article identity,
 // so each community keeps its own conversation around the same public story.
-export default function CircleNews({ slug, isMember, title }: { slug: string; isMember: boolean; title?: string }) {
+export default function CircleNews({ slug, isMember, title, initialStoryUrl }: { slug: string; isMember: boolean; title?: string; initialStoryUrl?: string }) {
   const [openUrl, setOpenUrl] = useState<string | null>(null);
   const q = useQuery({
     queryKey: ['circle-news', slug],
@@ -22,6 +22,9 @@ export default function CircleNews({ slug, isMember, title }: { slug: string; is
     staleTime: 5 * 60_000, retry: 1,
   });
   const items = q.data?.items ?? [];
+  useEffect(() => {
+    if (initialStoryUrl && items.some((item) => item.url === initialStoryUrl)) setOpenUrl(initialStoryUrl);
+  }, [initialStoryUrl, items]);
   const open = items.find((i) => i.url === openUrl) ?? null;
   return <div className="db-create-news">
     <span className="db-eyebrow">{title ?? 'For this circle'}</span>
