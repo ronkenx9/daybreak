@@ -1,10 +1,12 @@
-import { index, pgTable, uuid, text, date, integer, boolean, timestamp, uniqueIndex, primaryKey, jsonb, numeric } from 'drizzle-orm/pg-core';
+import { index, pgTable, uuid, text, date, integer, boolean, timestamp, uniqueIndex, primaryKey, jsonb, numeric, check } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // One internal user per verified Privy identity. We key on the Privy DID, never
 // on email or wallet address (those can change or be shared).
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
   privyDid: text('privy_did').notNull().unique(),
+  paperPublicId: text('paper_public_id').notNull().default(sql`encode(sha256(convert_to(gen_random_uuid()::text, 'UTF8')), 'hex')`).unique(),
   status: text('status').notNull().default('active'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   onboardingCompletedAt: timestamp('onboarding_completed_at', { withTimezone: true }),
@@ -388,19 +390,21 @@ export const paperThesisMarkets = pgTable('paper_thesis_markets', {
 
 export const paperStockBalances = pgTable('paper_stock_balances', {
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  publicId: text('public_id').notNull(),
   instrumentId: text('instrument_id').notNull(),
   balance: numeric('balance', { precision: 30, scale: 10, mode: 'number' }).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({ pk: primaryKey({ columns: [t.userId, t.instrumentId] }) }));
+}, (t) => ({ pk: primaryKey({ columns: [t.userId, t.instrumentId] }), publicLookup: index('paper_stock_balances_instrument_public_idx').on(t.instrumentId, t.publicId) }));
 
 export const paperPositions = pgTable('paper_positions', {
   thesisId: uuid('thesis_id').notNull().references(() => theses.id, { onDelete: 'cascade' }),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  publicId: text('public_id').notNull(),
   quantity: numeric('quantity', { precision: 30, scale: 10, mode: 'number' }).notNull().default(0),
   costBasisQuote: numeric('cost_basis_quote', { precision: 30, scale: 10, mode: 'number' }).notNull().default(0),
   realizedPnlQuote: numeric('realized_pnl_quote', { precision: 30, scale: 10, mode: 'number' }).notNull().default(0),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({ pk: primaryKey({ columns: [t.thesisId, t.userId] }), thesisLookup: index('paper_positions_thesis_idx').on(t.thesisId, t.updatedAt) }));
+}, (t) => ({ pk: primaryKey({ columns: [t.thesisId, t.userId] }), thesisLookup: index('paper_positions_thesis_idx').on(t.thesisId, t.updatedAt), publicLookup: index('paper_positions_thesis_public_idx').on(t.thesisId, t.publicId) }));
 
 export const paperTrades = pgTable('paper_trades', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -414,7 +418,18 @@ export const paperTrades = pgTable('paper_trades', {
   feeAmount: numeric('fee_amount', { precision: 30, scale: 10, mode: 'number' }).notNull(),
   priceImpactPct: numeric('price_impact_pct', { precision: 20, scale: 10, mode: 'number' }).notNull(),
   executedAt: timestamp('executed_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({ intentUnique: uniqueIndex('paper_trades_intent_idx').on(t.userId, t.intentId), thesisLookup: index('paper_trades_thesis_idx').on(t.thesisId, t.executedAt), userLookup: index('paper_trades_user_idx').on(t.userId, t.executedAt) }));
+}, (t) => ({
+  intentUnique: uniqueIndex('paper_trades_intent_idx').on(t.userId, t.intentId),
+  thesisLookup: index('paper_trades_thesis_idx').on(t.thesisId, t.executedAt),
+  userLookup: index('paper_trades_user_idx').on(t.userId, t.executedAt),
+  positiveAmounts: check('paper_trades_positive_amounts', sql`${t.inputAmount} > 0 AND ${t.outputAmount} > 0 AND ${t.feeAmount} > 0`),
+}));
+
+export const paperActivityLimits = pgTable('paper_activity_limits', {
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  windowStart: timestamp('window_start', { withTimezone: true }).notNull(),
+  count: integer('count').notNull().default(0),
+}, (t) => ({ pk: primaryKey({ columns: [t.userId, t.windowStart] }), expiryLookup: index('paper_activity_limits_window_idx').on(t.windowStart) }));
 
 export const thesisUpdates = pgTable('thesis_updates', {
   id: uuid('id').defaultRandom().primaryKey(),

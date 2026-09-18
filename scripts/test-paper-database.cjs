@@ -9,11 +9,11 @@ const postgres=require('postgres'),{drizzle}=require('drizzle-orm/postgres-js'),
  await root.unsafe(`CREATE DATABASE "${name}"`);
  sql=postgres(`postgres://${user}@127.0.0.1:55439/${name}`,{max:8});
  for(const role of ['anon','authenticated'])await root.unsafe(`DO $$ BEGIN CREATE ROLE ${role}; EXCEPTION WHEN duplicate_object THEN NULL; END $$;`);
- await sql.unsafe('CREATE TABLE users(id uuid PRIMARY KEY); CREATE TABLE operations(id uuid PRIMARY KEY); CREATE TABLE profiles(user_id uuid PRIMARY KEY, display_name text, avatar integer, avatar_url text);');
- for(const migration of ['0017_thesis_markets','0018_public_paper_theses','0019_paper_trade_intents','0020_paper_creation_intents'])await sql.unsafe(fs.readFileSync(`drizzle/${migration}.sql`,'utf8'));
+ await sql.unsafe("CREATE TABLE users(id uuid PRIMARY KEY); CREATE TABLE operations(id uuid PRIMARY KEY); CREATE TABLE profiles(user_id uuid PRIMARY KEY, display_name text, avatar integer, avatar_url text, visibility text NOT NULL DEFAULT 'private');");
+ for(const migration of ['0017_thesis_markets','0018_public_paper_theses','0019_paper_trade_intents','0020_paper_creation_intents','0021_paper_privacy_precision_identity'])await sql.unsafe(fs.readFileSync(`drizzle/${migration}.sql`,'utf8'));
  const schema=loader()('lib/db/schema.ts'),db=drizzle(sql,{schema});
  const repo=loader({[path.resolve('lib/db/client.ts')]:{getDb:()=>db}})('lib/db/repo-theses.ts');
- const a=randomUUID(),b=randomUUID();await sql`insert into users values (${a}),(${b})`;
+ const a=randomUUID(),b=randomUUID();await sql`insert into users(id) values (${a}),(${b})`;await sql`insert into profiles(user_id,display_name,avatar,avatar_url,visibility) values (${a},'Private Alice',1,'/api/profile-photo/private','private'),(${b},'Public Bob',2,'/api/profile-photo/public','public')`;
  const make=async(n,user=a,creationIntentId=randomUUID())=>repo.createPublicPaperThesis(user,'test-'+n,'apple',{instrumentId:'solana:mainnet:aapl',title:'Apple growth '+n,summary:'Recurring services growth simulation',tokenName:'Apple thesis',tokenSymbol:'IDEA'},creationIntentId);
  const creationIntentId=randomUUID();
  const t=await make('one',a,creationIntentId),replayedCreation=await make('one',a,creationIntentId),t2=await make('two');
@@ -36,12 +36,16 @@ const postgres=require('postgres'),{drizzle}=require('drizzle-orm/postgres-js'),
  const before=await repo.getPublicPaperMarket(t.id,a);
  await assert.rejects(()=>repo.executePublicPaperTrade(t.id,b,'buy',1,{...intent(),minimumOutput:1e9}),/Price moved/);
  await assert.rejects(()=>repo.executePublicPaperTrade(t.id,b,'buy',1,{...intent(),expiresAt:Date.now()-1}),/expired/);
+ await assert.rejects(()=>repo.executePublicPaperTrade(t.id,b,'buy',1e-11,intent()),/below simulation precision/);
  assert.equal((await repo.getPublicPaperMarket(t.id,a)).tradeCount,before.tradeCount);
  await repo.executePublicPaperTrade(t.id,b,'buy',1,intent());
  const market=await repo.getPublicPaperMarket(t.id,a);
  assert.equal(market.positions.length,2);assert(market.positions.every(p=>p.publicId.length===64));
- const publicId=repo.paperPublicId(a);const portfolio=await repo.getPaperPortfolio(publicId);
+ assert.equal(market.positions.find(p=>p.isViewer).displayName,'Private Alice');assert.equal(market.positions.find(p=>!p.isViewer).displayName,'Public Bob');
+ const anonymousMarket=await repo.getPublicPaperMarket(t.id);assert.equal(anonymousMarket.positions.find(p=>p.publicId===market.positions.find(x=>x.isViewer).publicId).displayName,null);
+ const publicId=(await sql`select paper_public_id from users where id=${a}`)[0].paper_public_id;const portfolio=await repo.getPaperPortfolio(publicId);
  assert.equal(portfolio.publicId,publicId);assert(portfolio.positions.length>=1);assert(!JSON.stringify(portfolio).includes(a));
+ assert.equal(portfolio.displayName,null);assert(!JSON.stringify(portfolio).includes('/api/profile-photo/private'));
  const holding=market.viewer.position.quantity;await repo.executePublicPaperTrade(t.id,a,'sell',holding,intent());
  assert.equal((await repo.getPublicPaperMarket(t.id,a)).viewer.position.quantity,0);
  const live=await make('live');
@@ -56,15 +60,15 @@ const postgres=require('postgres'),{drizzle}=require('drizzle-orm/postgres-js'),
  assert(!(await repo.listPublishedTheses(40)).some(x=>x.id===live.id));
  assert.equal((await repo.listPublishedTheses(40,{mode:'live'}))[0].id,live.id);
  // Public activity and participant pagination includes older entries.
- await sql`insert into users select gen_random_uuid() from generate_series(1,55)`;
- await sql`insert into paper_positions(thesis_id,user_id,quantity) select ${t.id},id,1 from users where id not in (${a},${b})`;
- await sql`insert into paper_stock_balances(user_id,instrument_id,balance) select id,'solana:mainnet:aapl',10 from users where id not in (${a},${b})`;
+ await sql`insert into users(id) select gen_random_uuid() from generate_series(1,55)`;
+ await sql`insert into paper_positions(thesis_id,user_id,public_id,quantity) select ${t.id},id,paper_public_id,1 from users where id not in (${a},${b})`;
+ await sql`insert into paper_stock_balances(user_id,public_id,instrument_id,balance) select id,paper_public_id,'solana:mainnet:aapl',10 from users where id not in (${a},${b})`;
  await sql`insert into paper_trades(thesis_id,user_id,direction,input_amount,output_amount,fee_amount,price_impact_pct) select ${t.id},id,'buy',1,1,0.02,0.1 from users where id not in (${a},${b})`;
  const page0=await repo.getPublicPaperMarket(t.id,a);
  assert(page0.hasMore.positions&&page0.hasMore.trades&&page0.hasMore.balances);
  assert(page0.nextCursors.positions&&page0.nextCursors.trades&&page0.nextCursors.balances);
  const firstPageIds=new Set(page0.positions.map(row=>row.publicId));
- const pageOneCandidate=(await sql`select user_id from paper_positions where thesis_id=${t.id}`).map(row=>({id:row.user_id,publicId:repo.paperPublicId(row.user_id)})).sort((x,y)=>x.publicId.localeCompare(y.publicId)).find(row=>!firstPageIds.has(row.publicId));
+ const pageOneCandidate=(await sql`select user_id,public_id from paper_positions where thesis_id=${t.id}`).map(row=>({id:row.user_id,publicId:row.public_id})).sort((x,y)=>x.publicId.localeCompare(y.publicId)).find(row=>!firstPageIds.has(row.publicId));
  assert(pageOneCandidate);
  await sql`update paper_positions set quantity=999999 where thesis_id=${t.id} and user_id=${pageOneCandidate.id}`;
  await sql`update paper_stock_balances set balance=999999 where instrument_id='solana:mainnet:aapl' and user_id=${pageOneCandidate.id}`;
@@ -77,6 +81,10 @@ const postgres=require('postgres'),{drizzle}=require('drizzle-orm/postgres-js'),
  assert(!page0.trades.some(x=>stablePage1.trades.some(y=>x.id===y.id)));
  assert(!page0.balances.some(x=>stablePage1.balances.some(y=>x.publicId===y.publicId)));
  assert(page0.viewer.position && stablePage1.viewer.position);
- console.log('paper database integration passed: replay, concurrent spending, expiry, slippage, sell, discovery, public identity, pagination');
+ const indexes=(await sql`select indexname from pg_indexes where indexname in ('users_paper_public_id_unique','paper_positions_thesis_public_idx','paper_stock_balances_instrument_public_idx')`).map(row=>row.indexname);
+ assert.equal(indexes.length,3);await assert.rejects(()=>sql`insert into paper_trades(thesis_id,user_id,direction,input_amount,output_amount,fee_amount,price_impact_pct) values (${t.id},${a},'buy',0,1,.02,.1)`);
+ await sql`insert into paper_activity_limits(user_id,window_start,count) values (${b},date_trunc('minute',now()),20) on conflict (user_id,window_start) do update set count=20`;
+ await assert.rejects(()=>repo.executePublicPaperTrade(t.id,b,'buy',.001,intent()),/PAPER_ACTIVITY_LIMIT/);
+ console.log('paper database integration passed: replay, concurrent spending, expiry, slippage, sell, discovery, public identity, pagination, privacy, precision, indexes');
  } finally {if(sql)await sql.end();await root.unsafe(`DROP DATABASE IF EXISTS "${name}"`);await root.end();}
 })().catch(e=>{console.error(e);process.exitCode=1});

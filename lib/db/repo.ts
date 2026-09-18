@@ -1,4 +1,5 @@
 import 'server-only';
+import { createHash } from 'node:crypto';
 import { and, count, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { getDb } from './client';
 import { users, profiles, profilePhotos, bookmarks, circles, circleMemberships, migrationImports, circleDiscoveries, discoverySaves, userBlocks, contentReports, newsComments, operations, tokenLaunches, linkedWallets, holdingEligibilities, communityTokens, circlePins } from './schema';
@@ -228,7 +229,9 @@ export async function listCircleMembers(userId: string, slug: string) {
 // profile. Idempotent under concurrent requests via unique-conflict no-ops.
 export async function resolveUser(privyDid: string) {
   const db = getDb();
-  await db.insert(users).values({ privyDid }).onConflictDoNothing({ target: users.privyDid });
+  const id = crypto.randomUUID();
+  const paperPublicId = createHash('sha256').update('daybreak-paper:' + id).digest('hex');
+  await db.insert(users).values({ id, privyDid, paperPublicId }).onConflictDoNothing({ target: users.privyDid });
   const [user] = await db.select().from(users).where(eq(users.privyDid, privyDid)).limit(1);
   if (!user) throw new Error('Unable to resolve the authenticated user');
   await db.insert(profiles).values({ userId: user.id }).onConflictDoNothing({ target: profiles.userId });

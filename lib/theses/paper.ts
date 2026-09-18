@@ -2,6 +2,8 @@ export const PAPER_STARTING_STOCK_BALANCE = 10;
 export const PAPER_STARTING_BASE_RESERVE = 100_000;
 export const PAPER_STARTING_QUOTE_RESERVE = 250;
 export const PAPER_FEE_BPS = 200;
+export const PAPER_AMOUNT_DECIMALS = 10;
+export const PAPER_SETTLEMENT_UNIT = 10 ** -PAPER_AMOUNT_DECIMALS;
 
 export type PaperDirection = 'buy' | 'sell';
 
@@ -65,6 +67,13 @@ export function quotePaperTrade(market: PaperMarket, direction: PaperDirection, 
   const executionPrice = direction === 'buy' ? effectiveInput / outputAmount : outputAmount / effectiveInput;
   const priceImpactPct = Math.abs(executionPrice - spotPrice) / spotPrice * 100;
   return { direction, inputAmount, outputAmount, feeAmount, priceImpactPct, spotPrice, executionPrice };
+}
+
+export function validatePaperTradePrecision(quote: PaperQuote) {
+  const represented = [quote.inputAmount, quote.outputAmount, quote.feeAmount].map(value => Number(value.toFixed(PAPER_AMOUNT_DECIMALS)));
+  if (represented.some(value => !Number.isFinite(value) || value <= 0)) {
+    throw new Error('Paper amount is below simulation precision. Enter a larger amount.');
+  }
 }
 
 export function paperPositionMetrics(position: { quantity: number; costBasisQuote: number; realizedPnlQuote: number }, spotPrice: number) {

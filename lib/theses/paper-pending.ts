@@ -1,4 +1,12 @@
-import type { PaperDirection, PaperTradeIntent } from './paper';
+import type { PaperDirection, PaperTradeIntent, PublicPaperThesisInput } from './paper';
+
+export interface PendingPaperCreation {
+  version: 1;
+  accountId: string;
+  input: PublicPaperThesisInput;
+  intentId: string;
+  createdAt: number;
+}
 
 export interface PendingPaperTrade {
   version: 1;
@@ -14,6 +22,44 @@ export interface PaperPendingStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
+}
+
+export function pendingPaperCreationKey(accountId: string) {
+  return `daybreak:paper-creation:v1:${encodeURIComponent(accountId)}`;
+}
+
+export function validPendingPaperCreation(value: unknown, accountId: string): value is PendingPaperCreation {
+  const row = value as Partial<PendingPaperCreation> | null;
+  const input = row?.input as Partial<PublicPaperThesisInput> | undefined;
+  return !!row && row.version === 1 && row.accountId === accountId
+    && typeof row.intentId === 'string' && row.intentId.length > 0
+    && typeof row.createdAt === 'number' && Number.isFinite(row.createdAt)
+    && !!input && ['instrumentId', 'title', 'summary', 'tokenName', 'tokenSymbol'].every(key => typeof input[key as keyof PublicPaperThesisInput] === 'string');
+}
+
+export function readPendingPaperCreation(storage: PaperPendingStorage, accountId: string) {
+  const key = pendingPaperCreationKey(accountId);
+  try {
+    const raw = storage.getItem(key);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (validPendingPaperCreation(parsed, accountId)) return parsed;
+  } catch { /* Clear corrupt or inaccessible recovery state below. */ }
+  try { storage.removeItem(key); } catch { /* Storage can be unavailable. */ }
+  return null;
+}
+
+export function writePendingPaperCreation(storage: PaperPendingStorage, creation: PendingPaperCreation) {
+  const current = readPendingPaperCreation(storage, creation.accountId);
+  if (current && current.intentId !== creation.intentId) throw new Error('PAPER_PENDING_CREATION_CONFLICT');
+  storage.setItem(pendingPaperCreationKey(creation.accountId), JSON.stringify(creation));
+}
+
+export function clearPendingPaperCreation(storage: PaperPendingStorage, creation: Pick<PendingPaperCreation, 'accountId' | 'intentId'>) {
+  const current = readPendingPaperCreation(storage, creation.accountId);
+  if (!current || current.intentId === creation.intentId) {
+    try { storage.removeItem(pendingPaperCreationKey(creation.accountId)); } catch { /* A committed publication must not become an error because cleanup failed. */ }
+  }
 }
 
 export function pendingPaperTradeKey(accountId: string, thesisId: string) {
