@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import LandingStories from '@/components/daybreak/LandingStories';
-import { ArrowUpRight, ArrowRight, Compass, Layers, Sun, Github } from 'lucide-react';
+import LandingInstrumentStory from '@/components/daybreak/LandingInstrumentStory';
+import { ArrowUpRight, ArrowRight, Building2, Newspaper, Users, Github } from 'lucide-react';
 import ShareRedirect from '@/components/daybreak/ShareRedirect';
 import { Wordmark, AvatarStack, StockIcon, Avatar, CharacterCrew } from '@/components/daybreak/Identity';
 import CommunitySpotlight from '@/components/daybreak/CommunitySpotlight';
@@ -11,34 +12,34 @@ import { Lines } from '@/components/daybreak/Lines';
 import { LanguagePicker, useLocale } from '@/components/daybreak/LocaleProvider';
 
 const PROOF = [
-  { value: '13', label: 'Real stocks, tokenized on Base' },
-  { value: 'USDC', label: 'Trade and pair onchain' },
-  { value: 'LP', label: 'Earn fees on Aerodrome' },
-  { value: '0', label: 'Wallets needed to explore' },
+  { value: '2', label: 'Networks, one company view' },
+  { value: 'Exact', label: 'Contracts and mints checked' },
+  { value: 'USDC', label: 'Comparable quote reviews' },
+  { value: 'Private', label: 'Ownership proof, not balances' },
 ];
 
 const DISCOVER = [
   {
-    icon: Compass,
-    title: 'Everyday favorites',
-    body: 'The coffee, the laptop, the streaming queue. Start from the things already in your day.',
+    icon: Building2,
+    title: 'Start with the company',
+    body: 'News, market context and every supported onchain instrument stay together in one place.',
   },
   {
-    icon: Layers,
-    title: "Tomorrow's technology",
-    body: 'Follow a product down to the silicon, the cloud and the supply chain behind it.',
+    icon: Newspaper,
+    title: 'See what changed',
+    body: 'Your private briefing brings relevant company news and issuer events back to the stocks you verified.',
   },
   {
-    icon: Sun,
-    title: 'A little curiosity',
-    body: 'Every relationship links out to the primary filing or newsroom it came from.',
+    icon: Users,
+    title: 'Continue in the Circle',
+    body: 'Verify a supported holding, then join the same company conversation from Base or Solana.',
   },
 ];
 
 const CIRCLES = [
-  { ticker: 'NVDA', name: 'Accelerated computing', note: 'Silicon, data centres and the people watching them.' },
-  { ticker: 'SBUX', name: 'The morning ritual', note: 'For anyone whose day starts with a cup.' },
-  { ticker: 'NFLX', name: 'Everything we watch', note: 'Streaming, studios and what gets made next.' },
+  { ticker: 'AAPL', name: 'The everyday club', note: 'One Apple Circle for supported AAPL instruments across Base and Solana.' },
+  { ticker: 'NVDA', name: 'Built for tomorrow', note: 'Company news, issuer events and holder discussion in one place.' },
+  { ticker: 'SPCX', name: 'The private frontier', note: 'A shared company context for approved public and PreStocks instruments.' },
 ];
 
 export default function Landing() {
@@ -65,24 +66,22 @@ export default function Landing() {
 
           <div className="db-hero-copy" data-reveal>
             <span className="db-micro db-micro-light" style={{ '--i': 0 } as React.CSSProperties}>
-              {t('landing.tokenized', 'Tokenized stocks on Base')}
+              {t('landing.tokenized', 'Stocks on Base and Solana')}
             </span>
             <h1>
               <Lines lines={[t('landing.hero1', 'Your world.'), t('landing.hero2', 'Your stocks.')]} from={1} />
             </h1>
             <p style={{ '--i': 4 } as React.CSSProperties}>
-              {t('landing.heroBody', 'Discover tokenized stocks on Base through the interests, creators and communities you follow.')}
+              {t('landing.heroBody', 'Discover companies, compare their supported onchain instruments, and join the circles around what you hold.')}
             </p>
             <div className="db-hero-actions" style={{ '--i': 5 } as React.CSSProperties}>
               <Link className="db-button db-white-button" href="/app">
                 {t('action.exploreStocks', 'Explore stocks')} <ArrowRight size={17} />
               </Link>
-              <Link className="db-button db-ghost-button" href="/app/groups">
-                {t('action.findCircle', 'Find your circle')} <ArrowUpRight size={17} />
-              </Link>
+              <a className="db-button db-ghost-button" href="#instruments">See how it works <ArrowUpRight size={17} /></a>
             </div>
             <span className="db-caption" style={{ '--i': 6 } as React.CSSProperties}>
-              {t('landing.walletNote', 'Explore first. Connect a wallet only when you trade.')}
+              {t('landing.walletNote', 'Explore without a wallet. Quote reviews never create a transaction.')}
             </span>
           </div>
         </div>
@@ -107,14 +106,16 @@ export default function Landing() {
         </div>
       </section>
 
+      <LandingInstrumentStory />
+
       <section id="discover" className="db-section">
         <div className="db-shell">
           <div className="db-section-head" data-reveal>
             <h2>
-              <Lines lines={[t('landing.everyStock1', 'Every stock,'), t('landing.everyStock2', 'a token on Base.')]} />
+              <Lines lines={[t('landing.everyStock1', 'Start with the company.'), t('landing.everyStock2', 'Choose the instrument.')]} />
             </h2>
             <p>
-              {t('landing.everyStockBody', 'Browse tokenized stocks like AAPL and NVDA with live onchain prices, the community memecoins paired against them, and the pools where you can provide liquidity for fees.')}
+              {t('landing.everyStockBody', 'Daybreak keeps company context separate from the product you can hold. Compare issuer, network, exact asset identity and reviewed quotes before you choose a route.')}
             </p>
             <Link className="db-text-link" href="/app">
               Explore the collection <ArrowUpRight size={17} />
@@ -139,10 +140,10 @@ export default function Landing() {
         <div className="db-shell db-split">
           <div className="db-section-head" data-reveal>
             <h2>
-              <Lines lines={[t('landing.interests1', 'Different interests.'), t('landing.interests2', 'Shared curiosity.')]} />
+              <Lines lines={[t('landing.interests1', 'One company.'), t('landing.interests2', 'One shared Circle.')]} />
             </h2>
             <p>
-              {t('landing.interestsBody', 'Find your people around the things you love. Explore stocks, shared discoveries and a little personality, with sharing always on your terms.')}
+              {t('landing.interestsBody', 'A supported holding on Base or Solana can unlock the same company Circle. Daybreak stores a short-lived eligibility proof, never your balance or position size.')}
             </p>
             <Link className="db-button db-blue-button" href="/app/groups">
               Explore circles <ArrowRight size={17} />
@@ -165,7 +166,7 @@ export default function Landing() {
                 </div>
                 <div className="db-circle-side">
                   <AvatarStack />
-                  <span className="db-chip">Open circle</span>
+                  <span className="db-chip">Holder circle</span>
                 </div>
               </li>
             ))}
