@@ -127,6 +127,13 @@
       "when": 1789727100000,
       "tag": "0017_thesis_markets",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789734000000,
+      "tag": "0018_public_paper_theses",
+      "breakpoints": true
     }
   ]
 }

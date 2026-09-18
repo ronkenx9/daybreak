@@ -20,7 +20,7 @@ export async function POST(request: Request, context: Context) {
     const slippageBps = typeof body.slippageBps === 'number' ? body.slippageBps : 100;
     const { id } = await context.params;
     const thesis = await getPublicThesis(id);
-    if (!thesis || thesis.marketStatus !== 'active') throw new HttpError(409, 'This thesis market is not open for bonding-curve trading');
+    if (!thesis || thesis.mode !== 'live' || thesis.marketStatus !== 'active' || thesis.quoteDecimals === null || !thesis.quoteMint || !thesis.baseMint || !thesis.poolAddress || !thesis.marketId) throw new HttpError(409, 'This thesis market is not open for bonding-curve trading');
     const instrument = requireThesisInstrument(thesis.instrumentId, direction);
     const inputDecimals = direction === 'buy' ? thesis.quoteDecimals : 6;
     const inputMint = direction === 'buy' ? thesis.quoteMint : thesis.baseMint;

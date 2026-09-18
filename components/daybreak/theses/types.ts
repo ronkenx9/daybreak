@@ -9,11 +9,37 @@ export interface ThesisInstrumentView {
 export interface ThesisView {
   id: string; slug: string; instrumentId: string; companyId: string;
   title: string; summary: string; body: string; invalidation: string; horizon: string | null;
-  sources: string[]; tokenName: string; tokenSymbol: string; status: string;
+  sources: string[]; tokenName: string; tokenSymbol: string; mode: 'paper' | 'live'; status: string;
   publishedAt: string | null; authorName: string | null; authorAvatar: number | null;
-  authorAvatarUrl: string | null; marketId: string; marketStatus: string; poolAddress: string;
-  baseMint: string; quoteMint: string; quoteDecimals: number; configVersion: string;
-  txSignature: string | null; terms: Record<string, unknown>;
+  authorAvatarUrl: string | null; marketId: string | null; marketStatus: string | null; poolAddress: string | null;
+  baseMint: string | null; quoteMint: string | null; quoteDecimals: number | null; configVersion: string | null;
+  txSignature: string | null; terms: Record<string, unknown> | null;
+  paperBaseReserve: number | null; paperQuoteReserve: number | null; paperTradeCount: number | null;
+}
+
+export interface PaperParticipantView {
+  displayName: string | null; avatar: number | null; avatarUrl: string | null;
+  isViewer: boolean; updatedAt: string;
+}
+
+export interface PaperPositionView extends PaperParticipantView {
+  quantity: number; costBasisQuote: number; realizedPnlQuote: number;
+  stockBalance: number | null;
+  marketValueQuote: number; unrealizedPnlQuote: number; totalPnlQuote: number; averageEntryPrice: number;
+}
+
+export interface PaperTradeView extends PaperParticipantView {
+  id: string; direction: 'buy' | 'sell'; inputAmount: number; outputAmount: number;
+  feeAmount: number; priceImpactPct: number; executedAt: string;
+}
+
+export interface PublicPaperMarketView {
+  thesisId: string; instrumentId: string; companyId: string; title: string; summary: string;
+  tokenName: string; tokenSymbol: string; slug: string; baseReserve: number; quoteReserve: number;
+  tradeCount: number; updatedAt: string; spotPrice: number;
+  positions: PaperPositionView[]; trades: PaperTradeView[];
+  balances: Array<PaperParticipantView & { balance: number }>;
+  viewer: { stockBalance: number; position: PaperPositionView | null } | null;
 }
 
 export interface ThesisLaunchPreview {

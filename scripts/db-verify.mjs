@@ -10,7 +10,8 @@ const expectedTables = [
   'content_reports', 'muse_creations', 'agent_moments', 'free_pull_days',
   'feed_snapshots', 'webhook_events', 'holding_eligibilities',
   'theses', 'thesis_markets', 'thesis_updates', 'thesis_follows',
-  'thesis_comments', 'thesis_trade_quotes',
+  'thesis_comments', 'thesis_trade_quotes', 'paper_thesis_markets',
+  'paper_stock_balances', 'paper_positions', 'paper_trades',
 ];
 
 if (!databaseUrl) {
@@ -47,6 +48,14 @@ try {
   const rlsEnabled = new Set(rls.map(({ relname }) => relname));
   const unprotected = expectedTables.filter((table) => !rlsEnabled.has(table));
   if (unprotected.length) throw new Error(`RLS is not enabled: ${unprotected.join(', ')}`);
+
+  const [paperMode] = await sql`
+    select exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'theses' and column_name = 'mode'
+    ) as present
+  `;
+  if (!paperMode?.present) throw new Error('Missing theses.mode');
 
   console.log(`Database ready: ${expectedTables.length} Daybreak tables with RLS enabled.`);
 } catch (error) {

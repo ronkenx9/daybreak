@@ -25,6 +25,6 @@ export default function ThesisTradePanel({ thesis, instrument }: { thesis: Thesi
     </>}
     {error&&<p className="db-thesis-error" role="alert"><CircleAlert size={15}/>{error}</p>}
     {receipt&&<a className="db-text-link" target="_blank" rel="noreferrer" href={`https://solscan.io/tx/${receipt}`}>Trade confirmed <ArrowRight size={14}/></a>}
-    <dl className="db-thesis-market-facts"><div><dt>Pool</dt><dd>{thesis.poolAddress.slice(0,6)}…{thesis.poolAddress.slice(-5)}</dd></div><div><dt>Supply</dt><dd>Dynamic</dd></div><div><dt>Graduated liquidity</dt><dd>100% locked</dd></div></dl>
+    <dl className="db-thesis-market-facts"><div><dt>Pool</dt><dd>{thesis.poolAddress?`${thesis.poolAddress.slice(0,6)}…${thesis.poolAddress.slice(-5)}`:'Pending'}</dd></div><div><dt>Supply</dt><dd>Dynamic</dd></div><div><dt>Graduated liquidity</dt><dd>100% locked</dd></div></dl>
   </aside>;
 }

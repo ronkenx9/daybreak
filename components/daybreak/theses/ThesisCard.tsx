@@ -1,15 +1,17 @@
 'use client';
-import { ArrowRight, Clock3 } from 'lucide-react';
+import { ArrowRight, Beaker, Clock3 } from 'lucide-react';
 import { ProfileAvatar, StockIcon } from '../Identity';
 import type { ThesisInstrumentView, ThesisView } from './types';
 
-export default function ThesisCard({ thesis, instrument, onOpen }: { thesis: ThesisView; instrument?: ThesisInstrumentView; onOpen: () => void }) {
+export default function ThesisCard({ thesis, instrument, onOpen, onSimulate }: { thesis: ThesisView; instrument?: ThesisInstrumentView; onOpen: () => void; onSimulate?: () => void }) {
+  const paper=thesis.mode==='paper';
   return <article className="db-thesis-card">
-    <div className="db-thesis-company"><StockIcon ticker={instrument?.ticker || 'AAPL'} size={38}/><div><strong>{instrument?.companyName || thesis.companyId}</strong><span>{instrument?.symbol || 'Stock token'} · Solana</span></div><span className="db-thesis-stage">{thesis.marketStatus === 'migrated' ? 'Mature market' : 'Bonding curve'}</span></div>
+    <div className="db-thesis-company"><StockIcon ticker={instrument?.ticker || 'AAPL'} size={38}/><div><strong>{instrument?.companyName || thesis.companyId}</strong><span>{instrument?.symbol || 'Stock token'} · Solana</span></div><span className={`db-thesis-stage${paper?' is-paper':''}`}>{paper?'Paper market':thesis.marketStatus === 'migrated' ? 'Mature market' : 'Bonding curve'}</span></div>
     <h3>{thesis.title}</h3>
     <p>{thesis.summary}</p>
     <div className="db-thesis-author"><ProfileAvatar imageUrl={thesis.authorAvatarUrl} seed={thesis.authorAvatar ?? 0} size={30}/><span>{thesis.authorName || 'A Daybreak member'}</span>{thesis.publishedAt&&<time><Clock3 size={12}/>{new Date(thesis.publishedAt).toLocaleDateString()}</time>}</div>
     <div className="db-thesis-market-line"><span>Pair</span><strong>{thesis.tokenSymbol} / {instrument?.symbol || 'stock token'}</strong></div>
-    <button className="db-text-link" onClick={onOpen}>Read the thesis <ArrowRight size={15}/></button>
+    {paper&&<div className="db-thesis-paper-stats"><span>{thesis.paperTradeCount??0} public trades</span><strong>{thesis.paperQuoteReserve&&thesis.paperBaseReserve?`${(thesis.paperQuoteReserve/thesis.paperBaseReserve).toFixed(6)} ${instrument?.symbol??''}`:'Fresh curve'}</strong></div>}
+    <div className="db-thesis-card-actions"><button className="db-text-link" onClick={onOpen}>Read thesis <ArrowRight size={15}/></button>{paper&&onSimulate&&<button className="db-button db-blue-button" onClick={onSimulate}><Beaker size={14}/> Simulate</button>}</div>
   </article>;
 }

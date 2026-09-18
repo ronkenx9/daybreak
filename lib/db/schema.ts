@@ -1,4 +1,4 @@
-import { index, pgTable, uuid, text, date, integer, boolean, timestamp, uniqueIndex, primaryKey, jsonb } from 'drizzle-orm/pg-core';
+import { index, pgTable, uuid, text, date, integer, boolean, timestamp, uniqueIndex, primaryKey, jsonb, numeric } from 'drizzle-orm/pg-core';
 
 // One internal user per verified Privy identity. We key on the Privy DID, never
 // on email or wallet address (those can change or be shared).
@@ -332,6 +332,7 @@ export const theses = pgTable('theses', {
   sources: jsonb('sources').$type<string[]>().notNull().default([]),
   tokenName: text('token_name').notNull(),
   tokenSymbol: text('token_symbol').notNull(),
+  mode: text('mode').notNull().default('live'), // live | paper
   status: text('status').notNull().default('draft'), // draft|ready|published|withdrawn
   visibility: text('visibility').notNull().default('public'),
   publishedAt: timestamp('published_at', { withTimezone: true }),
@@ -370,6 +371,45 @@ export const thesisMarkets = pgTable('thesis_markets', {
   operationLookup: index('thesis_markets_operation_idx').on(t.operationId),
   statusLookup: index('thesis_markets_status_idx').on(t.status, t.updatedAt),
 }));
+
+// Paper markets are public shared simulations. One locked market row serializes
+// curve updates; balances, positions, trades and P/L are public social signals.
+export const paperThesisMarkets = pgTable('paper_thesis_markets', {
+  thesisId: uuid('thesis_id').primaryKey().references(() => theses.id, { onDelete: 'cascade' }),
+  baseReserve: numeric('base_reserve', { precision: 30, scale: 10, mode: 'number' }).notNull(),
+  quoteReserve: numeric('quote_reserve', { precision: 30, scale: 10, mode: 'number' }).notNull(),
+  tradeCount: integer('trade_count').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const paperStockBalances = pgTable('paper_stock_balances', {
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  instrumentId: text('instrument_id').notNull(),
+  balance: numeric('balance', { precision: 30, scale: 10, mode: 'number' }).notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ pk: primaryKey({ columns: [t.userId, t.instrumentId] }) }));
+
+export const paperPositions = pgTable('paper_positions', {
+  thesisId: uuid('thesis_id').notNull().references(() => theses.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  quantity: numeric('quantity', { precision: 30, scale: 10, mode: 'number' }).notNull().default(0),
+  costBasisQuote: numeric('cost_basis_quote', { precision: 30, scale: 10, mode: 'number' }).notNull().default(0),
+  realizedPnlQuote: numeric('realized_pnl_quote', { precision: 30, scale: 10, mode: 'number' }).notNull().default(0),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ pk: primaryKey({ columns: [t.thesisId, t.userId] }), thesisLookup: index('paper_positions_thesis_idx').on(t.thesisId, t.updatedAt) }));
+
+export const paperTrades = pgTable('paper_trades', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  thesisId: uuid('thesis_id').notNull().references(() => theses.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  direction: text('direction').notNull(),
+  inputAmount: numeric('input_amount', { precision: 30, scale: 10, mode: 'number' }).notNull(),
+  outputAmount: numeric('output_amount', { precision: 30, scale: 10, mode: 'number' }).notNull(),
+  feeAmount: numeric('fee_amount', { precision: 30, scale: 10, mode: 'number' }).notNull(),
+  priceImpactPct: numeric('price_impact_pct', { precision: 20, scale: 10, mode: 'number' }).notNull(),
+  executedAt: timestamp('executed_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ thesisLookup: index('paper_trades_thesis_idx').on(t.thesisId, t.executedAt), userLookup: index('paper_trades_user_idx').on(t.userId, t.executedAt) }));
 
 export const thesisUpdates = pgTable('thesis_updates', {
   id: uuid('id').defaultRandom().primaryKey(),
