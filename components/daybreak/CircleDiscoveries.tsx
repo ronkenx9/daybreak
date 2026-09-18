@@ -65,12 +65,12 @@ export default function CircleDiscoveries({ slug, isMember, onJoin, tickers }: {
       {messages.map((d) => <div key={d.id} className={`db-chat-msg ${d.isMine ? 'mine' : 'theirs'}`}>
         {!d.isMine && <ProfileAvatar imageUrl={d.authorAvatarUrl} seed={d.authorAvatar ?? 0} size={34} />}
         <div className="db-chat-col">
-          {!d.isMine && <span className="db-chat-author">{d.authorName || 'A member'}</span>}
+          <span className="db-chat-author">{d.isMine ? (d.authorName || 'You') : (d.authorName || 'A member')}</span>
           <div className="db-chat-bubble">
-            <span className="db-chat-asset"><StockIcon ticker={d.subjectId} size={24} />{d.subjectLabel || d.subjectId}</span>
             {d.note && <p>{d.note}</p>}
             {translations[d.id]?.shown && translations[d.id]?.text && <p className="db-chat-translation" lang={locale}>{translations[d.id].text}</p>}
             {translations[d.id]?.shown && translations[d.id]?.error && <p className="db-chat-translation-error">{t('chat.failed', 'Translation unavailable.')}</p>}
+            <span className="db-chat-asset db-chat-asset-sm"><StockIcon ticker={d.subjectId} size={16} />{d.subjectLabel || d.subjectId}</span>
             <time className="db-chat-time" dateTime={d.createdAt}>{new Date(d.createdAt).toLocaleString(locale === 'zh' ? 'zh-CN' : locale, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>
           </div>
           <div className="db-chat-actions">
