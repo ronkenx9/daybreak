@@ -297,6 +297,26 @@ async function isCircleMember(userId: string, slug: string): Promise<boolean> {
   return circleGateEligible(c.gateMode, required, held.map((row) => row.ticker));
 }
 
+export async function circleNewsAccess(userId: string, slug: string) {
+  await ensureCircles();
+  if (!/^[a-z0-9-]{3,64}$/.test(slug)) return { ok: false as const, reason: 'missing' as const };
+  const db = getDb();
+  const [circle] = await db.select({ id: circles.id, gateMode: circles.gateMode, tickers: circles.tickers })
+    .from(circles)
+    .where(and(eq(circles.slug, slug), eq(circles.status, 'active'), eq(circles.visibility, 'public')))
+    .limit(1);
+  if (!circle) return { ok: false as const, reason: 'missing' as const };
+  const tickers = [...new Set((Array.isArray(circle.tickers) ? circle.tickers : []).filter((ticker) => tokenForTicker(ticker)))];
+  const [membership] = await db.select({ id: circleMemberships.id }).from(circleMemberships)
+    .where(and(eq(circleMemberships.userId, userId), eq(circleMemberships.circleId, circle.id), eq(circleMemberships.status, 'active')))
+    .limit(1);
+  if (circle.gateMode === 'open') return { ok: true as const, tickers, member: !!membership };
+  const held = tickers.length ? await db.select({ ticker: holdingEligibilities.ticker }).from(holdingEligibilities)
+    .where(and(eq(holdingEligibilities.userId, userId), inArray(holdingEligibilities.ticker, tickers), sql`${holdingEligibilities.expiresAt} > now()`)) : [];
+  if (!circleGateEligible(circle.gateMode, tickers, held.map((row) => row.ticker))) return { ok: false as const, reason: 'access' as const };
+  return { ok: true as const, tickers, member: !!membership };
+}
+
 const isSubjectType = (v: unknown): v is 'stock' | 'memestock' => v === 'stock' || v === 'memestock';
 
 export async function createDiscovery(userId: string, input: { circleSlug: string; subjectType: string; subjectId: string; subjectLabel?: string; note?: string }) {
