@@ -11,6 +11,7 @@ const USDC_DECIMALS = 6;
 
 export interface SwapQuote {
   ticker: string; xSymbol: string; inputMint: string; outputMint: string;
+  inputAmountRaw: string; outputAmountRaw: string; minimumOutputAmountRaw: string; outputDecimals: number;
   usdcIn: number; sharesOut: number; minSharesOut: number;
   priceImpactPct: number | null; slippageBps: number; hops: number; source: 'jupiter';
 }
@@ -32,6 +33,8 @@ export async function fetchUsdcToXstockQuote(ticker: string, usdc: number, slipp
   const dec = 10 ** x.decimals;
   return {
     ticker: x.ticker, xSymbol: x.xSymbol, inputMint: USDC_SOLANA_MINT, outputMint: x.mint,
+    inputAmountRaw: String(amount), outputAmountRaw: q.outAmount,
+    minimumOutputAmountRaw: q.otherAmountThreshold ?? q.outAmount, outputDecimals: x.decimals,
     usdcIn: usdc,
     sharesOut: Number(q.outAmount) / dec,
     minSharesOut: Number(q.otherAmountThreshold ?? q.outAmount) / dec,

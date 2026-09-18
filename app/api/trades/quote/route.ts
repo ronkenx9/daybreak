@@ -2,6 +2,7 @@ import { tokenForTicker } from '@/lib/base/tokens';
 import { swapQuote, BankrHttpError } from '@/lib/bankr/client';
 import { isBankrConfigured } from '@/lib/bankr/config';
 import { createRateLimit } from '@/lib/server/requests';
+import { decimalToRaw, rawToDecimal, tradeInstrumentsForTicker, type TradeQuote } from '@/lib/trading/model';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,11 @@ function text(value: unknown) {
 
 function finite(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function bounded(value: unknown, min: number, max: number) {
+  const number = finite(value);
+  return number != null && number >= min && number <= max ? number : null;
 }
 
 export async function POST(req: Request) {
@@ -40,20 +46,27 @@ export async function POST(req: Request) {
     if (!quote || typeof quote !== 'object' || !quote.from || !quote.to || !text(quote.minBuyAmount)) {
       return Response.json({ error: 'Bankr returned an incomplete quote' }, { status: 502 });
     }
+    if (text(quote.from.token).toLowerCase() !== BASE_USDC.toLowerCase() || text(quote.to.token).toLowerCase() !== token.token.toLowerCase()) {
+      return Response.json({ error: 'Bankr returned a quote for a different asset' }, { status: 502 });
+    }
 
-    return Response.json({
-      ticker: token.ticker,
-      stockName: token.name,
-      from: { symbol: text(quote.from.symbol), amount: text(quote.from.formattedAmount) },
-      to: { symbol: text(quote.to.symbol), amount: text(quote.to.formattedAmount) },
-      minimumReceived: text(quote.minBuyAmount),
-      feeBps: finite(quote.feeBps),
-      priceImpactBps: finite(quote.priceImpactBps),
-      networkCostsUsd: finite(quote.networkCostsUsd),
-      quoteId: text(quote.quoteId) ? 'available' : 'unavailable',
-      executionEnabled: false,
-      note: 'Live Bankr quote. Execution is disabled until the signed-in user has a verified Bankr execution wallet.',
-    });
+    const instrument = tradeInstrumentsForTicker(token.ticker).find((item) => item.issuer === 'coinbase');
+    if (!instrument) return Response.json({ error: 'Instrument metadata is unavailable' }, { status: 502 });
+    const outputRaw = /^\d+$/.test(text(quote.to.amount)) ? text(quote.to.amount) : null;
+    const minimumRaw = /^\d+$/.test(text(quote.minBuyAmount)) ? text(quote.minBuyAmount) : null;
+    const minimumAmount = minimumRaw ? rawToDecimal(minimumRaw, instrument.decimals) : text(quote.minBuyAmount);
+    const normalized: TradeQuote = {
+      contractVersion: 1, companyId: instrument.companyId, instrumentId: instrument.instrumentId,
+      ticker: instrument.ticker, network: instrument.network, provider: 'bankr',
+      providerQuoteId: text(quote.quoteId) || null,
+      input: { assetId: instrument.funding.identity, symbol: 'USDC', decimals: 6, amount: text(quote.from.formattedAmount) || amount, amountRaw: /^\d+$/.test(text(quote.from.amount)) ? text(quote.from.amount) : decimalToRaw(amount, 6) },
+      expectedOutput: { assetId: instrument.identity, symbol: instrument.symbol, decimals: instrument.decimals, amount: text(quote.to.formattedAmount), amountRaw: outputRaw },
+      minimumOutput: { assetId: instrument.identity, symbol: instrument.symbol, decimals: instrument.decimals, amount: minimumAmount || '', amountRaw: minimumRaw },
+      fees: { providerBps: bounded(quote.feeBps, 0, 10_000), networkCostUsd: bounded(quote.networkCostsUsd, 0, 1_000_000), priceImpactPct: bounded(quote.priceImpactBps, -10_000, 10_000) == null ? null : bounded(quote.priceImpactBps, -10_000, 10_000)! / 10000, slippageBps: bounded(quote.slippageBps, 0, 2_000) ?? 100 },
+      quotedAt: new Date().toISOString(), expiresAt: null,
+      execution: { enabled: false, capability: 'external_handoff', note: 'This Bankr quote is for review only. Any external venue must produce its own fresh quote before you sign.' },
+    };
+    return Response.json(normalized, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof BankrHttpError) {
       const status = error.status === 401 || error.status === 403 ? 503 : error.status;
