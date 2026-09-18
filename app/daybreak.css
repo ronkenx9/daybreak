@@ -1381,3 +1381,22 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-prestock-trade:hover{background:#eef1ff}
 .db-app[data-theme="dark"] .db-prestock-trade{border-top-color:#242e49}
 .db-app[data-theme="dark"] .db-prestock-trade:hover{background:#1c2550}
+
+/* Conviction / belief market panel (pre-IPO detail) */
+.db-conviction{margin:18px 0;padding:18px;border:1px solid var(--db-line);border-radius:18px;background:linear-gradient(160deg,#fff6ef,#fff);}
+.db-app[data-theme="dark"] .db-conviction{background:linear-gradient(160deg,#241a12,#141a2b);border-color:#3a2a1c}
+.db-conviction .db-section-heading{margin:0 0 6px}
+.db-conviction .db-eyebrow{display:inline-flex;align-items:center;gap:6px;color:#d2691e}
+.db-app[data-theme="dark"] .db-conviction .db-eyebrow{color:#f0a868}
+.db-conviction>.db-button{width:100%;margin-top:12px}
+.db-conviction-gate{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid var(--db-line);border-radius:13px;background:#fff;margin-top:12px}
+.db-app[data-theme="dark"] .db-conviction-gate{background:#141a2b;border-color:#283049}
+.db-conviction-gate svg{flex:none;color:#d2691e}
+.db-conviction-gate.is-open svg{color:#1a7f42}
+.db-conviction-gate.is-open{background:#f0faf3;border-color:#cde9d6}
+.db-conviction-gate strong{font-size:13px}
+.db-conviction-gate p{font-size:11px;line-height:1.5;color:var(--db-muted);margin:3px 0 0}
+.db-conviction-gate .db-button{flex:none;min-height:40px;font-size:12px}
+.db-conviction-gate.is-open p{margin:0;color:var(--db-ink)}
+.db-conviction-done{text-align:center;padding:14px 0}
+.db-conviction-done>strong{display:block;font-size:15px;margin-top:8px}

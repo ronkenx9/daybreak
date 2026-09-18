@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, ArrowUpRight, ExternalLink, ImageIcon, X } from 'lucide-react';
 import Sparkline from './Sparkline';
+import ConvictionMarket from './ConvictionMarket';
 
 interface Quote {
   symbol: string; company: string; mint: string; image: string; externalUrl: string;
@@ -112,6 +113,8 @@ function PreStockDetail({ quote, onClose }: { quote: Quote; onClose: () => void 
         </div>
 
         <a className="db-button db-blue-button" href={quote.externalUrl} target="_blank" rel="noopener noreferrer">Trade on PreStocks <ExternalLink size={15} /></a>
+
+        <ConvictionMarket symbol={quote.symbol} company={quote.company} externalUrl={quote.externalUrl} />
 
         <section className="db-news" aria-label={`${quote.company} news`}>
           <div className="db-section-heading"><div><span className="db-eyebrow">Behind the pre-IPO</span><h3>Live company news</h3></div><button className="db-text-link" disabled={news.isFetching} onClick={() => void news.refetch()}>{news.isFetching ? 'Loading…' : 'Refresh'}</button></div>
