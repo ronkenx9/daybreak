@@ -78,3 +78,21 @@ export function paperPositionMetrics(position: { quantity: number; costBasisQuot
     averageEntryPrice: position.quantity > 0 ? position.costBasisQuote / position.quantity : 0,
   };
 }
+
+export interface PaperTradeIntent {
+  intentId: string;
+  minimumOutput: number;
+  expiresAt: number;
+}
+
+export function validatePaperIntent(intent: PaperTradeIntent, outputAmount: number, now = Date.now()) {
+  if (!/^[0-9a-f-]{36}$/i.test(intent.intentId)) throw new Error('Invalid paper trade intent');
+  if (!Number.isFinite(intent.expiresAt) || intent.expiresAt <= now || intent.expiresAt > now + 120_000) throw new Error('Paper preview expired. Preview again.');
+  if (!Number.isFinite(intent.minimumOutput) || intent.minimumOutput <= 0) throw new Error('Minimum received is required');
+  if (outputAmount < intent.minimumOutput) throw new Error('Price moved beyond your minimum received. Preview again.');
+}
+
+export function paperExitMetrics(position: { quantity: number; costBasisQuote: number; realizedPnlQuote: number }, market: PaperMarket) {
+  const value = position.quantity > 0 ? quotePaperTrade(market, 'sell', position.quantity).outputAmount : 0;
+  return { estimatedExitValue: value, estimatedExitPnl: value - position.costBasisQuote + position.realizedPnlQuote };
+}

@@ -18,11 +18,13 @@ export interface ThesisView {
 }
 
 export interface PaperParticipantView {
+  publicId: string;
   displayName: string | null; avatar: number | null; avatarUrl: string | null;
   isViewer: boolean; updatedAt: string;
 }
 
 export interface PaperPositionView extends PaperParticipantView {
+  estimatedExitValue: number; estimatedExitPnl: number;
   quantity: number; costBasisQuote: number; realizedPnlQuote: number;
   stockBalance: number | null;
   marketValueQuote: number; unrealizedPnlQuote: number; totalPnlQuote: number; averageEntryPrice: number;
@@ -37,6 +39,7 @@ export interface PublicPaperMarketView {
   thesisId: string; instrumentId: string; companyId: string; title: string; summary: string;
   tokenName: string; tokenSymbol: string; slug: string; baseReserve: number; quoteReserve: number;
   tradeCount: number; updatedAt: string; spotPrice: number;
+  hasMore: { positions: boolean; trades: boolean; balances: boolean };
   positions: PaperPositionView[]; trades: PaperTradeView[];
   balances: Array<PaperParticipantView & { balance: number }>;
   viewer: { stockBalance: number; position: PaperPositionView | null } | null;

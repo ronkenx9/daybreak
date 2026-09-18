@@ -403,13 +403,15 @@ export const paperTrades = pgTable('paper_trades', {
   id: uuid('id').defaultRandom().primaryKey(),
   thesisId: uuid('thesis_id').notNull().references(() => theses.id, { onDelete: 'cascade' }),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  intentId: uuid('intent_id'),
+  intentHash: text('intent_hash'),
   direction: text('direction').notNull(),
   inputAmount: numeric('input_amount', { precision: 30, scale: 10, mode: 'number' }).notNull(),
   outputAmount: numeric('output_amount', { precision: 30, scale: 10, mode: 'number' }).notNull(),
   feeAmount: numeric('fee_amount', { precision: 30, scale: 10, mode: 'number' }).notNull(),
   priceImpactPct: numeric('price_impact_pct', { precision: 20, scale: 10, mode: 'number' }).notNull(),
   executedAt: timestamp('executed_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({ thesisLookup: index('paper_trades_thesis_idx').on(t.thesisId, t.executedAt), userLookup: index('paper_trades_user_idx').on(t.userId, t.executedAt) }));
+}, (t) => ({ intentUnique: uniqueIndex('paper_trades_intent_idx').on(t.userId, t.intentId), thesisLookup: index('paper_trades_thesis_idx').on(t.thesisId, t.executedAt), userLookup: index('paper_trades_user_idx').on(t.userId, t.executedAt) }));
 
 export const thesisUpdates = pgTable('thesis_updates', {
   id: uuid('id').defaultRandom().primaryKey(),

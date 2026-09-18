@@ -1,0 +1,17 @@
+const fs=require('fs'),ts=require('typescript'),assert=require('node:assert/strict');
+const compiled=ts.transpileModule(fs.readFileSync('lib/theses/paper.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
+const mod={exports:{}};new Function('exports','module',compiled)(mod.exports,mod);const p=mod.exports;
+const start={baseReserve:100000,quoteReserve:250};
+const preview=p.quotePaperTrade(start,'buy',10);
+const moved={baseReserve:start.baseReserve-preview.outputAmount,quoteReserve:start.quoteReserve+10};
+const actual=p.quotePaperTrade(moved,'buy',10);
+assert(actual.outputAmount<preview.outputAmount);
+console.log(JSON.stringify({previewReceived:preview.outputAmount,afterAnotherTenUnitBuy:actual.outputAmount,shortfallPct:(1-actual.outputAmount/preview.outputAmount)*100},null,2));
+const mark=p.paperPositionMetrics({quantity:preview.outputAmount,costBasisQuote:10,realizedPnlQuote:0},p.paperSpotPrice(moved));
+const exit=p.quotePaperTrade(moved,'sell',preview.outputAmount);
+console.log(JSON.stringify({displayedPnl:mark.totalPnlQuote,immediateExitPnl:exit.outputAmount-10},null,2));
+assert(mark.totalPnlQuote>0 && exit.outputAmount<10);
+const rows=Array.from({length:41},(_,i)=>({id:String(i),mode:i===40?'live':'paper'}));
+assert.equal(rows.slice(0,40).find(x=>x.id==='40'),undefined);
+assert.equal(rows.slice(0,40).filter(x=>x.mode==='live').length,0);
+console.log('audit reproductions passed');

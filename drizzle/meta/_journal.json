@@ -134,6 +134,13 @@
       "when": 1789734000000,
       "tag": "0018_public_paper_theses",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789734000001,
+      "tag": "0019_paper_trade_intents",
+      "breakpoints": true
     }
   ]
 }

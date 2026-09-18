@@ -1,10 +1,11 @@
 import 'server-only';
-import { and, count, desc, eq, inArray, or, sql } from 'drizzle-orm';
+import { createHash } from 'node:crypto';
+import { and, count, desc, eq, inArray, or, sql, ilike, asc } from 'drizzle-orm';
 import { getDb } from './client';
 import { operations, paperPositions, paperStockBalances, paperThesisMarkets, paperTrades, profiles, theses, thesisMarkets, thesisTradeQuotes } from './schema';
 import type { ThesisDraftInput } from '@/lib/theses/model';
 import type { ThesisLaunchBuild } from '@/lib/solana/dbc/launch';
-import { PAPER_STARTING_BASE_RESERVE, PAPER_STARTING_QUOTE_RESERVE, PAPER_STARTING_STOCK_BALANCE, paperPositionMetrics, paperSpotPrice, quotePaperTrade, type PaperDirection, type PublicPaperThesisInput } from '@/lib/theses/paper';
+import { PAPER_STARTING_BASE_RESERVE, PAPER_STARTING_QUOTE_RESERVE, PAPER_STARTING_STOCK_BALANCE, paperPositionMetrics, paperSpotPrice, quotePaperTrade, paperExitMetrics, validatePaperIntent, type PaperTradeIntent, type PaperDirection, type PublicPaperThesisInput } from '@/lib/theses/paper';
 
 export async function createThesisDraft(userId: string, slug: string, companyId: string, input: ThesisDraftInput) {
   const db = getDb();
@@ -42,7 +43,7 @@ export async function getOwnedThesis(thesisId: string, userId: string) {
   return row ?? null;
 }
 
-export async function listPublishedTheses(limit = 40) {
+export async function listPublishedTheses(limit = 40, options: { mode?: string; query?: string; offset?: number } = {}) {
   const db = getDb();
   return db.select({
     id: theses.id, slug: theses.slug, instrumentId: theses.instrumentId, companyId: theses.companyId,
@@ -60,8 +61,8 @@ export async function listPublishedTheses(limit = 40) {
     .leftJoin(thesisMarkets, eq(thesisMarkets.thesisId, theses.id))
     .leftJoin(paperThesisMarkets, eq(paperThesisMarkets.thesisId, theses.id))
     .leftJoin(profiles, eq(profiles.userId, theses.authorUserId))
-    .where(and(eq(theses.visibility, 'public'), inArray(theses.status, ['published', 'withdrawn']), or(eq(theses.mode, 'paper'), inArray(thesisMarkets.status, ['active', 'migrated']))))
-    .orderBy(desc(theses.publishedAt)).limit(Math.max(1, Math.min(limit, 100)));
+    .where(and(eq(theses.visibility, 'public'), inArray(theses.status, ['published', 'withdrawn']), or(eq(theses.mode, 'paper'), inArray(thesisMarkets.status, ['active', 'migrated'])), options.mode === 'paper' || options.mode === 'live' ? eq(theses.mode, options.mode) : undefined, options.query ? or(ilike(theses.title, `%${options.query}%`), ilike(theses.summary, `%${options.query}%`), ilike(theses.companyId, `%${options.query}%`), ilike(theses.tokenSymbol, `%${options.query}%`)) : undefined))
+    .orderBy(desc(theses.publishedAt), desc(theses.id)).limit(Math.max(1, Math.min(limit, 100))).offset(options.offset ?? 0);
 }
 
 export async function getPublicThesis(idOrSlug: string) {
@@ -111,8 +112,8 @@ export async function createPublicPaperThesis(userId: string, slug: string, comp
   });
 }
 
-export async function getPublicPaperMarket(thesisId: string, viewerUserId?: string) {
-  const db = getDb();
+export async function getPublicPaperMarket(thesisId: string, viewerUserId?: string, pages = { positions: 0, trades: 0, balances: 0 }) {
+  return getDb().transaction(async (db) => {
   const [row] = await db.select({
     thesisId: theses.id, instrumentId: theses.instrumentId, companyId: theses.companyId,
     title: theses.title, summary: theses.summary, tokenName: theses.tokenName,
@@ -130,8 +131,9 @@ export async function getPublicPaperMarket(thesisId: string, viewerUserId?: stri
     avatar: profiles.avatar, avatarUrl: profiles.avatarUrl, stockBalance: paperStockBalances.balance,
   }).from(paperPositions).leftJoin(profiles, eq(profiles.userId, paperPositions.userId))
     .leftJoin(paperStockBalances, and(eq(paperStockBalances.userId, paperPositions.userId), eq(paperStockBalances.instrumentId, row.instrumentId)))
-    .where(eq(paperPositions.thesisId, thesisId)).orderBy(desc(paperPositions.quantity)).limit(50);
-  const positions = positionRows.map(({ userId, ...position }) => ({
+    .where(eq(paperPositions.thesisId, thesisId)).orderBy(desc(paperPositions.quantity), asc(paperPositions.userId)).limit(51).offset(pages.positions * 50);
+  const positions = positionRows.slice(0, 50).map(({ userId, ...position }) => ({
+    publicId: paperPublicId(userId), ...paperExitMetrics(position, row),
     ...position, ...paperPositionMetrics(position, spotPrice), isViewer: viewerUserId === userId,
   }));
   const tradeRows = await db.select({
@@ -141,14 +143,14 @@ export async function getPublicPaperMarket(thesisId: string, viewerUserId?: stri
     executedAt: paperTrades.executedAt, displayName: profiles.displayName,
     avatar: profiles.avatar, avatarUrl: profiles.avatarUrl,
   }).from(paperTrades).leftJoin(profiles, eq(profiles.userId, paperTrades.userId))
-    .where(eq(paperTrades.thesisId, thesisId)).orderBy(desc(paperTrades.executedAt)).limit(50);
-  const trades = tradeRows.map(({ userId, ...trade }) => ({ ...trade, isViewer: viewerUserId === userId }));
+    .where(eq(paperTrades.thesisId, thesisId)).orderBy(desc(paperTrades.executedAt), desc(paperTrades.id)).limit(51).offset(pages.trades * 50);
+  const trades = tradeRows.slice(0, 50).map(({ userId, ...trade }) => ({ publicId: paperPublicId(userId), ...trade, isViewer: viewerUserId === userId }));
   const balances = await db.select({
     balance: paperStockBalances.balance, updatedAt: paperStockBalances.updatedAt,
     displayName: profiles.displayName, avatar: profiles.avatar, avatarUrl: profiles.avatarUrl,
     userId: paperStockBalances.userId,
   }).from(paperStockBalances).leftJoin(profiles, eq(profiles.userId, paperStockBalances.userId))
-    .where(eq(paperStockBalances.instrumentId, row.instrumentId)).orderBy(desc(paperStockBalances.balance)).limit(50);
+    .where(eq(paperStockBalances.instrumentId, row.instrumentId)).orderBy(desc(paperStockBalances.balance), asc(paperStockBalances.userId)).limit(51).offset(pages.balances * 50);
   let viewerPosition = positions.find((position) => position.isViewer) ?? null;
   if (viewerUserId && !viewerPosition) {
     const [viewerPositionRow] = await db.select({
@@ -160,7 +162,7 @@ export async function getPublicPaperMarket(thesisId: string, viewerUserId?: stri
       .leftJoin(paperStockBalances, and(eq(paperStockBalances.userId, paperPositions.userId), eq(paperStockBalances.instrumentId, row.instrumentId)))
       .where(and(eq(paperPositions.thesisId, thesisId), eq(paperPositions.userId, viewerUserId))).limit(1);
     viewerPosition = viewerPositionRow
-      ? { ...viewerPositionRow, ...paperPositionMetrics(viewerPositionRow, spotPrice), isViewer: true }
+      ? { publicId: paperPublicId(viewerUserId), ...paperExitMetrics(viewerPositionRow, row), ...viewerPositionRow, ...paperPositionMetrics(viewerPositionRow, spotPrice), isViewer: true }
       : null;
   }
   const [viewerBalanceRow] = viewerUserId ? await db.select({ balance: paperStockBalances.balance }).from(paperStockBalances)
@@ -168,14 +170,23 @@ export async function getPublicPaperMarket(thesisId: string, viewerUserId?: stri
   const viewerBalance = viewerUserId ? viewerBalanceRow?.balance ?? PAPER_STARTING_STOCK_BALANCE : null;
   return {
     ...row, spotPrice, positions, trades,
-    balances: balances.map(({ userId, ...balance }) => ({ ...balance, isViewer: viewerUserId === userId })),
+    hasMore: { positions: positionRows.length > 50, trades: tradeRows.length > 50, balances: balances.length > 50 },
+    balances: balances.slice(0, 50).map(({ userId, ...balance }) => ({ publicId: paperPublicId(userId), ...balance, isViewer: viewerUserId === userId })),
     viewer: viewerUserId ? { stockBalance: viewerBalance, position: viewerPosition } : null,
   };
+  }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
 }
 
-export async function executePublicPaperTrade(thesisId: string, userId: string, direction: PaperDirection, inputAmount: number) {
+export async function executePublicPaperTrade(thesisId: string, userId: string, direction: PaperDirection, inputAmount: number, intent: PaperTradeIntent) {
   const db = getDb();
-  await db.transaction(async (tx) => {
+  const intentHash = createHash('sha256').update(JSON.stringify([thesisId, direction, inputAmount, intent.minimumOutput, intent.expiresAt])).digest('hex');
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${userId + ':' + intent.intentId}, 3))`);
+    const [existing] = await tx.select().from(paperTrades).where(and(eq(paperTrades.userId, userId), eq(paperTrades.intentId, intent.intentId))).limit(1);
+    if (existing) {
+      if (existing.intentHash !== intentHash) throw new Error('Paper intent already used for a different trade');
+      return { id: existing.id, outputAmount: existing.outputAmount, inputAmount: existing.inputAmount, direction: existing.direction, executedAt: existing.executedAt };
+    }
     await tx.execute(sql`select thesis_id from paper_thesis_markets where thesis_id = ${thesisId}::uuid for update`);
     const [context] = await tx.select({
       instrumentId: theses.instrumentId, baseReserve: paperThesisMarkets.baseReserve,
@@ -190,6 +201,7 @@ export async function executePublicPaperTrade(thesisId: string, userId: string, 
     const [position] = await tx.select().from(paperPositions).where(and(eq(paperPositions.thesisId, thesisId), eq(paperPositions.userId, userId))).limit(1);
     if (!balance || !position) throw new Error('PAPER_ACCOUNT_UNAVAILABLE');
     const quote = quotePaperTrade(context, direction, inputAmount);
+    validatePaperIntent(intent, quote.outputAmount);
     if (direction === 'buy' && inputAmount > balance.balance + Number.EPSILON) throw new Error('PAPER_STOCK_BALANCE_LOW');
     if (direction === 'sell' && inputAmount > position.quantity + Number.EPSILON) throw new Error('PAPER_POSITION_LOW');
     const now = new Date();
@@ -208,9 +220,9 @@ export async function executePublicPaperTrade(thesisId: string, userId: string, 
     await tx.update(paperThesisMarkets).set({ ...nextMarket, tradeCount: sql`${paperThesisMarkets.tradeCount} + 1`, updatedAt: now }).where(eq(paperThesisMarkets.thesisId, thesisId));
     await tx.update(paperStockBalances).set({ balance: nextStockBalance, updatedAt: now }).where(and(eq(paperStockBalances.userId, userId), eq(paperStockBalances.instrumentId, context.instrumentId)));
     await tx.update(paperPositions).set({ quantity, costBasisQuote, realizedPnlQuote, updatedAt: now }).where(and(eq(paperPositions.thesisId, thesisId), eq(paperPositions.userId, userId)));
-    await tx.insert(paperTrades).values({ thesisId, userId, direction, inputAmount, outputAmount: quote.outputAmount, feeAmount: quote.feeAmount, priceImpactPct: quote.priceImpactPct, executedAt: now });
+    const [receipt] = await tx.insert(paperTrades).values({ thesisId, userId, intentId: intent.intentId, intentHash, direction, inputAmount, outputAmount: quote.outputAmount, feeAmount: quote.feeAmount, priceImpactPct: quote.priceImpactPct, executedAt: now }).returning();
+    return { id: receipt.id, outputAmount: receipt.outputAmount, inputAmount: receipt.inputAmount, direction: receipt.direction, executedAt: receipt.executedAt };
   });
-  return getPublicPaperMarket(thesisId, userId);
 }
 
 export async function getPublicMetadata(thesisId: string) {
@@ -358,4 +370,19 @@ export async function setThesisTradeStatus(input: { quoteId: string; userId: str
       status: input.status, txHash: input.signature, errorClass: input.errorClass, updatedAt: now,
     }).where(eq(operations.id, quote.operationId));
   });
+}
+
+export function paperPublicId(userId: string) {
+  return createHash('sha256').update('daybreak-paper:' + userId).digest('hex');
+}
+
+export async function getPaperPortfolio(publicId: string, page = 0) {
+  const db = getDb();
+  // Public identifiers are one-way hashes of internal random UUIDs, never auth-provider IDs.
+  const identity = sql`encode(sha256(convert_to('daybreak-paper:' || ${paperStockBalances.userId}::text, 'UTF8')), 'hex') = ${publicId}`;
+  const balances = await db.select({ userId: paperStockBalances.userId, instrumentId: paperStockBalances.instrumentId, balance: paperStockBalances.balance, displayName: profiles.displayName, avatar: profiles.avatar, avatarUrl: profiles.avatarUrl }).from(paperStockBalances).leftJoin(profiles, eq(profiles.userId, paperStockBalances.userId)).where(identity);
+  if (!balances.length) return null;
+  const userId = balances[0].userId;
+  const positions = await db.select({ thesisId: theses.id, slug: theses.slug, title: theses.title, tokenSymbol: theses.tokenSymbol, instrumentId: theses.instrumentId, quantity: paperPositions.quantity, costBasisQuote: paperPositions.costBasisQuote, realizedPnlQuote: paperPositions.realizedPnlQuote, baseReserve: paperThesisMarkets.baseReserve, quoteReserve: paperThesisMarkets.quoteReserve }).from(paperPositions).innerJoin(theses, eq(theses.id, paperPositions.thesisId)).innerJoin(paperThesisMarkets, eq(paperThesisMarkets.thesisId, theses.id)).where(and(eq(paperPositions.userId, userId), eq(theses.visibility, 'public'))).orderBy(desc(paperPositions.updatedAt), desc(theses.id)).limit(51).offset(page * 50);
+  return { publicId, displayName: balances[0].displayName, balances: balances.map(({userId: _id, ...balance}) => balance), positions: positions.slice(0, 50).map(position => ({ ...position, ...paperPositionMetrics(position, paperSpotPrice(position)), ...paperExitMetrics(position, position) })), hasMore: positions.length > 50 };
 }

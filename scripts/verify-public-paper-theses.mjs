@@ -15,4 +15,4 @@ if(!createRoute.includes('requireUser(request)')||!tradeRoute.includes('requireU
 for(const marker of ['for update','paperStockBalances','paperPositions','paperTrades','getPublicPaperMarket'])if(!repo.includes(marker))throw Error(`Missing shared market persistence: ${marker}`);
 for(const table of ['paper_thesis_markets','paper_stock_balances','paper_positions','paper_trades'])if(!migration.includes(table))throw Error(`Missing paper table: ${table}`);
 if(!migration.includes('ENABLE ROW LEVEL SECURITY')||!migration.includes('REVOKE ALL'))throw Error('Paper tables are not server-only');
-console.log('public paper thesis integration verified');
+console.log('public paper thesis static wiring verified');

@@ -4,13 +4,15 @@ import { normalizeThesisDraft, thesisSlug } from '@/lib/theses/model';
 import { requireThesisInstrument } from '@/lib/theses/instruments';
 import { requireWriteCapacity } from '@/lib/account/request-guard';
 
+import { thesisDiscovery } from '@/lib/theses/discovery';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
-    const limit = Number(new URL(request.url).searchParams.get('limit') ?? 40);
-    const items = await listPublishedTheses(Number.isFinite(limit) ? limit : 40);
-    return Response.json({ items }, { headers: { 'Cache-Control': 'public, s-maxage=20, stale-while-revalidate=40' } });
+    const options = thesisDiscovery(new URL(request.url).searchParams);
+    const rows = await listPublishedTheses(41, options);
+    return Response.json({ items: rows.slice(0, 40), hasMore: rows.length > 40 }, { headers: { 'Cache-Control': 'public, s-maxage=20, stale-while-revalidate=40' } });
   } catch (error) { return errorResponse(error); }
 }
 
