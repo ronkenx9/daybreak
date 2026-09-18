@@ -32,7 +32,7 @@ const SLIDES: Slide[] = [
   {
     eyebrow: 'Your Daybreak', title: 'See what changed in your stocks.',
     body: 'Your private briefing connects verified holdings to relevant company news and upcoming issuer events. Your balance and position size stay private.',
-    art: <div className="db-guide-briefing"><header><CircleUserRound size={18}/><span>Your private briefing</span><LockKeyhole size={15}/></header><div><StockIcon ticker="AAPL" size={36}/><span><strong>Apple</strong><small>Company development · today</small></span><Newspaper size={15}/></div><div><StockIcon ticker="NVDA" size={36}/><span><strong>NVIDIA</strong><small>Issuer event · upcoming</small></span><Bell size={15}/></div></div>,
+    art: <div className="db-guide-briefing"><header><CircleUserRound size={18}/><span>Your private briefing</span><LockKeyhole size={15}/></header><div><StockIcon ticker="AAPL" size={36}/><span className="db-guide-briefing-copy"><strong>Apple</strong><small>Company development · today</small></span><Newspaper size={15}/></div><div><StockIcon ticker="NVDA" size={36}/><span className="db-guide-briefing-copy"><strong>NVIDIA</strong><small>Issuer event · upcoming</small></span><Bell size={15}/></div></div>,
   },
   {
     eyebrow: 'Holder Circles', title: 'Hold the stock. Unlock the room.',

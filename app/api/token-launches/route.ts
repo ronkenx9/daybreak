@@ -4,10 +4,8 @@ import { deployToken, BankrHttpError } from '@/lib/bankr/client';
 import { isBankrConfigured } from '@/lib/bankr/config';
 import { bankrLaunchRequest, launchHash, normalizeLaunchIntent } from '@/lib/bankr/launches';
 import { claimLaunchForDeployment, getLaunchIntent, setLaunchStatus } from '@/lib/db/repo';
-import { createKeyedRateLimit } from '@/lib/server/requests';
 
 export const dynamic = 'force-dynamic';
-const canDeploy = createKeyedRateLimit(1, 24 * 60 * 60_000);
 
 export async function POST(req: Request) {
   let record: Awaited<ReturnType<typeof getLaunchIntent>> | null = null;
@@ -22,8 +20,9 @@ export async function POST(req: Request) {
     record = await getLaunchIntent(user.id, idempotencyKey);
     if (!record || record.intentHash !== launchHash(user.id, walletAddress, intent) || record.fingerprint !== fingerprint) throw new HttpError(409, 'This launch changed. Create a fresh preview');
     if (record.operationStatus !== 'quoted') throw new HttpError(409, record.operationStatus === 'confirmed' ? 'This token has already launched' : 'This launch is already being processed');
-    if (!canDeploy(user.id)) throw new HttpError(429, 'Daybreak currently allows one launch per account every 24 hours');
-    if (!await claimLaunchForDeployment(record.operationId, record.launchId)) throw new HttpError(409, 'This launch is already being processed');
+    const claim = await claimLaunchForDeployment(record.operationId, record.launchId, user.id);
+    if (claim === 'limit') throw new HttpError(429, 'Daybreak currently allows one launch per account every 24 hours');
+    if (claim !== 'claimed') throw new HttpError(409, 'This launch is already being processed');
     const result = await deployToken(bankrLaunchRequest(intent, walletAddress, false));
     if (!result.success || !result.txHash || !result.tokenAddress || !result.poolId) throw new Error('UNKNOWN_DEPLOY_RESULT');
     await setLaunchStatus({ operationId: record.operationId, launchId: record.launchId, status: 'confirmed', txHash: result.txHash, tokenAddress: result.tokenAddress, poolId: result.poolId, ticker: intent.ticker });

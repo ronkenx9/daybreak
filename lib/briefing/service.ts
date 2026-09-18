@@ -4,7 +4,8 @@ import { companyNewsTargets, type CompanyNewsTarget } from '@/lib/news/company-r
 import { fetchCompanyNews } from '@/lib/news/provider';
 import { fetchPreStockNews } from '@/lib/news/prestocks-news';
 import { fetchCorporateActions } from '@/lib/providers/xstocks';
-import { rankBriefingItems, type BriefingItem, type BriefingResponse } from './model';
+import { xstockByTicker } from '@/lib/solana/xstocks-registry';
+import { rankBriefingItems, type BriefingItem, type BriefingResponse, type VerifiedHoldingRef } from './model';
 
 const ACTION_SOURCE = 'https://docs.xstocks.fi/apis/openapi/corporate-actions';
 
@@ -30,7 +31,7 @@ function actionTitle(type: string) {
   return readable && readable.toLowerCase() !== 'unknown' ? readable : 'Corporate action';
 }
 
-async function companyItems(target: CompanyNewsTarget): Promise<{ items: BriefingItem[]; newsCovered: boolean; latestAvailable: boolean }> {
+async function companyItems(target: CompanyNewsTarget, holdings: VerifiedHoldingRef[]): Promise<{ items: BriefingItem[]; newsCovered: boolean; latestAvailable: boolean }> {
   const company = COMPANY_BY_ID[target.companyId];
   if (!company) return { items: [], newsCovered: false, latestAvailable: false };
   const items: BriefingItem[] = [];
@@ -58,7 +59,13 @@ async function companyItems(target: CompanyNewsTarget): Promise<{ items: Briefin
       });
     }
   }
-  if (company.classification === 'public') {
+  const xstock = company.classification === 'public' ? xstockByTicker(company.symbol) : undefined;
+  const verifiedXStock = xstock && holdings.some((holding) =>
+    holding.ticker === company.symbol
+    && holding.chainNamespace === 'solana:mainnet'
+    && holding.tokenAddress === xstock.mint
+  );
+  if (verifiedXStock && xstock) {
     const actions = await fetchCorporateActions(company.symbol).catch(() => null);
     const now = Date.now();
     for (const event of actions?.upcoming ?? []) {
@@ -70,7 +77,7 @@ async function companyItems(target: CompanyNewsTarget): Promise<{ items: Briefin
         companyId: company.id, companyName: company.name, symbol: company.symbol,
         companyType: company.classification, kind: 'corporate_action', title: `${company.name}: ${type}`,
         summary: `xStocks lists an issuer-related ${type.toLowerCase()} with an upcoming effective time.`,
-        relevance: `Review how this event may affect the supported ${company.symbol} instrument you verified.`,
+        relevance: `Review how this event may affect your verified ${xstock.xSymbol} holding on Solana.`,
         sourceName: 'xStocks corporate actions', sourceUrl: ACTION_SOURCE,
         occurredAt: new Date(effective).toISOString(), freshness: 'fresh',
         actionHref: contextHref(target), actionLabel: 'Open company',
@@ -80,10 +87,11 @@ async function companyItems(target: CompanyNewsTarget): Promise<{ items: Briefin
   return { items, newsCovered, latestAvailable };
 }
 
-export async function buildHoldingsBriefing(symbols: string[], now = Date.now()): Promise<BriefingResponse> {
+export async function buildHoldingsBriefing(holdings: VerifiedHoldingRef[], now = Date.now()): Promise<BriefingResponse> {
+  const symbols = [...new Set(holdings.map((holding) => holding.ticker))];
   const companies = companyNewsTargets(symbols);
   if (!companies.length) return { state: 'empty_holdings', items: [], coverage: { companies: 0, covered: 0, unavailable: 0, latestAvailable: 0 }, generatedAt: new Date(now).toISOString() };
-  const results = await Promise.all(companies.map(companyItems));
+  const results = await Promise.all(companies.map((company) => companyItems(company, holdings)));
   const covered = results.filter((result) => result.newsCovered).length;
   const latestAvailable = results.filter((result) => result.latestAvailable).length;
   const unavailable = companies.length - covered;

@@ -11,6 +11,7 @@ import type { SolanaHoldingsSnapshot } from '@/lib/solana/holdings';
 import { PRESTOCKS } from '@/lib/solana/prestocks-registry';
 import type { PreStockHoldingsSnapshot } from '@/lib/solana/prestocks-holdings';
 import { companyForSymbol } from '@/lib/assets/companies';
+import type { VerifiedHoldingRef } from '@/lib/briefing/model';
 
 const COMPANY_ID = /^[a-z0-9_.-]{1,64}$/i;
 const SAVABLE_COMPANY_IDS = new Set([...TOKENS.map((t) => t.ticker), ...DISCOVERY_CATALOG.map((item) => item.id)]);
@@ -75,11 +76,21 @@ export async function listCircles(userId: string): Promise<CircleView[]> {
   }).sort((a, b) => Number(b.pinned) - Number(a.pinned) || Number(b.joined) - Number(a.joined) || Number(b.eligible) - Number(a.eligible) || b.memberCount - a.memberCount);
 }
 
-export async function listEligibleHoldingSymbols(userId: string): Promise<string[]> {
-  const rows = await getDb().select({ ticker: holdingEligibilities.ticker }).from(holdingEligibilities)
+export async function listEligibleHoldingInstruments(userId: string): Promise<VerifiedHoldingRef[]> {
+  const rows = await getDb().select({
+    ticker: holdingEligibilities.ticker,
+    chainNamespace: holdingEligibilities.chainNamespace,
+    tokenAddress: holdingEligibilities.tokenAddress,
+  }).from(holdingEligibilities)
     .where(and(eq(holdingEligibilities.userId, userId), sql`${holdingEligibilities.expiresAt} > now()`))
     .orderBy(desc(holdingEligibilities.observedAt));
-  return [...new Set(rows.map((row) => row.ticker).filter((ticker) => Boolean(companyForSymbol(ticker))))];
+  const unique = new Map<string, VerifiedHoldingRef>();
+  for (const row of rows) {
+    if (!companyForSymbol(row.ticker)) continue;
+    const key = `${row.ticker}:${row.chainNamespace}:${row.tokenAddress}`;
+    if (!unique.has(key)) unique.set(key, row);
+  }
+  return [...unique.values()];
 }
 
 // Records a paid pin (tx_hash UNIQUE = anti-replay) and pins the circle for the
@@ -538,14 +549,26 @@ export async function getLaunchIntent(userId: string, idempotencyKey: string) {
   return row ?? null;
 }
 
-export async function claimLaunchForDeployment(operationId: string, launchId: string) {
+export type LaunchClaimResult = 'claimed' | 'busy' | 'limit';
+
+export async function claimLaunchForDeployment(operationId: string, launchId: string, userId: string): Promise<LaunchClaimResult> {
   const db = getDb(); const now = new Date();
   return db.transaction(async (tx) => {
+    // Serialize deployment claims per account across every app instance. The
+    // quota and state transition must share this transaction to close races.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${userId}, 0))`);
+    const [recent] = await tx.select({ value: count() }).from(tokenLaunches).where(and(
+      eq(tokenLaunches.creatorUserId, userId),
+      inArray(tokenLaunches.status, ['submitted', 'confirmed', 'unknown']),
+      sql`${tokenLaunches.updatedAt} > now() - interval '24 hours'`,
+    ));
+    if (Number(recent?.value ?? 0) >= 1) return 'limit';
     const claimed = await tx.update(operations).set({ status: 'submitted', updatedAt: now })
-      .where(and(eq(operations.id, operationId), eq(operations.status, 'quoted'))).returning({ id: operations.id });
-    if (!claimed.length) return false;
-    await tx.update(tokenLaunches).set({ status: 'submitted', updatedAt: now }).where(eq(tokenLaunches.id, launchId));
-    return true;
+      .where(and(eq(operations.id, operationId), eq(operations.userId, userId), eq(operations.status, 'quoted'))).returning({ id: operations.id });
+    if (!claimed.length) return 'busy';
+    await tx.update(tokenLaunches).set({ status: 'submitted', updatedAt: now })
+      .where(and(eq(tokenLaunches.id, launchId), eq(tokenLaunches.creatorUserId, userId)));
+    return 'claimed';
   });
 }
 

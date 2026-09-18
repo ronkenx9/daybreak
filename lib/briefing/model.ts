@@ -1,6 +1,12 @@
 export type BriefingState = 'empty_holdings' | 'ready' | 'partial' | 'no_developments' | 'unavailable';
 export type BriefingKind = 'corporate_action' | 'news';
 
+export interface VerifiedHoldingRef {
+  ticker: string;
+  chainNamespace: string;
+  tokenAddress: string;
+}
+
 export interface BriefingItem {
   eventId: string;
   revision: number;

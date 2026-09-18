@@ -11,6 +11,7 @@ interface CircleFeed {
   items: FeedItem[];
   checkedAt: number;
   stale: boolean;
+  coverage: { companies: number; available: number; unavailable: string[] };
 }
 
 const cached = createRequestCache<CircleFeed>(5 * 60_000, 64, 3);
@@ -29,7 +30,11 @@ async function fetchCompanyLane(company: CompanyNewsTarget) {
   return { ticker: company.symbol, articles: [], checkedAt: 0, stale: false };
 }
 
-function balancedStories(lanes: Array<{ ticker: string; articles: Omit<FeedItem, 'ticker'>[]; checkedAt: number; stale: boolean }>, limit = 6): CircleFeed {
+function balancedStories(
+  lanes: Array<{ ticker: string; articles: Omit<FeedItem, 'ticker'>[]; checkedAt: number; stale: boolean }>,
+  coverage: CircleFeed['coverage'],
+  limit = 6,
+): CircleFeed {
   const items: FeedItem[] = [];
   for (let round = 0; items.length < limit; round++) {
     let added = false;
@@ -45,7 +50,8 @@ function balancedStories(lanes: Array<{ ticker: string; articles: Omit<FeedItem,
   return {
     items,
     checkedAt: Math.max(0, ...lanes.map((lane) => lane.checkedAt)),
-    stale: lanes.some((lane) => lane.stale),
+    stale: coverage.unavailable.length > 0 || lanes.some((lane) => lane.stale),
+    coverage,
   };
 }
 
@@ -55,14 +61,15 @@ export async function GET(req: Request) {
     const slug = new URL(req.url).searchParams.get('slug') ?? '';
     const access = await circleNewsAccess(user.id, slug);
     if (!access.ok) throw new HttpError(access.reason === 'missing' ? 404 : 403, access.reason === 'missing' ? 'Circle not found' : 'Verify the required holding to read this feed');
-    if (!access.tickers.length) return Response.json({ items: [], checkedAt: 0, stale: false }, { headers: { 'Cache-Control': 'private, no-store' } });
+    if (!access.tickers.length) return Response.json({ items: [], checkedAt: 0, stale: false, coverage: { companies: 0, available: 0, unavailable: [] } }, { headers: { 'Cache-Control': 'private, no-store' } });
     const companies = companyNewsTargets(access.tickers);
     const key = companies.map((company) => company.companyId).sort().join(',');
     const feed = await cached(key, async () => {
       const results = await Promise.allSettled(companies.map((company) => fetchCompanyLane(company)));
       const lanes = results.flatMap((result) => result.status === 'fulfilled' ? [result.value] : []);
+      const unavailable = results.flatMap((result, index) => result.status === 'rejected' ? [companies[index].symbol] : []);
       if (!lanes.length) throw new Error('Circle news unavailable');
-      return balancedStories(lanes);
+      return balancedStories(lanes, { companies: companies.length, available: lanes.length, unavailable });
     });
     return Response.json(feed, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) { return errorResponse(error); }

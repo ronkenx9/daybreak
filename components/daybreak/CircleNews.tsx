@@ -17,7 +17,7 @@ export default function CircleNews({ slug, isMember, title, initialStoryUrl }: {
     queryFn: async ({ signal }) => {
       const r = await fetch(`/api/circles/news?slug=${encodeURIComponent(slug)}`, { signal });
       const d = await r.json(); if (!r.ok) throw new Error('news');
-      return d as { items: NewsStory[] };
+      return d as { items: NewsStory[]; stale: boolean; coverage: { companies: number; available: number; unavailable: string[] } };
     },
     staleTime: 5 * 60_000, retry: 1,
   });
@@ -34,7 +34,7 @@ export default function CircleNews({ slug, isMember, title, initialStoryUrl }: {
       <NewsDiscussion ticker={open.ticker} url={open.url} circleSlug={slug} isMember={isMember} />
     </div> : q.isPending ? <p className="db-small-note">Loading circle stories…</p>
     : q.isError ? <p className="db-small-note" role="status">Stories are unavailable right now — the circle feed will catch up.</p>
-    : items.length > 0 ? <div className="db-create-news-row">{items.map((n) => <button type="button" key={`${n.ticker}-${n.url}`} onClick={() => setOpenUrl(n.url)}><strong>{isPreStockSymbol(n.ticker) ? `Pre-IPO · ${n.ticker}` : n.ticker}</strong><span>{n.title}</span><small><MessageCircle size={12}/> Discuss</small></button>)}</div>
+    : items.length > 0 ? <><div className="db-create-news-row">{items.map((n) => <button type="button" key={`${n.ticker}-${n.url}`} onClick={() => setOpenUrl(n.url)}><strong>{isPreStockSymbol(n.ticker) ? `Pre-IPO · ${n.ticker}` : n.ticker}</strong><span>{n.title}</span><small><MessageCircle size={12}/> Discuss</small></button>)}</div>{q.data?.coverage.unavailable.length ? <p className="db-small-note" role="status">Showing available stories. Updates for {q.data.coverage.unavailable.join(', ')} could not be refreshed.</p> : null}</>
     : <p className="db-small-note">No fresh stories for these companies yet.</p>}
   </div>;
 }
