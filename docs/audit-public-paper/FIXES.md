@@ -19,6 +19,8 @@ All seven findings have a concrete remediation:
 
 The optimized browser creator was checked for the public disclosure and simplified-model explanation. No real funds or production test trades were used. Tests exercise repository transactions and isolated route behavior; they do not claim an end-to-end Privy sign-in session.
 
+Follow-up hardening stores only an uncertain trade's retry envelope locally, namespaced by the signed-in account and public thesis. Shared balances, positions, trades and curve state remain server-authoritative and public. Late create/trade responses are scoped to the initiating account and market; paper publication resets discovery to Paper/page one; polling is serial; public participant, balance and activity browsing uses stable cursors while the top-ten leaderboard remains a separate live ranking.
+
 ## Run isolated database checks
 
 The script uses localhost port 55439 and the current operating-system username, never DATABASE_URL. Start a disposable local PostgreSQL cluster with `initdb -D /private/tmp/daybreak-paper-audit-pg -A trust --no-locale -E UTF8`, then `pg_ctl -D /private/tmp/daybreak-paper-audit-pg -l /private/tmp/daybreak-paper-audit-pg.log -o '-p 55439 -h 127.0.0.1 -k /private/tmp' start`. The test creates and drops its own randomly named database. Stop the cluster with `pg_ctl -D /private/tmp/daybreak-paper-audit-pg stop`.

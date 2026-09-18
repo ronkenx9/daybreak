@@ -10,7 +10,8 @@ const tradeRoute=fs.readFileSync('app/api/theses/paper/[id]/trade/route.ts','utf
 for(const phrase of ['Public simulation','public paper market','Conviction leaderboard','Public activity','position, paper balance, activity and P/L are visible'])if(!ui.toLowerCase().includes(phrase.toLowerCase()))throw Error(`Missing public paper UX: ${phrase}`);
 for(const filter of ["['all','All']","['paper','Paper']","['live','Live']"])if(!hub.includes(filter))throw Error(`Missing discovery filter: ${filter}`);
 if(!card.includes('Simulate')||!card.includes('public trades'))throw Error('Paper discovery card is incomplete');
-if(/localStorage|sessionStorage/.test(ui))throw Error('Public paper market still uses private browser persistence');
+if(!ui.includes('writePendingPaperTrade')||!ui.includes('readPendingPaperTrade'))throw Error('Uncertain paper trades do not have durable retry recovery');
+if(/localStorage[^\n]*(baseReserve|quoteReserve|stockBalance|positions|trades)/.test(ui))throw Error('Authoritative public market state leaked into browser persistence');
 if(!createRoute.includes('requireUser(request)')||!tradeRoute.includes('requireUser(request)'))throw Error('Public paper mutations are not identity-bound');
 for(const marker of ['for update','paperStockBalances','paperPositions','paperTrades','getPublicPaperMarket'])if(!repo.includes(marker))throw Error(`Missing shared market persistence: ${marker}`);
 for(const table of ['paper_thesis_markets','paper_stock_balances','paper_positions','paper_trades'])if(!migration.includes(table))throw Error(`Missing paper table: ${table}`);

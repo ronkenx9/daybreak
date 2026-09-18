@@ -56,10 +56,23 @@ const postgres=require('postgres'),{drizzle}=require('drizzle-orm/postgres-js'),
  await sql`insert into paper_positions(thesis_id,user_id,quantity) select ${t.id},id,1 from users where id not in (${a},${b})`;
  await sql`insert into paper_stock_balances(user_id,instrument_id,balance) select id,'solana:mainnet:aapl',10 from users where id not in (${a},${b})`;
  await sql`insert into paper_trades(thesis_id,user_id,direction,input_amount,output_amount,fee_amount,price_impact_pct) select ${t.id},id,'buy',1,1,0.02,0.1 from users where id not in (${a},${b})`;
- const page0=await repo.getPublicPaperMarket(t.id,a),page1=await repo.getPublicPaperMarket(t.id,a,{positions:1,trades:1,balances:1});
- assert(page0.hasMore.positions&&page0.hasMore.trades&&page0.hasMore.balances);assert(page1.positions.length>0&&page1.trades.length>0&&page1.balances.length>0);
- assert(!page0.positions.some(x=>page1.positions.some(y=>x.publicId===y.publicId)));
- assert(page0.viewer.position && page1.viewer.position);
+ const page0=await repo.getPublicPaperMarket(t.id,a);
+ assert(page0.hasMore.positions&&page0.hasMore.trades&&page0.hasMore.balances);
+ assert(page0.nextCursors.positions&&page0.nextCursors.trades&&page0.nextCursors.balances);
+ const firstPageIds=new Set(page0.positions.map(row=>row.publicId));
+ const pageOneCandidate=(await sql`select user_id from paper_positions where thesis_id=${t.id}`).map(row=>({id:row.user_id,publicId:repo.paperPublicId(row.user_id)})).sort((x,y)=>x.publicId.localeCompare(y.publicId)).find(row=>!firstPageIds.has(row.publicId));
+ assert(pageOneCandidate);
+ await sql`update paper_positions set quantity=999999 where thesis_id=${t.id} and user_id=${pageOneCandidate.id}`;
+ await sql`update paper_stock_balances set balance=999999 where instrument_id='solana:mainnet:aapl' and user_id=${pageOneCandidate.id}`;
+ await repo.executePublicPaperTrade(t.id,b,'buy',.01,intent());
+ const cursor=loader()('lib/theses/paper-pagination.ts').timeIdCursor(page0.nextCursors.trades);
+ const stablePage1=await repo.getPublicPaperMarket(t.id,a,{positions:page0.nextCursors.positions,trades:cursor,balances:page0.nextCursors.balances});
+ assert(stablePage1.positions.length>0&&stablePage1.trades.length>0&&stablePage1.balances.length>0);
+ assert(stablePage1.positions.some(row=>row.publicId===pageOneCandidate.publicId));
+ assert(!page0.positions.some(x=>stablePage1.positions.some(y=>x.publicId===y.publicId)));
+ assert(!page0.trades.some(x=>stablePage1.trades.some(y=>x.id===y.id)));
+ assert(!page0.balances.some(x=>stablePage1.balances.some(y=>x.publicId===y.publicId)));
+ assert(page0.viewer.position && stablePage1.viewer.position);
  console.log('paper database integration passed: replay, concurrent spending, expiry, slippage, sell, discovery, public identity, pagination');
  } finally {if(sql)await sql.end();await root.unsafe(`DROP DATABASE IF EXISTS "${name}"`);await root.end();}
 })().catch(e=>{console.error(e);process.exitCode=1});

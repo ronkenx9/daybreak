@@ -40,7 +40,8 @@ export interface PublicPaperMarketView {
   tokenName: string; tokenSymbol: string; slug: string; baseReserve: number; quoteReserve: number;
   tradeCount: number; updatedAt: string; spotPrice: number;
   hasMore: { positions: boolean; trades: boolean; balances: boolean };
-  positions: PaperPositionView[]; trades: PaperTradeView[];
+  nextCursors: { positions: string | null; trades: string | null; balances: string | null };
+  positions: PaperPositionView[]; leaders: PaperPositionView[]; trades: PaperTradeView[];
   balances: Array<PaperParticipantView & { balance: number }>;
   viewer: { stockBalance: number; position: PaperPositionView | null } | null;
 }
