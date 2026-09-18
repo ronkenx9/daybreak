@@ -12,6 +12,8 @@ const expectedTables = [
   'theses', 'thesis_markets', 'thesis_updates', 'thesis_follows',
   'thesis_comments', 'thesis_trade_quotes', 'paper_thesis_markets',
   'paper_stock_balances', 'paper_positions', 'paper_trades',
+  'market_actors', 'agents', 'agent_api_keys', 'agent_policies',
+  'agent_budget_windows', 'agent_quotes', 'agent_requests', 'agent_audit_events',
 ];
 
 if (!databaseUrl) {
@@ -57,7 +59,18 @@ try {
   `;
   if (!paperMode?.present) throw new Error('Missing theses.mode');
 
-  console.log(`Database ready: ${expectedTables.length} Daybreak tables with RLS enabled.`);
+  const [actorState] = await sql`
+    select
+      (select count(*)::int from theses where author_actor_id is null) as missing_thesis_actors,
+      (select count(*)::int from paper_stock_balances where actor_id is null) as missing_balance_actors,
+      (select count(*)::int from paper_positions where actor_id is null) as missing_position_actors,
+      (select count(*)::int from paper_trades where actor_id is null) as missing_trade_actors,
+      (select count(*)::int from users u left join market_actors a on a.user_id = u.id where a.id is null) as missing_human_actors
+  `;
+  const invalidActors = Object.entries(actorState ?? {}).filter(([, value]) => Number(value) !== 0);
+  if (invalidActors.length) throw new Error(`Actor backfill incomplete: ${invalidActors.map(([key, value]) => `${key}=${value}`).join(', ')}`);
+
+  console.log(`Database ready: ${expectedTables.length} Daybreak tables with RLS enabled; market actor backfill complete.`);
 } catch (error) {
   console.error(`Database verification failed: ${error instanceof Error ? error.message : 'Unknown database error'}`);
   process.exitCode = 1;

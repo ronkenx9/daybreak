@@ -2,11 +2,12 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import { and, count, desc, eq, gt, inArray, lt, or, sql, ilike, asc } from 'drizzle-orm';
 import { getDb } from './client';
-import { operations, paperActivityLimits, paperPositions, paperStockBalances, paperThesisMarkets, paperTrades, profiles, theses, thesisMarkets, thesisTradeQuotes, users } from './schema';
+import { agents, marketActors, operations, paperActivityLimits, paperPositions, paperStockBalances, paperThesisMarkets, paperTrades, profiles, theses, thesisMarkets, thesisTradeQuotes } from './schema';
 import type { ThesisDraftInput } from '@/lib/theses/model';
 import type { ThesisLaunchBuild } from '@/lib/solana/dbc/launch';
 import { PAPER_STARTING_BASE_RESERVE, PAPER_STARTING_QUOTE_RESERVE, PAPER_STARTING_STOCK_BALANCE, paperPositionMetrics, paperSpotPrice, quotePaperTrade, paperExitMetrics, validatePaperIntent, validatePaperTradePrecision, type PaperTradeIntent, type PaperDirection, type PublicPaperThesisInput } from '@/lib/theses/paper';
 import { encodeTimeIdCursor, type TimeIdCursor } from '@/lib/theses/paper-pagination';
+import { ensureHumanActor } from './repo-agents';
 
 interface PaperMarketCursors {
   positions: string | null;
@@ -14,16 +15,18 @@ interface PaperMarketCursors {
   balances: string | null;
 }
 
-function visiblePaperProfile<T extends { userId: string; profileVisibility: string | null; displayName: string | null; avatar: number | null; avatarUrl: string | null }>(row: T, viewerUserId?: string) {
-  const { profileVisibility, displayName, avatar, avatarUrl, ...rest } = row;
-  const visible = profileVisibility === 'public' || row.userId === viewerUserId;
-  return { ...rest, displayName: visible ? displayName : null, avatar: visible ? avatar : null, avatarUrl: visible ? avatarUrl : null };
+function visiblePaperProfile<T extends { actorId: string; actorKind: string; profileVisibility: string | null; displayName: string | null; avatar: number | null; avatarUrl: string | null; agentName: string | null; agentAvatar: number | null }>(row: T, viewerActorId?: string) {
+  const { profileVisibility, displayName, avatar, avatarUrl, agentName, agentAvatar, ...rest } = row;
+  if (row.actorKind === 'agent') return { ...rest, displayName: agentName, avatar: agentAvatar, avatarUrl: null, actorKind: 'agent' as const };
+  const visible = profileVisibility === 'public' || row.actorId === viewerActorId;
+  return { ...rest, displayName: visible ? displayName : null, avatar: visible ? avatar : null, avatarUrl: visible ? avatarUrl : null, actorKind: 'human' as const };
 }
 
 export async function createThesisDraft(userId: string, slug: string, companyId: string, input: ThesisDraftInput) {
   const db = getDb();
+  const actor = await ensureHumanActor(userId);
   const [row] = await db.insert(theses).values({
-    slug, authorUserId: userId, instrumentId: input.instrumentId,
+    slug, authorUserId: userId, authorActorId: actor.id, instrumentId: input.instrumentId,
     companyId, title: input.title, summary: input.summary, body: input.body,
     invalidation: input.invalidation, horizon: input.horizon, sources: input.sources,
     tokenName: input.tokenName, tokenSymbol: input.tokenSymbol,
@@ -56,14 +59,16 @@ export async function getOwnedThesis(thesisId: string, userId: string) {
   return row ?? null;
 }
 
-export async function listPublishedTheses(limit = 40, options: { mode?: string; query?: string; offset?: number } = {}) {
+export async function listPublishedTheses(limit = 40, options: { mode?: string; query?: string; offset?: number; actorKind?: string } = {}) {
   const db = getDb();
   const rows = await db.select({
     id: theses.id, slug: theses.slug, instrumentId: theses.instrumentId, companyId: theses.companyId,
     title: theses.title, summary: theses.summary, body: theses.body, invalidation: theses.invalidation,
     horizon: theses.horizon, sources: theses.sources, tokenName: theses.tokenName,
     tokenSymbol: theses.tokenSymbol, mode: theses.mode, status: theses.status, publishedAt: theses.publishedAt,
+    authorPublicId: marketActors.publicId, authorKind: marketActors.kind,
     authorName: profiles.displayName, authorAvatar: profiles.avatar, authorAvatarUrl: profiles.avatarUrl, authorVisibility: profiles.visibility,
+    agentName: agents.name, agentAvatar: agents.avatar,
     marketId: thesisMarkets.id, marketStatus: thesisMarkets.status, poolAddress: thesisMarkets.poolAddress,
     baseMint: thesisMarkets.baseMint, quoteMint: thesisMarkets.quoteMint,
     quoteDecimals: thesisMarkets.quoteDecimals, configVersion: thesisMarkets.configVersion,
@@ -73,10 +78,14 @@ export async function listPublishedTheses(limit = 40, options: { mode?: string; 
   }).from(theses)
     .leftJoin(thesisMarkets, eq(thesisMarkets.thesisId, theses.id))
     .leftJoin(paperThesisMarkets, eq(paperThesisMarkets.thesisId, theses.id))
+    .innerJoin(marketActors, eq(marketActors.id, theses.authorActorId))
     .leftJoin(profiles, eq(profiles.userId, theses.authorUserId))
-    .where(and(eq(theses.visibility, 'public'), inArray(theses.status, ['published', 'withdrawn']), or(eq(theses.mode, 'paper'), inArray(thesisMarkets.status, ['active', 'migrated'])), options.mode === 'paper' || options.mode === 'live' ? eq(theses.mode, options.mode) : undefined, options.query ? or(ilike(theses.title, `%${options.query}%`), ilike(theses.summary, `%${options.query}%`), ilike(theses.companyId, `%${options.query}%`), ilike(theses.tokenSymbol, `%${options.query}%`)) : undefined))
+    .leftJoin(agents, eq(agents.actorId, marketActors.id))
+    .where(and(eq(theses.visibility, 'public'), inArray(theses.status, ['published', 'withdrawn']), or(eq(theses.mode, 'paper'), inArray(thesisMarkets.status, ['active', 'migrated'])), options.mode === 'paper' || options.mode === 'live' ? eq(theses.mode, options.mode) : undefined, options.query ? or(ilike(theses.title, `%${options.query}%`), ilike(theses.summary, `%${options.query}%`), ilike(theses.companyId, `%${options.query}%`), ilike(theses.tokenSymbol, `%${options.query}%`)) : undefined, options.actorKind === 'human' || options.actorKind === 'agent' ? eq(marketActors.kind, options.actorKind) : undefined))
     .orderBy(desc(theses.publishedAt), desc(theses.id)).limit(Math.max(1, Math.min(limit, 100))).offset(options.offset ?? 0);
-  return rows.map(({ authorVisibility, authorName, authorAvatar, authorAvatarUrl, ...row }) => ({ ...row, authorName: authorVisibility === 'public' ? authorName : null, authorAvatar: authorVisibility === 'public' ? authorAvatar : null, authorAvatarUrl: authorVisibility === 'public' ? authorAvatarUrl : null }));
+  return rows.map(({ authorVisibility, authorName, authorAvatar, authorAvatarUrl, agentName, agentAvatar, ...row }) => row.authorKind === 'agent'
+    ? ({ ...row, authorName: agentName, authorAvatar: agentAvatar, authorAvatarUrl: null })
+    : ({ ...row, authorName: authorVisibility === 'public' ? authorName : null, authorAvatar: authorVisibility === 'public' ? authorAvatar : null, authorAvatarUrl: authorVisibility === 'public' ? authorAvatarUrl : null }));
 }
 
 export async function getPublicThesis(idOrSlug: string) {
@@ -86,7 +95,9 @@ export async function getPublicThesis(idOrSlug: string) {
     title: theses.title, summary: theses.summary, body: theses.body, invalidation: theses.invalidation,
     horizon: theses.horizon, sources: theses.sources, tokenName: theses.tokenName,
     tokenSymbol: theses.tokenSymbol, mode: theses.mode, status: theses.status, publishedAt: theses.publishedAt,
+    authorPublicId: marketActors.publicId, authorKind: marketActors.kind,
     authorName: profiles.displayName, authorAvatar: profiles.avatar, authorAvatarUrl: profiles.avatarUrl, authorVisibility: profiles.visibility,
+    agentName: agents.name, agentAvatar: agents.avatar,
     marketId: thesisMarkets.id, marketStatus: thesisMarkets.status, poolAddress: thesisMarkets.poolAddress,
     baseMint: thesisMarkets.baseMint, quoteMint: thesisMarkets.quoteMint,
     quoteDecimals: thesisMarkets.quoteDecimals, configAddress: thesisMarkets.configAddress,
@@ -95,7 +106,9 @@ export async function getPublicThesis(idOrSlug: string) {
     paperTradeCount: paperThesisMarkets.tradeCount,
   }).from(theses).leftJoin(thesisMarkets, eq(thesisMarkets.thesisId, theses.id))
     .leftJoin(paperThesisMarkets, eq(paperThesisMarkets.thesisId, theses.id))
+    .innerJoin(marketActors, eq(marketActors.id, theses.authorActorId))
     .leftJoin(profiles, eq(profiles.userId, theses.authorUserId))
+    .leftJoin(agents, eq(agents.actorId, marketActors.id))
     .where(and(
       sql`(${theses.id}::text = ${idOrSlug} OR ${theses.slug} = ${idOrSlug})`,
       eq(theses.visibility, 'public'), inArray(theses.status, ['published', 'withdrawn']),
@@ -103,29 +116,36 @@ export async function getPublicThesis(idOrSlug: string) {
     )).limit(1);
   const row = rows[0];
   if (!row) return null;
-  const { authorVisibility, authorName, authorAvatar, authorAvatarUrl, ...thesis } = row;
-  return { ...thesis, authorName: authorVisibility === 'public' ? authorName : null, authorAvatar: authorVisibility === 'public' ? authorAvatar : null, authorAvatarUrl: authorVisibility === 'public' ? authorAvatarUrl : null };
+  const { authorVisibility, authorName, authorAvatar, authorAvatarUrl, agentName, agentAvatar, ...thesis } = row;
+  return row.authorKind === 'agent'
+    ? { ...thesis, authorName: agentName, authorAvatar: agentAvatar, authorAvatarUrl: null }
+    : { ...thesis, authorName: authorVisibility === 'public' ? authorName : null, authorAvatar: authorVisibility === 'public' ? authorAvatar : null, authorAvatarUrl: authorVisibility === 'public' ? authorAvatarUrl : null };
 }
 
 export async function createPublicPaperThesis(userId: string, slug: string, companyId: string, input: PublicPaperThesisInput, creationIntentId: string) {
+  const actor = await ensureHumanActor(userId);
+  return createPublicPaperThesisForActor({ actorId: actor.id, userId }, slug, companyId, input, creationIntentId);
+}
+
+export async function createPublicPaperThesisForActor(actor: { actorId: string; userId: string | null }, slug: string, companyId: string, input: PublicPaperThesisInput, creationIntentId: string) {
   const db = getDb();
   return db.transaction(async (tx) => {
     const now = new Date();
     const creationIntentHash = createHash('sha256').update(JSON.stringify([companyId, input])).digest('hex');
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${userId + ':' + creationIntentId}, 4))`);
-    const [existing] = await tx.select().from(theses).where(and(eq(theses.authorUserId, userId), eq(theses.creationIntentId, creationIntentId))).limit(1);
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${actor.actorId + ':' + creationIntentId}, 4))`);
+    const [existing] = await tx.select().from(theses).where(and(eq(theses.authorActorId, actor.actorId), eq(theses.creationIntentId, creationIntentId))).limit(1);
     if (existing) {
       if (existing.creationIntentHash !== creationIntentHash) throw new Error('PAPER_CREATION_INTENT_REUSED');
       return existing;
     }
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${userId}, 2))`);
-    const [recent] = await tx.select({ value: count() }).from(theses).where(and(eq(theses.authorUserId, userId), eq(theses.mode, 'paper'), sql`${theses.createdAt} > now() - interval '24 hours'`));
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${actor.actorId}, 2))`);
+    const [recent] = await tx.select({ value: count() }).from(theses).where(and(eq(theses.authorActorId, actor.actorId), eq(theses.mode, 'paper'), sql`${theses.createdAt} > now() - interval '24 hours'`));
     if (Number(recent?.value??0) >= 5) throw new Error('PAPER_THESIS_DAILY_LIMIT');
     const [thesis] = await tx.insert(theses).values({
-      slug, authorUserId: userId, instrumentId: input.instrumentId, companyId,
-      title: input.title, summary: input.summary, body: input.summary,
-      invalidation: 'This is a public simulation. Its activity does not prove the real-world thesis or guarantee a live-market outcome.',
-      sources: [], tokenName: input.tokenName, tokenSymbol: input.tokenSymbol,
+      slug, authorUserId: actor.userId, authorActorId: actor.actorId, instrumentId: input.instrumentId, companyId,
+      title: input.title, summary: input.summary, body: input.body ?? input.summary,
+      invalidation: input.invalidation ?? 'This is a public simulation. Its activity does not prove the real-world thesis or guarantee a live-market outcome.',
+      horizon: input.horizon ?? null, sources: input.sources ?? [], tokenName: input.tokenName, tokenSymbol: input.tokenSymbol,
       creationIntentId, creationIntentHash,
       mode: 'paper', status: 'published', visibility: 'public', publishedAt: now,
     }).returning();
@@ -138,6 +158,7 @@ export async function createPublicPaperThesis(userId: string, slug: string, comp
 }
 
 export async function getPublicPaperMarket(thesisId: string, viewerUserId?: string, cursors: PaperMarketCursors = { positions: null, trades: null, balances: null }) {
+  const viewerActorId = viewerUserId ? (await ensureHumanActor(viewerUserId)).id : undefined;
   return getDb().transaction(async (db) => {
   const [row] = await db.select({
     thesisId: theses.id, instrumentId: theses.instrumentId, companyId: theses.companyId,
@@ -150,65 +171,70 @@ export async function getPublicPaperMarket(thesisId: string, viewerUserId?: stri
   if (!row) return null;
   const spotPrice = paperSpotPrice(row);
   const positionRows = await db.select({
-    userId: paperPositions.userId, publicId: paperPositions.publicId, quantity: paperPositions.quantity,
+    actorId: paperPositions.actorId, actorKind: marketActors.kind, publicId: paperPositions.publicId, quantity: paperPositions.quantity,
     costBasisQuote: paperPositions.costBasisQuote, realizedPnlQuote: paperPositions.realizedPnlQuote,
     updatedAt: paperPositions.updatedAt, displayName: profiles.displayName, profileVisibility: profiles.visibility,
-    avatar: profiles.avatar, avatarUrl: profiles.avatarUrl, stockBalance: paperStockBalances.balance,
-  }).from(paperPositions).leftJoin(profiles, eq(profiles.userId, paperPositions.userId))
-    .leftJoin(paperStockBalances, and(eq(paperStockBalances.userId, paperPositions.userId), eq(paperStockBalances.instrumentId, row.instrumentId)))
+    avatar: profiles.avatar, avatarUrl: profiles.avatarUrl, agentName: agents.name, agentAvatar: agents.avatar, stockBalance: paperStockBalances.balance,
+  }).from(paperPositions).innerJoin(marketActors, eq(marketActors.id, paperPositions.actorId))
+    .leftJoin(profiles, eq(profiles.userId, marketActors.userId)).leftJoin(agents, eq(agents.actorId, marketActors.id))
+    .leftJoin(paperStockBalances, and(eq(paperStockBalances.actorId, paperPositions.actorId), eq(paperStockBalances.instrumentId, row.instrumentId)))
     .where(and(eq(paperPositions.thesisId, thesisId), cursors.positions ? gt(paperPositions.publicId, cursors.positions) : undefined))
     .orderBy(asc(paperPositions.publicId)).limit(51);
-  const positions = positionRows.slice(0, 50).map(raw => { const position = visiblePaperProfile(raw, viewerUserId); const { userId, ...publicPosition } = position; return ({
-    ...paperExitMetrics(position, row), ...publicPosition, ...paperPositionMetrics(position, spotPrice), isViewer: viewerUserId === userId,
+  const positions = positionRows.slice(0, 50).map(raw => { const position = visiblePaperProfile(raw, viewerActorId); const { actorId, ...publicPosition } = position; return ({
+    ...paperExitMetrics(position, row), ...publicPosition, ...paperPositionMetrics(position, spotPrice), isViewer: viewerActorId === actorId,
   }); });
   const tradeRows = await db.select({
-    id: paperTrades.id, userId: paperTrades.userId, publicId: users.paperPublicId, direction: paperTrades.direction,
+    id: paperTrades.id, actorId: paperTrades.actorId, actorKind: marketActors.kind, publicId: marketActors.publicId, direction: paperTrades.direction,
     inputAmount: paperTrades.inputAmount, outputAmount: paperTrades.outputAmount,
     feeAmount: paperTrades.feeAmount, priceImpactPct: paperTrades.priceImpactPct,
     executedAt: paperTrades.executedAt, displayName: profiles.displayName, profileVisibility: profiles.visibility,
-    avatar: profiles.avatar, avatarUrl: profiles.avatarUrl,
-  }).from(paperTrades).innerJoin(users, eq(users.id, paperTrades.userId)).leftJoin(profiles, eq(profiles.userId, paperTrades.userId))
+    avatar: profiles.avatar, avatarUrl: profiles.avatarUrl, agentName: agents.name, agentAvatar: agents.avatar, rationale: paperTrades.rationale,
+  }).from(paperTrades).innerJoin(marketActors, eq(marketActors.id, paperTrades.actorId))
+    .leftJoin(profiles, eq(profiles.userId, marketActors.userId)).leftJoin(agents, eq(agents.actorId, marketActors.id))
     .where(and(eq(paperTrades.thesisId, thesisId), cursors.trades ? or(
       lt(paperTrades.executedAt, cursors.trades.at),
       and(eq(paperTrades.executedAt, cursors.trades.at), lt(paperTrades.id, cursors.trades.id)),
     ) : undefined)).orderBy(desc(paperTrades.executedAt), desc(paperTrades.id)).limit(51);
-  const trades = tradeRows.slice(0, 50).map(raw => { const trade = visiblePaperProfile(raw, viewerUserId); const { userId, ...publicTrade } = trade; return ({ ...publicTrade, isViewer: viewerUserId === userId }); });
+  const trades = tradeRows.slice(0, 50).map(raw => { const trade = visiblePaperProfile(raw, viewerActorId); const { actorId, ...publicTrade } = trade; return ({ ...publicTrade, isViewer: viewerActorId === actorId }); });
   const balances = await db.select({
-    publicId: paperStockBalances.publicId, balance: paperStockBalances.balance, updatedAt: paperStockBalances.updatedAt,
+    actorId: paperStockBalances.actorId, actorKind: marketActors.kind, publicId: paperStockBalances.publicId, balance: paperStockBalances.balance, updatedAt: paperStockBalances.updatedAt,
     displayName: profiles.displayName, avatar: profiles.avatar, avatarUrl: profiles.avatarUrl, profileVisibility: profiles.visibility,
-    userId: paperStockBalances.userId,
-  }).from(paperStockBalances).leftJoin(profiles, eq(profiles.userId, paperStockBalances.userId))
+    agentName: agents.name, agentAvatar: agents.avatar,
+  }).from(paperStockBalances).innerJoin(marketActors, eq(marketActors.id, paperStockBalances.actorId))
+    .leftJoin(profiles, eq(profiles.userId, marketActors.userId)).leftJoin(agents, eq(agents.actorId, marketActors.id))
     .where(and(eq(paperStockBalances.instrumentId, row.instrumentId), cursors.balances ? gt(paperStockBalances.publicId, cursors.balances) : undefined))
     .orderBy(asc(paperStockBalances.publicId)).limit(51);
   const leaderRows = await db.select({
-    userId: paperPositions.userId, publicId: paperPositions.publicId, quantity: paperPositions.quantity,
+    actorId: paperPositions.actorId, actorKind: marketActors.kind, publicId: paperPositions.publicId, quantity: paperPositions.quantity,
     costBasisQuote: paperPositions.costBasisQuote, realizedPnlQuote: paperPositions.realizedPnlQuote,
     updatedAt: paperPositions.updatedAt, displayName: profiles.displayName, profileVisibility: profiles.visibility,
-    avatar: profiles.avatar, avatarUrl: profiles.avatarUrl, stockBalance: paperStockBalances.balance,
-  }).from(paperPositions).leftJoin(profiles, eq(profiles.userId, paperPositions.userId))
-    .leftJoin(paperStockBalances, and(eq(paperStockBalances.userId, paperPositions.userId), eq(paperStockBalances.instrumentId, row.instrumentId)))
-    .where(eq(paperPositions.thesisId, thesisId)).orderBy(desc(paperPositions.quantity), asc(paperPositions.userId)).limit(10);
-  const leaders = leaderRows.map(raw => { const position = visiblePaperProfile(raw, viewerUserId); const { userId, ...publicPosition } = position; return ({
-    ...paperExitMetrics(position, row), ...publicPosition, ...paperPositionMetrics(position, spotPrice), isViewer: viewerUserId === userId,
+    avatar: profiles.avatar, avatarUrl: profiles.avatarUrl, agentName: agents.name, agentAvatar: agents.avatar, stockBalance: paperStockBalances.balance,
+  }).from(paperPositions).innerJoin(marketActors, eq(marketActors.id, paperPositions.actorId))
+    .leftJoin(profiles, eq(profiles.userId, marketActors.userId)).leftJoin(agents, eq(agents.actorId, marketActors.id))
+    .leftJoin(paperStockBalances, and(eq(paperStockBalances.actorId, paperPositions.actorId), eq(paperStockBalances.instrumentId, row.instrumentId)))
+    .where(eq(paperPositions.thesisId, thesisId)).orderBy(desc(paperPositions.quantity), asc(paperPositions.actorId)).limit(10);
+  const leaders = leaderRows.map(raw => { const position = visiblePaperProfile(raw, viewerActorId); const { actorId, ...publicPosition } = position; return ({
+    ...paperExitMetrics(position, row), ...publicPosition, ...paperPositionMetrics(position, spotPrice), isViewer: viewerActorId === actorId,
   }); });
   let viewerPosition = positions.find((position) => position.isViewer) ?? null;
-  if (viewerUserId && !viewerPosition) {
+  if (viewerActorId && !viewerPosition) {
     const [viewerPositionRow] = await db.select({
-      userId: paperPositions.userId, publicId: paperPositions.publicId, quantity: paperPositions.quantity, costBasisQuote: paperPositions.costBasisQuote,
+      actorId: paperPositions.actorId, actorKind: marketActors.kind, publicId: paperPositions.publicId, quantity: paperPositions.quantity, costBasisQuote: paperPositions.costBasisQuote,
       realizedPnlQuote: paperPositions.realizedPnlQuote, updatedAt: paperPositions.updatedAt,
       displayName: profiles.displayName, avatar: profiles.avatar, avatarUrl: profiles.avatarUrl, profileVisibility: profiles.visibility,
-      stockBalance: paperStockBalances.balance,
-    }).from(paperPositions).leftJoin(profiles, eq(profiles.userId, paperPositions.userId))
-      .leftJoin(paperStockBalances, and(eq(paperStockBalances.userId, paperPositions.userId), eq(paperStockBalances.instrumentId, row.instrumentId)))
-      .where(and(eq(paperPositions.thesisId, thesisId), eq(paperPositions.userId, viewerUserId))).limit(1);
-    const visibleViewerPosition = viewerPositionRow ? visiblePaperProfile(viewerPositionRow, viewerUserId) : null;
+      agentName: agents.name, agentAvatar: agents.avatar, stockBalance: paperStockBalances.balance,
+    }).from(paperPositions).innerJoin(marketActors, eq(marketActors.id, paperPositions.actorId))
+      .leftJoin(profiles, eq(profiles.userId, marketActors.userId)).leftJoin(agents, eq(agents.actorId, marketActors.id))
+      .leftJoin(paperStockBalances, and(eq(paperStockBalances.actorId, paperPositions.actorId), eq(paperStockBalances.instrumentId, row.instrumentId)))
+      .where(and(eq(paperPositions.thesisId, thesisId), eq(paperPositions.actorId, viewerActorId))).limit(1);
+    const visibleViewerPosition = viewerPositionRow ? visiblePaperProfile(viewerPositionRow, viewerActorId) : null;
     viewerPosition = visibleViewerPosition
-      ? (() => { const { userId: _userId, ...publicPosition } = visibleViewerPosition; return { ...paperExitMetrics(visibleViewerPosition, row), ...publicPosition, ...paperPositionMetrics(visibleViewerPosition, spotPrice), isViewer: true }; })()
+      ? (() => { const { actorId: _actorId, ...publicPosition } = visibleViewerPosition; return { ...paperExitMetrics(visibleViewerPosition, row), ...publicPosition, ...paperPositionMetrics(visibleViewerPosition, spotPrice), isViewer: true }; })()
       : null;
   }
-  const [viewerBalanceRow] = viewerUserId ? await db.select({ balance: paperStockBalances.balance }).from(paperStockBalances)
-    .where(and(eq(paperStockBalances.userId, viewerUserId), eq(paperStockBalances.instrumentId, row.instrumentId))).limit(1) : [];
-  const viewerBalance = viewerUserId ? viewerBalanceRow?.balance ?? PAPER_STARTING_STOCK_BALANCE : null;
+  const [viewerBalanceRow] = viewerActorId ? await db.select({ balance: paperStockBalances.balance }).from(paperStockBalances)
+    .where(and(eq(paperStockBalances.actorId, viewerActorId), eq(paperStockBalances.instrumentId, row.instrumentId))).limit(1) : [];
+  const viewerBalance = viewerActorId ? viewerBalanceRow?.balance ?? PAPER_STARTING_STOCK_BALANCE : null;
   return {
     ...row, spotPrice, positions, leaders, trades,
     hasMore: { positions: positionRows.length > 50, trades: tradeRows.length > 50, balances: balances.length > 50 },
@@ -217,24 +243,29 @@ export async function getPublicPaperMarket(thesisId: string, viewerUserId?: stri
       trades: tradeRows.length > 50 ? encodeTimeIdCursor({ at: tradeRows[49].executedAt, id: tradeRows[49].id }) : null,
       balances: balances.length > 50 ? balances[49].publicId : null,
     },
-    balances: balances.slice(0, 50).map(raw => { const balance = visiblePaperProfile(raw, viewerUserId); const { userId, ...publicBalance } = balance; return ({ ...publicBalance, isViewer: viewerUserId === userId }); }),
-    viewer: viewerUserId ? { stockBalance: viewerBalance, position: viewerPosition } : null,
+    balances: balances.slice(0, 50).map(raw => { const balance = visiblePaperProfile(raw, viewerActorId); const { actorId, ...publicBalance } = balance; return ({ ...publicBalance, isViewer: viewerActorId === actorId }); }),
+    viewer: viewerActorId ? { stockBalance: viewerBalance, position: viewerPosition } : null,
   };
   }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
 }
 
 export async function executePublicPaperTrade(thesisId: string, userId: string, direction: PaperDirection, inputAmount: number, intent: PaperTradeIntent) {
+  const actor = await ensureHumanActor(userId);
+  return executePublicPaperTradeForActor({ actorId: actor.id, userId }, thesisId, direction, inputAmount, intent);
+}
+
+export async function executePublicPaperTradeForActor(actor: { actorId: string; userId: string | null }, thesisId: string, direction: PaperDirection, inputAmount: number, intent: PaperTradeIntent, rationale: string | null = null) {
   const db = getDb();
   const intentHash = createHash('sha256').update(JSON.stringify([thesisId, direction, inputAmount, intent.minimumOutput, intent.expiresAt])).digest('hex');
   return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${userId + ':' + intent.intentId}, 3))`);
-    const [existing] = await tx.select().from(paperTrades).where(and(eq(paperTrades.userId, userId), eq(paperTrades.intentId, intent.intentId))).limit(1);
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${actor.actorId + ':' + intent.intentId}, 3))`);
+    const [existing] = await tx.select().from(paperTrades).where(and(eq(paperTrades.actorId, actor.actorId), eq(paperTrades.intentId, intent.intentId))).limit(1);
     if (existing) {
       if (existing.intentHash !== intentHash) throw new Error('Paper intent already used for a different trade');
       return { id: existing.id, outputAmount: existing.outputAmount, inputAmount: existing.inputAmount, direction: existing.direction, executedAt: existing.executedAt };
     }
-    const [capacity] = await tx.insert(paperActivityLimits).values({ userId, windowStart: sql`date_trunc('minute', now())`, count: 1 })
-      .onConflictDoUpdate({ target: [paperActivityLimits.userId, paperActivityLimits.windowStart], set: { count: sql`${paperActivityLimits.count} + 1` } }).returning({ count: paperActivityLimits.count });
+    const [capacity] = await tx.insert(paperActivityLimits).values({ userId: actor.userId, actorId: actor.actorId, windowStart: sql`date_trunc('minute', now())`, count: 1 })
+      .onConflictDoUpdate({ target: [paperActivityLimits.actorId, paperActivityLimits.windowStart], set: { count: sql`${paperActivityLimits.count} + 1` } }).returning({ count: paperActivityLimits.count });
     if (!capacity || capacity.count > 20) throw new Error('PAPER_ACTIVITY_LIMIT');
     await tx.execute(sql`select thesis_id from paper_thesis_markets where thesis_id = ${thesisId}::uuid for update`);
     const [context] = await tx.select({
@@ -243,13 +274,13 @@ export async function executePublicPaperTrade(thesisId: string, userId: string, 
     }).from(theses).innerJoin(paperThesisMarkets, eq(paperThesisMarkets.thesisId, theses.id))
       .where(and(eq(theses.id, thesisId), eq(theses.mode, 'paper'), eq(theses.status, 'published'))).limit(1);
     if (!context) throw new Error('PAPER_MARKET_NOT_FOUND');
-    const [identity] = await tx.select({ publicId: users.paperPublicId }).from(users).where(eq(users.id, userId)).limit(1);
+    const [identity] = await tx.select({ publicId: marketActors.publicId }).from(marketActors).where(eq(marketActors.id, actor.actorId)).limit(1);
     if (!identity) throw new Error('PAPER_ACCOUNT_UNAVAILABLE');
-    await tx.insert(paperStockBalances).values({ userId, publicId: identity.publicId, instrumentId: context.instrumentId, balance: PAPER_STARTING_STOCK_BALANCE }).onConflictDoNothing();
-    await tx.insert(paperPositions).values({ thesisId, userId, publicId: identity.publicId }).onConflictDoNothing();
-    await tx.execute(sql`select user_id from paper_stock_balances where user_id = ${userId}::uuid and instrument_id = ${context.instrumentId} for update`);
-    const [balance] = await tx.select().from(paperStockBalances).where(and(eq(paperStockBalances.userId, userId), eq(paperStockBalances.instrumentId, context.instrumentId))).limit(1);
-    const [position] = await tx.select().from(paperPositions).where(and(eq(paperPositions.thesisId, thesisId), eq(paperPositions.userId, userId))).limit(1);
+    await tx.insert(paperStockBalances).values({ userId: actor.userId, actorId: actor.actorId, publicId: identity.publicId, instrumentId: context.instrumentId, balance: PAPER_STARTING_STOCK_BALANCE }).onConflictDoNothing();
+    await tx.insert(paperPositions).values({ thesisId, userId: actor.userId, actorId: actor.actorId, publicId: identity.publicId }).onConflictDoNothing();
+    await tx.execute(sql`select actor_id from paper_stock_balances where actor_id = ${actor.actorId}::uuid and instrument_id = ${context.instrumentId} for update`);
+    const [balance] = await tx.select().from(paperStockBalances).where(and(eq(paperStockBalances.actorId, actor.actorId), eq(paperStockBalances.instrumentId, context.instrumentId))).limit(1);
+    const [position] = await tx.select().from(paperPositions).where(and(eq(paperPositions.thesisId, thesisId), eq(paperPositions.actorId, actor.actorId))).limit(1);
     if (!balance || !position) throw new Error('PAPER_ACCOUNT_UNAVAILABLE');
     const quote = quotePaperTrade(context, direction, inputAmount);
     validatePaperTradePrecision(quote);
@@ -270,9 +301,9 @@ export async function executePublicPaperTrade(thesisId: string, userId: string, 
       if (quantity < 1e-9) { quantity = 0; costBasisQuote = 0; }
     }
     await tx.update(paperThesisMarkets).set({ ...nextMarket, tradeCount: sql`${paperThesisMarkets.tradeCount} + 1`, updatedAt: now }).where(eq(paperThesisMarkets.thesisId, thesisId));
-    await tx.update(paperStockBalances).set({ balance: nextStockBalance, updatedAt: now }).where(and(eq(paperStockBalances.userId, userId), eq(paperStockBalances.instrumentId, context.instrumentId)));
-    await tx.update(paperPositions).set({ quantity, costBasisQuote, realizedPnlQuote, updatedAt: now }).where(and(eq(paperPositions.thesisId, thesisId), eq(paperPositions.userId, userId)));
-    const [receipt] = await tx.insert(paperTrades).values({ thesisId, userId, intentId: intent.intentId, intentHash, direction, inputAmount, outputAmount: quote.outputAmount, feeAmount: quote.feeAmount, priceImpactPct: quote.priceImpactPct, executedAt: now }).returning();
+    await tx.update(paperStockBalances).set({ balance: nextStockBalance, updatedAt: now }).where(and(eq(paperStockBalances.actorId, actor.actorId), eq(paperStockBalances.instrumentId, context.instrumentId)));
+    await tx.update(paperPositions).set({ quantity, costBasisQuote, realizedPnlQuote, updatedAt: now }).where(and(eq(paperPositions.thesisId, thesisId), eq(paperPositions.actorId, actor.actorId)));
+    const [receipt] = await tx.insert(paperTrades).values({ thesisId, userId: actor.userId, actorId: actor.actorId, intentId: intent.intentId, intentHash, direction, inputAmount, outputAmount: quote.outputAmount, feeAmount: quote.feeAmount, priceImpactPct: quote.priceImpactPct, rationale, executedAt: now }).returning();
     return { id: receipt.id, outputAmount: receipt.outputAmount, inputAmount: receipt.inputAmount, direction: receipt.direction, executedAt: receipt.executedAt };
   });
 }
@@ -430,16 +461,17 @@ export function paperPublicId(userId: string) {
 
 export async function getPaperPortfolio(publicId: string, cursor: TimeIdCursor | null = null) {
   const db = getDb();
-  const [identity] = await db.select({ userId: users.id }).from(users).where(eq(users.paperPublicId, publicId)).limit(1);
+  const [identity] = await db.select({ actorId: marketActors.id, actorKind: marketActors.kind, userId: marketActors.userId, agentName: agents.name, agentAvatar: agents.avatar })
+    .from(marketActors).leftJoin(agents, eq(agents.actorId, marketActors.id)).where(eq(marketActors.publicId, publicId)).limit(1);
   if (!identity) return null;
-  const balances = await db.select({ userId: paperStockBalances.userId, instrumentId: paperStockBalances.instrumentId, balance: paperStockBalances.balance, displayName: profiles.displayName, avatar: profiles.avatar, avatarUrl: profiles.avatarUrl, profileVisibility: profiles.visibility }).from(paperStockBalances).leftJoin(profiles, eq(profiles.userId, paperStockBalances.userId)).where(eq(paperStockBalances.userId, identity.userId));
+  const balances = await db.select({ actorId: paperStockBalances.actorId, instrumentId: paperStockBalances.instrumentId, balance: paperStockBalances.balance, displayName: profiles.displayName, avatar: profiles.avatar, avatarUrl: profiles.avatarUrl, profileVisibility: profiles.visibility }).from(paperStockBalances).leftJoin(profiles, eq(profiles.userId, paperStockBalances.userId)).where(eq(paperStockBalances.actorId, identity.actorId));
   if (!balances.length) return null;
-  const userId = balances[0].userId;
   const positions = await db.select({ thesisId: theses.id, slug: theses.slug, title: theses.title, tokenSymbol: theses.tokenSymbol, instrumentId: theses.instrumentId, publishedAt: theses.publishedAt, quantity: paperPositions.quantity, costBasisQuote: paperPositions.costBasisQuote, realizedPnlQuote: paperPositions.realizedPnlQuote, baseReserve: paperThesisMarkets.baseReserve, quoteReserve: paperThesisMarkets.quoteReserve }).from(paperPositions).innerJoin(theses, eq(theses.id, paperPositions.thesisId)).innerJoin(paperThesisMarkets, eq(paperThesisMarkets.thesisId, theses.id)).where(and(
-    eq(paperPositions.userId, userId), eq(theses.visibility, 'public'),
+    eq(paperPositions.actorId, identity.actorId), eq(theses.visibility, 'public'),
     cursor ? or(lt(theses.publishedAt, cursor.at), and(eq(theses.publishedAt, cursor.at), lt(theses.id, cursor.id))) : undefined,
   )).orderBy(desc(theses.publishedAt), desc(theses.id)).limit(51);
   const last = positions[49];
   const profileVisible = balances[0].profileVisibility === 'public';
-  return { publicId, displayName: profileVisible ? balances[0].displayName : null, balances: balances.map(({userId: _id, displayName: _name, avatar: _avatar, avatarUrl: _avatarUrl, profileVisibility: _visibility, ...balance}) => balance), positions: positions.slice(0, 50).map(position => ({ ...position, ...paperPositionMetrics(position, paperSpotPrice(position)), ...paperExitMetrics(position, position) })), hasMore: positions.length > 50, nextCursor: positions.length > 50 && last.publishedAt ? encodeTimeIdCursor({ at: last.publishedAt, id: last.thesisId }) : null };
+  const displayName = identity.actorKind === 'agent' ? identity.agentName : profileVisible ? balances[0].displayName : null;
+  return { publicId, actorKind: identity.actorKind, displayName, avatar: identity.actorKind === 'agent' ? identity.agentAvatar : profileVisible ? balances[0].avatar : null, balances: balances.map(({actorId: _id, displayName: _name, avatar: _avatar, avatarUrl: _avatarUrl, profileVisibility: _visibility, ...balance}) => balance), positions: positions.slice(0, 50).map(position => ({ ...position, ...paperPositionMetrics(position, paperSpotPrice(position)), ...paperExitMetrics(position, position) })), hasMore: positions.length > 50, nextCursor: positions.length > 50 && last.publishedAt ? encodeTimeIdCursor({ at: last.publishedAt, id: last.thesisId }) : null };
 }

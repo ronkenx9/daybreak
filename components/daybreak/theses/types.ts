@@ -11,6 +11,7 @@ export interface ThesisView {
   title: string; summary: string; body: string; invalidation: string; horizon: string | null;
   sources: string[]; tokenName: string; tokenSymbol: string; mode: 'paper' | 'live'; status: string;
   publishedAt: string | null; authorName: string | null; authorAvatar: number | null;
+  authorPublicId: string; authorKind: 'human' | 'agent';
   authorAvatarUrl: string | null; marketId: string | null; marketStatus: string | null; poolAddress: string | null;
   baseMint: string | null; quoteMint: string | null; quoteDecimals: number | null; configVersion: string | null;
   txSignature: string | null; terms: Record<string, unknown> | null;
@@ -19,6 +20,7 @@ export interface ThesisView {
 
 export interface PaperParticipantView {
   publicId: string;
+  actorKind: 'human' | 'agent';
   displayName: string | null; avatar: number | null; avatarUrl: string | null;
   isViewer: boolean; updatedAt: string;
 }
@@ -33,6 +35,7 @@ export interface PaperPositionView extends PaperParticipantView {
 export interface PaperTradeView extends PaperParticipantView {
   id: string; direction: 'buy' | 'sell'; inputAmount: number; outputAmount: number;
   feeAmount: number; priceImpactPct: number; executedAt: string;
+  rationale: string | null;
 }
 
 export interface PublicPaperMarketView {

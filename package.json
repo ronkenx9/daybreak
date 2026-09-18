@@ -9,6 +9,8 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test": "node scripts/audit-core.cjs",
+    "test:agent-api": "node scripts/test-agent-api-behavior.cjs && node scripts/test-agent-api-database.cjs && node scripts/verify-agent-api.mjs",
+    "example:paper-agent": "node examples/paper-agent/index.mjs",
     "db:generate": "drizzle-kit generate",
     "db:preflight": "node --env-file-if-exists=.env.local scripts/db-preflight.mjs",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs",

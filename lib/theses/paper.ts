@@ -28,6 +28,10 @@ export interface PublicPaperThesisInput {
   summary: string;
   tokenName: string;
   tokenSymbol: string;
+  body?: string;
+  invalidation?: string;
+  horizon?: string | null;
+  sources?: string[];
 }
 
 function bounded(value: unknown, label: string, min: number, max: number): string {

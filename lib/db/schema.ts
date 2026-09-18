@@ -318,12 +318,110 @@ export const tokenLaunches = pgTable('token_launches', {
   circleLookup: index('token_launches_circle_idx').on(t.circleId),
 }));
 
+// A market actor owns public thesis-market state. Human actors link to one
+// Daybreak account; agent actors link to an operator-owned agent record.
+export const marketActors = pgTable('market_actors', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  publicId: text('public_id').notNull().default(sql`encode(sha256(convert_to(gen_random_uuid()::text, 'UTF8')), 'hex')`).unique(),
+  kind: text('kind').notNull(), // human | agent
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).unique(),
+  status: text('status').notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ kindLookup: index('market_actors_kind_idx').on(t.kind, t.createdAt) }));
+
+export const agents = pgTable('agents', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  actorId: uuid('actor_id').notNull().references(() => marketActors.id, { onDelete: 'cascade' }).unique(),
+  ownerUserId: uuid('owner_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  strategy: text('strategy').notNull(),
+  avatar: integer('avatar').notNull().default(0),
+  status: text('status').notNull().default('active'), // active | paused | revoked
+  policyVersion: integer('policy_version').notNull().default(1),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ ownerLookup: index('agents_owner_idx').on(t.ownerUserId, t.createdAt) }));
+
+export const agentApiKeys = pgTable('agent_api_keys', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  agentId: uuid('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
+  prefix: text('prefix').notNull().unique(),
+  secretDigest: text('secret_digest').notNull().unique(),
+  scopes: jsonb('scopes').$type<string[]>().notNull().default([]),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ agentLookup: index('agent_api_keys_agent_idx').on(t.agentId, t.createdAt) }));
+
+export const agentPolicies = pgTable('agent_policies', {
+  agentId: uuid('agent_id').primaryKey().references(() => agents.id, { onDelete: 'cascade' }),
+  allowedInstrumentIds: jsonb('allowed_instrument_ids').$type<string[]>().notNull().default([]),
+  canPublish: boolean('can_publish').notNull().default(true),
+  maxInputPerTrade: numeric('max_input_per_trade', { precision: 30, scale: 10, mode: 'number' }).notNull().default(5),
+  dailyGrossBuy: numeric('daily_gross_buy', { precision: 30, scale: 10, mode: 'number' }).notNull().default(25),
+  maxSlippageBps: integer('max_slippage_bps').notNull().default(300),
+  dailyPublicationLimit: integer('daily_publication_limit').notNull().default(3),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const agentBudgetWindows = pgTable('agent_budget_windows', {
+  actorId: uuid('actor_id').notNull().references(() => marketActors.id, { onDelete: 'cascade' }),
+  instrumentId: text('instrument_id').notNull(),
+  windowStart: date('window_start').notNull(),
+  grossBuy: numeric('gross_buy', { precision: 30, scale: 10, mode: 'number' }).notNull().default(0),
+  tradeCount: integer('trade_count').notNull().default(0),
+  publicationCount: integer('publication_count').notNull().default(0),
+}, (t) => ({ pk: primaryKey({ columns: [t.actorId, t.instrumentId, t.windowStart] }), expiryLookup: index('agent_budget_windows_date_idx').on(t.windowStart) }));
+
+export const agentQuotes = pgTable('agent_quotes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  actorId: uuid('actor_id').notNull().references(() => marketActors.id, { onDelete: 'cascade' }),
+  thesisId: uuid('thesis_id').notNull(),
+  instrumentId: text('instrument_id').notNull(),
+  direction: text('direction').notNull(),
+  inputAmount: numeric('input_amount', { precision: 30, scale: 10, mode: 'number' }).notNull(),
+  expectedOutput: numeric('expected_output', { precision: 30, scale: 10, mode: 'number' }).notNull(),
+  minimumOutput: numeric('minimum_output', { precision: 30, scale: 10, mode: 'number' }).notNull(),
+  feeAmount: numeric('fee_amount', { precision: 30, scale: 10, mode: 'number' }).notNull(),
+  priceImpactPct: numeric('price_impact_pct', { precision: 20, scale: 10, mode: 'number' }).notNull(),
+  slippageBps: integer('slippage_bps').notNull(),
+  policyVersion: integer('policy_version').notNull(),
+  status: text('status').notNull().default('quoted'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ actorLookup: index('agent_quotes_actor_idx').on(t.actorId, t.createdAt), thesisLookup: index('agent_quotes_thesis_idx').on(t.thesisId, t.createdAt) }));
+
+export const agentRequests = pgTable('agent_requests', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  actorId: uuid('actor_id').notNull().references(() => marketActors.id, { onDelete: 'cascade' }),
+  operation: text('operation').notNull(),
+  idempotencyKey: text('idempotency_key').notNull(),
+  requestHash: text('request_hash').notNull(),
+  state: text('state').notNull().default('pending'),
+  resourceId: uuid('resource_id'),
+  response: jsonb('response').$type<Record<string, unknown>>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniqueRequest: uniqueIndex('agent_requests_actor_operation_key_idx').on(t.actorId, t.operation, t.idempotencyKey), actorLookup: index('agent_requests_actor_idx').on(t.actorId, t.createdAt) }));
+
+export const agentAuditEvents = pgTable('agent_audit_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  actorId: uuid('actor_id').notNull().references(() => marketActors.id, { onDelete: 'cascade' }),
+  keyPrefix: text('key_prefix'),
+  operation: text('operation').notNull(),
+  resultCode: text('result_code').notNull(),
+  requestId: text('request_id').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ actorLookup: index('agent_audit_events_actor_idx').on(t.actorId, t.createdAt) }));
+
 // A thesis is editorial content first. Its published argument and market identity
 // become immutable together; authors add updates instead of rewriting history.
 export const theses = pgTable('theses', {
   id: uuid('id').defaultRandom().primaryKey(),
   slug: text('slug').notNull().unique(),
-  authorUserId: uuid('author_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  authorUserId: uuid('author_user_id').references(() => users.id, { onDelete: 'cascade' }),
+  authorActorId: uuid('author_actor_id').notNull().references(() => marketActors.id, { onDelete: 'cascade' }),
   instrumentId: text('instrument_id').notNull(),
   companyId: text('company_id').notNull(),
   title: text('title').notNull(),
@@ -344,9 +442,10 @@ export const theses = pgTable('theses', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   authorLookup: index('theses_author_idx').on(t.authorUserId),
+  actorLookup: index('theses_author_actor_idx').on(t.authorActorId),
   companyLookup: index('theses_company_idx').on(t.companyId),
   statusLookup: index('theses_status_idx').on(t.status, t.publishedAt),
-  paperCreationIntent: uniqueIndex('theses_paper_creation_intent_idx').on(t.authorUserId, t.creationIntentId),
+  paperCreationIntent: uniqueIndex('theses_paper_creation_intent_idx').on(t.authorActorId, t.creationIntentId),
 }));
 
 export const thesisMarkets = pgTable('thesis_markets', {
@@ -389,27 +488,30 @@ export const paperThesisMarkets = pgTable('paper_thesis_markets', {
 });
 
 export const paperStockBalances = pgTable('paper_stock_balances', {
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  actorId: uuid('actor_id').notNull().references(() => marketActors.id, { onDelete: 'cascade' }),
   publicId: text('public_id').notNull(),
   instrumentId: text('instrument_id').notNull(),
   balance: numeric('balance', { precision: 30, scale: 10, mode: 'number' }).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({ pk: primaryKey({ columns: [t.userId, t.instrumentId] }), publicLookup: index('paper_stock_balances_instrument_public_idx').on(t.instrumentId, t.publicId) }));
+}, (t) => ({ pk: primaryKey({ columns: [t.actorId, t.instrumentId] }), publicLookup: index('paper_stock_balances_instrument_public_idx').on(t.instrumentId, t.publicId) }));
 
 export const paperPositions = pgTable('paper_positions', {
   thesisId: uuid('thesis_id').notNull().references(() => theses.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  actorId: uuid('actor_id').notNull().references(() => marketActors.id, { onDelete: 'cascade' }),
   publicId: text('public_id').notNull(),
   quantity: numeric('quantity', { precision: 30, scale: 10, mode: 'number' }).notNull().default(0),
   costBasisQuote: numeric('cost_basis_quote', { precision: 30, scale: 10, mode: 'number' }).notNull().default(0),
   realizedPnlQuote: numeric('realized_pnl_quote', { precision: 30, scale: 10, mode: 'number' }).notNull().default(0),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => ({ pk: primaryKey({ columns: [t.thesisId, t.userId] }), thesisLookup: index('paper_positions_thesis_idx').on(t.thesisId, t.updatedAt), publicLookup: index('paper_positions_thesis_public_idx').on(t.thesisId, t.publicId) }));
+}, (t) => ({ pk: primaryKey({ columns: [t.thesisId, t.actorId] }), thesisLookup: index('paper_positions_thesis_idx').on(t.thesisId, t.updatedAt), publicLookup: index('paper_positions_thesis_public_idx').on(t.thesisId, t.publicId) }));
 
 export const paperTrades = pgTable('paper_trades', {
   id: uuid('id').defaultRandom().primaryKey(),
   thesisId: uuid('thesis_id').notNull().references(() => theses.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  actorId: uuid('actor_id').notNull().references(() => marketActors.id, { onDelete: 'cascade' }),
   intentId: uuid('intent_id'),
   intentHash: text('intent_hash'),
   direction: text('direction').notNull(),
@@ -417,19 +519,21 @@ export const paperTrades = pgTable('paper_trades', {
   outputAmount: numeric('output_amount', { precision: 30, scale: 10, mode: 'number' }).notNull(),
   feeAmount: numeric('fee_amount', { precision: 30, scale: 10, mode: 'number' }).notNull(),
   priceImpactPct: numeric('price_impact_pct', { precision: 20, scale: 10, mode: 'number' }).notNull(),
+  rationale: text('rationale'),
   executedAt: timestamp('executed_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
-  intentUnique: uniqueIndex('paper_trades_intent_idx').on(t.userId, t.intentId),
+  intentUnique: uniqueIndex('paper_trades_intent_idx').on(t.actorId, t.intentId),
   thesisLookup: index('paper_trades_thesis_idx').on(t.thesisId, t.executedAt),
   userLookup: index('paper_trades_user_idx').on(t.userId, t.executedAt),
   positiveAmounts: check('paper_trades_positive_amounts', sql`${t.inputAmount} > 0 AND ${t.outputAmount} > 0 AND ${t.feeAmount} > 0`),
 }));
 
 export const paperActivityLimits = pgTable('paper_activity_limits', {
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  actorId: uuid('actor_id').notNull().references(() => marketActors.id, { onDelete: 'cascade' }),
   windowStart: timestamp('window_start', { withTimezone: true }).notNull(),
   count: integer('count').notNull().default(0),
-}, (t) => ({ pk: primaryKey({ columns: [t.userId, t.windowStart] }), expiryLookup: index('paper_activity_limits_window_idx').on(t.windowStart) }));
+}, (t) => ({ pk: primaryKey({ columns: [t.actorId, t.windowStart] }), expiryLookup: index('paper_activity_limits_window_idx').on(t.windowStart) }));
 
 export const thesisUpdates = pgTable('thesis_updates', {
   id: uuid('id').defaultRandom().primaryKey(),

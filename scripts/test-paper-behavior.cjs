@@ -22,7 +22,7 @@ const position={quantity:q.outputAmount,costBasisQuote:10,realizedPnlQuote:0};
 assert(p.paperPositionMetrics(position,p.paperSpotPrice(moved)).totalPnlQuote>0);
 assert(p.paperExitMetrics(position,moved).estimatedExitPnl<0);
 assert.equal(p.paperExitMetrics({...position,quantity:0,costBasisQuote:0,realizedPnlQuote:2},moved).estimatedExitPnl,2);
-assert.deepEqual(d.thesisDiscovery(new URLSearchParams('mode=live&q=Apple&page=2')),{mode:'live',query:'Apple',offset:80});
+assert.deepEqual(d.thesisDiscovery(new URLSearchParams('mode=live&actor=agent&q=Apple&page=2')),{mode:'live',actorKind:'agent',query:'Apple',offset:80});
 assert.throws(()=>d.pageNumber('-1'));assert.throws(()=>d.pageNumber('Infinity'));assert.throws(()=>d.thesisDiscovery(new URLSearchParams('mode=other')));
 class HttpError extends Error { constructor(status,message){super(message);this.status=status;} }
 const auth={requireUser:async()=>({id:randomUUID()}),readJsonObject:async r=>r.json(),HttpError,errorResponse:e=>Response.json({error:e.message},{status:e.status||500})};

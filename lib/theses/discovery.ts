@@ -8,5 +8,7 @@ export function thesisDiscovery(search: URLSearchParams) {
   if (!['all', 'paper', 'live'].includes(mode)) throw new Error('Invalid market type');
   const query = (search.get('q') ?? '').trim().slice(0, 100).replace(/[\\%_]/g, '\\$&');
   const page = pageNumber(search.get('page'));
-  return { mode, query, offset: page * 40 };
+  const actorKind = search.get('actor') ?? 'all';
+  if (!['all', 'human', 'agent'].includes(actorKind)) throw new Error('Invalid participant type');
+  return { mode, query, actorKind, offset: page * 40 };
 }

@@ -1,0 +1,27 @@
+const assert=require('node:assert/strict'),path=require('node:path');
+const {loader}=require('./test-paper-behavior.cjs');
+process.env.AGENT_API_KEY_PEPPER='behavior-test-pepper';
+const keys=loader()('lib/agents/keys.ts'),validation=loader()('lib/agents/validation.ts');
+const credential=keys.createAgentKey();
+assert.match(credential.value,/^db_agent_[a-f0-9]{12}_[A-Za-z0-9_-]{32,}$/);
+assert.equal(keys.parseAgentKey(credential.value).digest,credential.digest);
+assert.equal(keys.parseAgentKey('db_agent_bad'),null);
+assert(!credential.digest.includes(credential.secret));
+assert.equal(validation.decimalAmount('1.2500000000'),1.25);
+for(const value of [1,'-1','0','1e3','1.00000000000'])assert.throws(()=>validation.decimalAmount(value),/amount/);
+assert.throws(()=>validation.normalizeAgentSetup({name:'A',strategy:'short',allowedInstrumentIds:[]}),/name|strategy|instruments/);
+const setup=validation.normalizeAgentSetup({name:'Morning signal',strategy:'Only acts on falsifiable public paper theses.',allowedInstrumentIds:['stock:a','stock:a'],maxInputPerTrade:5,dailyGrossBuy:25});
+assert.deepEqual(setup.allowedInstrumentIds,['stock:a']);assert(setup.scopes.includes('read'));
+const request=new Request('http://localhost',{headers:{'idempotency-key':'trade:stable-123'}});assert.equal(validation.requireIdempotencyKey(request),'trade:stable-123');
+assert.throws(()=>validation.requireIdempotencyKey(new Request('http://localhost')),/Idempotency/);
+
+(async()=>{
+ const {DaybreakAgentClient,DaybreakAgentError}=await import(path.resolve('packages/agent-sdk/index.mjs'));
+ const calls=[];const mock=async(url,init)=>{calls.push({url,init});if(url.endsWith('/paper/trades'))return new Response(JSON.stringify({receipt:{id:'receipt-1'}}),{status:200,headers:{'content-type':'application/json'}});if(url.includes('/requests/'))return new Response(JSON.stringify({request:{state:'succeeded',response:{receiptId:'receipt-1'}}}),{status:200,headers:{'content-type':'application/json'}});return new Response(JSON.stringify({error:{code:'AGENT_PAUSED',message:'Paused',retryable:false},requestId:'req-1'}),{status:403,headers:{'content-type':'application/json'}})};
+ const client=new DaybreakAgentClient({baseUrl:'https://daybreak.test/',apiKey:'db_agent_key',fetch:mock});
+ assert.deepEqual(await client.tradePaper({quoteId:'quote-1'},'trade:stable-123'),{receipt:{id:'receipt-1'}});
+ assert.equal(calls[0].init.headers.authorization,'Bearer db_agent_key');assert.equal(calls[0].init.headers['idempotency-key'],'trade:stable-123');
+ assert.equal((await client.requestStatus('trade:stable-123')).request.response.receiptId,'receipt-1');
+ await assert.rejects(()=>client.me(),error=>error instanceof DaybreakAgentError&&error.code==='AGENT_PAUSED'&&error.requestId==='req-1');
+ console.log('agent API behavioral tests passed');
+})().catch(error=>{console.error(error);process.exitCode=1});

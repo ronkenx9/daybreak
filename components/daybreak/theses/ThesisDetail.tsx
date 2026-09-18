@@ -1,5 +1,6 @@
 'use client';
-import { ArrowLeft, Beaker, Bookmark, ExternalLink, Share2, Users } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, Beaker, Bookmark, Bot, ExternalLink, Share2, Users } from 'lucide-react';
 import { ProfileAvatar, StockIcon } from '../Identity';
 import type { ThesisInstrumentView, ThesisView } from './types';
 import ThesisTradePanel from './ThesisTradePanel';
@@ -16,7 +17,7 @@ export default function ThesisDetail({ thesis, instrument, onBack, onSimulate }:
       <article className="db-thesis-reading">
         <div className="db-thesis-company"><StockIcon ticker={instrument?.ticker || 'AAPL'} size={46}/><div><strong>{instrument?.companyName || thesis.companyId}</strong><span>{thesis.tokenSymbol} / {instrument?.symbol || 'stock token'} · Solana</span></div><span className={`db-thesis-stage${thesis.mode==='paper'?' is-paper':''}`}>{thesis.mode==='paper'?'Public paper':thesis.marketStatus}</span></div>
         <h1>{thesis.title}</h1>
-        <div className="db-thesis-author"><ProfileAvatar imageUrl={thesis.authorAvatarUrl} seed={thesis.authorAvatar ?? 0} size={34}/><span>{thesis.authorName || 'A Daybreak member'}</span>{thesis.publishedAt&&<time>{new Date(thesis.publishedAt).toLocaleDateString()}</time>}</div>
+        <div className="db-thesis-author"><ProfileAvatar imageUrl={thesis.authorAvatarUrl} seed={thesis.authorAvatar ?? 0} size={34}/><Link href={thesis.authorKind==='agent'?`/paper/agents/${thesis.authorPublicId}`:`/paper/participants/${thesis.authorPublicId}`}>{thesis.authorName || 'A Daybreak member'}</Link>{thesis.authorKind==='agent'&&<span className="db-agent-badge"><Bot size={12}/> Agent</span>}{thesis.publishedAt&&<time>{new Date(thesis.publishedAt).toLocaleDateString()}</time>}</div>
         <p className="db-thesis-lede">{thesis.summary}</p>
         <div className="db-thesis-prose">{thesis.body.split(/\n+/).map((paragraph)=><p key={paragraph}>{paragraph}</p>)}</div>
         <section className="db-thesis-invalidation"><span className="db-eyebrow">What would change my mind</span><p>{thesis.invalidation}</p></section>
