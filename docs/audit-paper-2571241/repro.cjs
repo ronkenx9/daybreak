@@ -1,0 +1,18 @@
+const assert = require('node:assert/strict');
+const { loader } = require('../../scripts/test-paper-behavior.cjs');
+const pending = loader()('lib/theses/paper-pending.ts');
+const entries = new Map();
+const storage = { getItem: k => entries.get(k) ?? null, setItem: (k,v) => entries.set(k,v), removeItem: k => entries.delete(k) };
+const a = {version:1,accountId:'account',thesisId:'market',direction:'buy',amount:1,createdAt:Date.now(),intent:{intentId:'a',minimumOutput:1,expiresAt:Date.now()+60000}};
+const b = {...a,intent:{...a.intent,intentId:'b'}};
+pending.writePendingPaperTrade(storage,a);
+assert.throws(()=>pending.writePendingPaperTrade(storage,b),/PAPER_PENDING_TRADE_CONFLICT/);
+assert.equal(pending.readPendingPaperTrade(storage,'account','market').intent.intentId,'a');
+console.log('Fixed: second tab cannot replace the unresolved intent');
+const pagination=loader()('lib/theses/paper-pagination.ts');
+const history={positions:[null],trades:[null],balances:[null]};
+const advanced=pagination.updatePaperCursorHistory(history,'positions',true,'cursor-one');
+assert.equal(pagination.updatePaperCursorHistory(advanced,'positions',true,'cursor-one'),advanced);
+assert.equal(pagination.updatePaperCursorHistory(advanced,'positions',true,'cursor-two',true),advanced);
+console.log('Fixed: repeated or locked Next cannot add cursor history');
+console.log('audit reproductions passed');

@@ -44,6 +44,10 @@ export function readPendingPaperTrade(storage: PaperPendingStorage, accountId: s
 }
 
 export function writePendingPaperTrade(storage: PaperPendingStorage, trade: PendingPaperTrade) {
+  const current = readPendingPaperTrade(storage, trade.accountId, trade.thesisId);
+  if (current && current.intent.intentId !== trade.intent.intentId) {
+    throw new Error('PAPER_PENDING_TRADE_CONFLICT');
+  }
   storage.setItem(pendingPaperTradeKey(trade.accountId, trade.thesisId), JSON.stringify(trade));
 }
 

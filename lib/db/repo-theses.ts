@@ -97,10 +97,17 @@ export async function getPublicThesis(idOrSlug: string) {
   return rows[0] ?? null;
 }
 
-export async function createPublicPaperThesis(userId: string, slug: string, companyId: string, input: PublicPaperThesisInput) {
+export async function createPublicPaperThesis(userId: string, slug: string, companyId: string, input: PublicPaperThesisInput, creationIntentId: string) {
   const db = getDb();
   return db.transaction(async (tx) => {
     const now = new Date();
+    const creationIntentHash = createHash('sha256').update(JSON.stringify([companyId, input])).digest('hex');
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${userId + ':' + creationIntentId}, 4))`);
+    const [existing] = await tx.select().from(theses).where(and(eq(theses.authorUserId, userId), eq(theses.creationIntentId, creationIntentId))).limit(1);
+    if (existing) {
+      if (existing.creationIntentHash !== creationIntentHash) throw new Error('PAPER_CREATION_INTENT_REUSED');
+      return existing;
+    }
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${userId}, 2))`);
     const [recent] = await tx.select({ value: count() }).from(theses).where(and(eq(theses.authorUserId, userId), eq(theses.mode, 'paper'), sql`${theses.createdAt} > now() - interval '24 hours'`));
     if (Number(recent?.value??0) >= 5) throw new Error('PAPER_THESIS_DAILY_LIMIT');
@@ -109,6 +116,7 @@ export async function createPublicPaperThesis(userId: string, slug: string, comp
       title: input.title, summary: input.summary, body: input.summary,
       invalidation: 'This is a public simulation. Its activity does not prove the real-world thesis or guarantee a live-market outcome.',
       sources: [], tokenName: input.tokenName, tokenSymbol: input.tokenSymbol,
+      creationIntentId, creationIntentHash,
       mode: 'paper', status: 'published', visibility: 'public', publishedAt: now,
     }).returning();
     await tx.insert(paperThesisMarkets).values({

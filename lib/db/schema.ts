@@ -332,6 +332,8 @@ export const theses = pgTable('theses', {
   sources: jsonb('sources').$type<string[]>().notNull().default([]),
   tokenName: text('token_name').notNull(),
   tokenSymbol: text('token_symbol').notNull(),
+  creationIntentId: uuid('creation_intent_id'),
+  creationIntentHash: text('creation_intent_hash'),
   mode: text('mode').notNull().default('live'), // live | paper
   status: text('status').notNull().default('draft'), // draft|ready|published|withdrawn
   visibility: text('visibility').notNull().default('public'),
@@ -342,6 +344,7 @@ export const theses = pgTable('theses', {
   authorLookup: index('theses_author_idx').on(t.authorUserId),
   companyLookup: index('theses_company_idx').on(t.companyId),
   statusLookup: index('theses_status_idx').on(t.status, t.publishedAt),
+  paperCreationIntent: uniqueIndex('theses_paper_creation_intent_idx').on(t.authorUserId, t.creationIntentId),
 }));
 
 export const thesisMarkets = pgTable('thesis_markets', {

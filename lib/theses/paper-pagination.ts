@@ -9,6 +9,17 @@ export function participantCursor(value: string | null) {
 
 export interface TimeIdCursor { at: Date; id: string }
 
+export type PaperPageKind = 'positions' | 'trades' | 'balances';
+export type PaperCursorHistory = Record<PaperPageKind, Array<string | null>>;
+
+export function updatePaperCursorHistory(history: PaperCursorHistory, kind: PaperPageKind, next: boolean, cursor: string | null, locked = false) {
+  if (locked) return history;
+  const stack = history[kind];
+  if (!next) return stack.length > 1 ? { ...history, [kind]: stack.slice(0, -1) } : history;
+  if (!cursor || stack.at(-1) === cursor) return history;
+  return { ...history, [kind]: [...stack, cursor] };
+}
+
 export function encodeTimeIdCursor(value: { at: Date | string; id: string }) {
   return `${new Date(value.at).toISOString()}|${value.id}`;
 }

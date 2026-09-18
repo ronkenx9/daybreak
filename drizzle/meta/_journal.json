@@ -141,6 +141,13 @@
       "when": 1789734000001,
       "tag": "0019_paper_trade_intents",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1789734000002,
+      "tag": "0020_paper_creation_intents",
+      "breakpoints": true
     }
   ]
 }
