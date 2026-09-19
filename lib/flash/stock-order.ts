@@ -8,11 +8,18 @@ import { solanaConnection } from '@/lib/solana/client';
 import { USDC_SOLANA_MINT } from '@/lib/solana/xstocks-registry';
 
 const BASE = 'https://flash.definitive.fi/v1';
-// Definitive publishes this shared trading key in its AI integration guide.
-// Set DEFINITIVE_FLASH_API_KEY to attribute production traffic to Daybreak.
-const PUBLIC_TRADING_KEY = 'dpka_513a2bd7_57a2_46d2_927b_2a3857fe271b';
 const USDC = new PublicKey(USDC_SOLANA_MINT);
 const DECIMAL = /^(?:0|[1-9]\d{0,7})(?:\.\d{1,8})?$/;
+
+export function flashConfigured(): boolean {
+  return Boolean(process.env.DEFINITIVE_FLASH_API_KEY?.trim());
+}
+
+function flashApiKey(): string {
+  const key = process.env.DEFINITIVE_FLASH_API_KEY?.trim();
+  if (!key) throw new HttpError(503, 'Flash stock orders are not configured yet');
+  return key;
+}
 
 export interface FlashIntent {
   version: 1; userId: string; thesisId: string; wallet: string; mint: string;
@@ -65,10 +72,11 @@ export function flashOrderFields(intent: Pick<FlashIntent, 'wallet'|'mint'|'qty'
 }
 
 export async function flashPost(path: '/quote' | '/order', payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const apiKey = flashApiKey();
   let response: Response;
   try {
     response = await fetch(`${BASE}${path}`, {
-      method: 'POST', headers: { 'content-type': 'application/json', 'x-definitive-api-key': process.env.DEFINITIVE_FLASH_API_KEY || PUBLIC_TRADING_KEY },
+      method: 'POST', headers: { 'content-type': 'application/json', 'x-definitive-api-key': apiKey },
       body: JSON.stringify(payload), cache: 'no-store', signal: AbortSignal.timeout(12_000),
     });
   } catch { throw new HttpError(503, 'Flash is temporarily unreachable'); }
@@ -83,12 +91,13 @@ export async function flashPost(path: '/quote' | '/order', payload: Record<strin
 }
 
 export async function flashOrders(wallet: string): Promise<Record<string, unknown>[]> {
+  const apiKey = flashApiKey();
   let response: Response;
   try {
     const url = new URL(`${BASE}/orders`);
     url.searchParams.set('funderAddress', wallet);
     url.searchParams.set('pageSize', '30');
-    response = await fetch(url, { headers: { 'x-definitive-api-key': process.env.DEFINITIVE_FLASH_API_KEY || PUBLIC_TRADING_KEY }, cache: 'no-store', signal: AbortSignal.timeout(10_000) });
+    response = await fetch(url, { headers: { 'x-definitive-api-key': apiKey }, cache: 'no-store', signal: AbortSignal.timeout(10_000) });
   } catch { throw new HttpError(503, 'Flash orders are temporarily unavailable'); }
   if (!response.ok) throw new HttpError(502, 'Flash orders are temporarily unavailable');
   const data = await response.json().catch(() => null) as { orders?: unknown } | null;

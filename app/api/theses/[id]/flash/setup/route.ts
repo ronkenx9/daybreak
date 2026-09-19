@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import bs58 from 'bs58';
 import { requireUserOwningSolanaWallet, readJsonObject, errorResponse, HttpError } from '@/lib/account/auth-server';
 import { getPublicThesis } from '@/lib/db/repo-theses';
-import { openIntent, verifySignedSetup } from '@/lib/flash/stock-order';
+import { flashConfigured, openIntent, verifySignedSetup } from '@/lib/flash/stock-order';
 import { solanaConnection } from '@/lib/solana/client';
 
 export const dynamic = 'force-dynamic';
@@ -10,6 +10,7 @@ type Context = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: Context) {
   try {
+    if (!flashConfigured()) throw new HttpError(503, 'Flash stock orders are not configured yet');
     const body = await readJsonObject(request, 25_000);
     const intent = openIntent(body.review);
     const { user } = await requireUserOwningSolanaWallet(request, intent.wallet);

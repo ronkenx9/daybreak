@@ -22,16 +22,32 @@ export default function FlashStockOrder({ thesis, instrument }: { thesis: Thesis
   const [busy, setBusy] = useState<'quote'|'submit'|null>(null);
   const [error, setError] = useState('');
   const [receipt, setReceipt] = useState('');
+  const [configured, setConfigured] = useState<boolean | null>(null);
   useEffect(() => { setReview(null); setError(''); }, [amount, limitPrice, thesis.id]);
   useEffect(() => {
-    if (!account.authenticated || !account.solanaWallet) { setOrders([]); return; }
+    let active = true;
+    setConfigured(null);
+    fetch(`/api/theses/${thesis.id}/flash/quote`, { cache: 'no-store' })
+      .then(response => response.ok ? response.json() : null)
+      .then((result: { configured?: boolean } | null) => { if (active) setConfigured(result?.configured === true); })
+      .catch(() => { if (active) setConfigured(false); });
+    return () => { active = false; };
+  }, [thesis.id]);
+  useEffect(() => {
+    if (configured !== true || !account.authenticated || !account.solanaWallet) { setOrders([]); return; }
     let active = true;
     const load = () => authedFetch<{ orders: FlashOrder[] }>(`/api/theses/${thesis.id}/flash/orders?wallet=${encodeURIComponent(account.solanaWallet!)}`).then(data => { if (active) setOrders(data.orders); }).catch(() => {});
     void load();
     const timer = window.setInterval(load, 20_000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [account.authenticated, account.solanaWallet, thesis.id, receipt]);
+  }, [account.authenticated, account.solanaWallet, configured, thesis.id, receipt]);
   if (!instrument || thesis.mode !== 'live') return null;
+
+  if (configured !== true) return <aside className="db-thesis-trade-panel db-flash-stock-order">
+    <span className="db-eyebrow">Act on this thesis · Flash</span>
+    <h2>Buy {instrument.symbol}</h2>
+    <p>{configured === null ? 'Checking stock order availability…' : 'Stock orders through Flash are unavailable while Daybreak finishes its integration setup.'}</p>
+  </aside>;
 
   const quote = async () => {
     if (!account.authenticated) { account.login(); return; }

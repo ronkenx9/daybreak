@@ -3,9 +3,19 @@ import { createPrivateKey, sign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import bs58 from 'bs58';
 import { Keypair, SystemProgram, Transaction } from '@solana/web3.js';
-import { decimalAmount, flashOrderFields, openIntent, sealIntent, verifyOrderSignature, verifySignedSetup } from '../lib/flash/stock-order.ts';
+import { decimalAmount, flashConfigured, flashOrderFields, flashOrders, flashPost, openIntent, sealIntent, verifyOrderSignature, verifySignedSetup } from '../lib/flash/stock-order.ts';
 
 process.env.PRIVY_APP_SECRET = 'flash-test-secret-with-more-than-twenty-characters';
+const originalFlashKey = process.env.DEFINITIVE_FLASH_API_KEY;
+delete process.env.DEFINITIVE_FLASH_API_KEY;
+assert.equal(flashConfigured(), false);
+await assert.rejects(flashPost('/quote', {}), error => error.status === 503);
+await assert.rejects(flashPost('/order', {}), error => error.status === 503);
+await assert.rejects(flashOrders('test-wallet'), error => error.status === 503);
+process.env.DEFINITIVE_FLASH_API_KEY = 'test-integrator-key';
+assert.equal(flashConfigured(), true);
+if (originalFlashKey === undefined) delete process.env.DEFINITIVE_FLASH_API_KEY;
+else process.env.DEFINITIVE_FLASH_API_KEY = originalFlashKey;
 const wallet = Keypair.generate();
 const otherWallet = Keypair.generate();
 const mint = 'XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp';
@@ -52,11 +62,13 @@ assert.throws(() => verifySignedSetup(unsigned, changed.serialize({ requireAllSi
 
 const quoteRoute = readFileSync(new URL('../app/api/theses/[id]/flash/quote/route.ts', import.meta.url), 'utf8');
 const orderRoute = readFileSync(new URL('../app/api/theses/[id]/flash/order/route.ts', import.meta.url), 'utf8');
+const setupRoute = readFileSync(new URL('../app/api/theses/[id]/flash/setup/route.ts', import.meta.url), 'utf8');
 assert.match(quoteRoute, /forceMinimalAllowance: true/);
 assert.match(quoteRoute, /requireUserOwningSolanaWallet/);
 assert.match(quoteRoute, /requireThesisInstrument/);
 assert.match(orderRoute, /verifyOrderSignature/);
 assert.match(orderRoute, /getSignatureStatuses/);
+assert.match(setupRoute, /if \(!flashConfigured\(\)\)/);
 const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
 for (const file of ['lib/flash/stock-order.ts', 'flash/quote/route.ts', 'flash/setup/route.ts', 'flash/order/route.ts', 'flash/orders/route.ts', 'FlashStockOrder.tsx']) assert.ok(readme.includes(file));
 assert.match(readme, /DEFINITIVE_FLASH_API_KEY/);

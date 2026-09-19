@@ -1,11 +1,15 @@
 import { createHash } from 'node:crypto';
 import { requireUserOwningSolanaWallet, readJsonObject, errorResponse, HttpError } from '@/lib/account/auth-server';
 import { getPublicThesis } from '@/lib/db/repo-theses';
-import { buildSetupTransaction, decimalAmount, flashOrderFields, flashPost, sealIntent, type FlashIntent } from '@/lib/flash/stock-order';
+import { buildSetupTransaction, decimalAmount, flashConfigured, flashOrderFields, flashPost, sealIntent, type FlashIntent } from '@/lib/flash/stock-order';
 import { requireThesisInstrument } from '@/lib/theses/instruments';
 
 export const dynamic = 'force-dynamic';
 type Context = { params: Promise<{ id: string }> };
+
+export async function GET() {
+  return Response.json({ configured: flashConfigured() }, { headers: { 'Cache-Control': 'no-store' } });
+}
 
 export async function POST(request: Request, context: Context) {
   try {
