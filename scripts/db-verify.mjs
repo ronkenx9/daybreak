@@ -14,6 +14,7 @@ const expectedTables = [
   'paper_stock_balances', 'paper_positions', 'paper_trades',
   'market_actors', 'agents', 'agent_api_keys', 'agent_policies',
   'agent_budget_windows', 'agent_quotes', 'agent_requests', 'agent_audit_events',
+  'agent_flash_orders',
 ];
 
 if (!databaseUrl) {
@@ -70,7 +71,28 @@ try {
   const invalidActors = Object.entries(actorState ?? {}).filter(([, value]) => Number(value) !== 0);
   if (invalidActors.length) throw new Error(`Actor backfill incomplete: ${invalidActors.map(([key, value]) => `${key}=${value}`).join(', ')}`);
 
-  console.log(`Database ready: ${expectedTables.length} Daybreak tables with RLS enabled; market actor backfill complete.`);
+  const flashColumns = await sql`
+    select column_name from information_schema.columns
+    where table_schema = 'public' and table_name = 'agent_policies'
+      and column_name = any(${['live_flash_enabled', 'live_flash_wallet', 'live_flash_max_usdc_per_order', 'live_flash_daily_usdc']})
+  `;
+  if (flashColumns.length !== 4) throw new Error('Agent Flash policy columns are incomplete');
+
+  const flashIndexes = await sql`
+    select indexname from pg_indexes
+    where schemaname = 'public' and tablename = 'agent_flash_orders'
+      and indexname = any(${['agent_flash_orders_actor_key_idx', 'agent_flash_orders_actor_quote_idx', 'agent_flash_orders_actor_created_idx']})
+  `;
+  if (flashIndexes.length !== 3) throw new Error('Agent Flash order indexes are incomplete');
+
+  const [flashAccess] = await sql`
+    select
+      has_table_privilege('anon', 'public.agent_flash_orders', 'SELECT,INSERT,UPDATE,DELETE') as anon_access,
+      has_table_privilege('authenticated', 'public.agent_flash_orders', 'SELECT,INSERT,UPDATE,DELETE') as authenticated_access
+  `;
+  if (flashAccess?.anon_access || flashAccess?.authenticated_access) throw new Error('Agent Flash order ledger grants direct client access');
+
+  console.log(`Database ready: ${expectedTables.length} Daybreak tables with RLS enabled; market actor backfill and agent Flash schema complete.`);
 } catch (error) {
   console.error(`Database verification failed: ${error instanceof Error ? error.message : 'Unknown database error'}`);
   process.exitCode = 1;
