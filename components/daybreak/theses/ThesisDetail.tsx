@@ -4,6 +4,7 @@ import { ArrowLeft, Beaker, Bookmark, Bot, ExternalLink, Share2, Users } from 'l
 import { ProfileAvatar, StockIcon } from '../Identity';
 import type { ThesisInstrumentView, ThesisView } from './types';
 import ThesisTradePanel from './ThesisTradePanel';
+import FlashStockOrder from './FlashStockOrder';
 
 export default function ThesisDetail({ thesis, instrument, onBack, onSimulate }: { thesis: ThesisView; instrument?: ThesisInstrumentView; onBack?: () => void; onSimulate?: () => void }) {
   const share = async () => {
@@ -24,7 +25,7 @@ export default function ThesisDetail({ thesis, instrument, onBack, onSimulate }:
         {thesis.horizon&&<p className="db-thesis-horizon"><strong>Time horizon</strong>{thesis.horizon}</p>}
         {!!thesis.sources.length&&<section className="db-thesis-sources"><span className="db-eyebrow">Sources</span>{thesis.sources.map((source,index)=><a href={source} target="_blank" rel="noreferrer" key={source}>Source {index+1}<ExternalLink size={13}/></a>)}</section>}
       </article>
-      {thesis.mode==='paper'?<aside className="db-paper-detail-cta"><span className="db-paper-badge"><Users size={14}/> Shared simulation</span><h2>Everyone moves one curve.</h2><p>Trades, positions, paper balances and P/L are public. Join with a simulated allocation and no wallet.</p><dl><div><dt>Public trades</dt><dd>{thesis.paperTradeCount??0}</dd></div><div><dt>Pair</dt><dd>{thesis.tokenSymbol} / {instrument?.symbol}</dd></div><div><dt>Real funds</dt><dd>None</dd></div></dl><button className="db-button db-blue-button" onClick={onSimulate}><Beaker size={16}/> Open public paper market</button></aside>:<ThesisTradePanel thesis={thesis} instrument={instrument}/>}
+      {thesis.mode==='paper'?<aside className="db-paper-detail-cta"><span className="db-paper-badge"><Users size={14}/> Shared simulation</span><h2>Everyone moves one curve.</h2><p>Trades, positions, paper balances and P/L are public. Join with a simulated allocation and no wallet.</p><dl><div><dt>Public trades</dt><dd>{thesis.paperTradeCount??0}</dd></div><div><dt>Pair</dt><dd>{thesis.tokenSymbol} / {instrument?.symbol}</dd></div><div><dt>Real funds</dt><dd>None</dd></div></dl><button className="db-button db-blue-button" onClick={onSimulate}><Beaker size={16}/> Open public paper market</button></aside>:<div className="db-thesis-action-stack"><ThesisTradePanel thesis={thesis} instrument={instrument}/><FlashStockOrder thesis={thesis} instrument={instrument}/></div>}
     </div>
     <div className="db-thesis-actions"><button className="db-button" onClick={share}><Share2 size={16}/> Share thesis</button><button className="db-button" disabled><Bookmark size={16}/> Save</button></div>
   </section>;

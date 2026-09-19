@@ -37,6 +37,7 @@ Electric blue, liquid glass, and plush stock-pin characters give Daybreak its id
 - **Read-only holdings:** connect a supported wallet to inspect balances and oracle-based reference values. Partial reads and missing prices remain visible.
 - **Company news:** attributed GDELT headlines link to their original publishers, with loading, retry, and failure states.
 - **External purchase links:** exact-token Base links hand off to Uniswap. Daybreak does not submit trades.
+- **Flash limit orders for Solana xStocks:** from a live thesis, a signed-in person can quote a USDC-to-stock-token limit order, approve narrowly scoped wallet setup, sign the order, submit it through Definitive Flash, and see recent status. This buys the paired stock token; the thesis-token trade remains a separate Meteora action.
 - **Personal profiles:** six plush character looks, editable profiles, and saved companies.
 - **Account foundation:** Google, Apple, passkey, and wallet login through Privy; server-verified identity and Postgres-backed profiles, bookmarks, and circle membership when configured.
 - **Related token discovery:** a separate Dexscreener-backed experimental lookup. Meme tokens are clearly distinguished from company stock.
@@ -59,6 +60,14 @@ npm run dev
 Open [localhost:3000](http://localhost:3000). The app is at `/app`; your profile is at `/app/profile`.
 
 You can start with an empty `.env.local`. Discovery uses a public Base RPC, news needs no API key, and personal saves stay on the device until the account backend is configured.
+
+### Definitive Flash stock orders
+
+The live Conviction thesis page offers **Buy the stock** for the exact canonical Solana xStock paired with that thesis. Enter a USDC amount and a maximum USDC price per stock token. Flash returns a limit-order quote; the user's Privy-linked Solana wallet signs any first-time token-account/delegation setup and then signs the order message. Daybreak submits the order through Flash and reads its later status from Flash. A limit order may remain open, fill later, or expire after 24 hours. It is distinct from buying the thesis token through the Meteora DBC pool.
+
+The integration uses the [Flash quote API](https://flash.definitive.fi/docs/api-reference/flash/quote), [Solana signing flow](https://flash.definitive.fi/docs/solana-overview), [order API](https://flash.definitive.fi/docs/api-reference/flash/order), and [order status API](https://flash.definitive.fi/docs/api-reference/flash/list-orders). Its implementation is in [`lib/flash/stock-order.ts`](lib/flash/stock-order.ts), [`app/api/theses/[id]/flash/quote/route.ts`](app/api/theses/%5Bid%5D/flash/quote/route.ts), [`setup/route.ts`](app/api/theses/%5Bid%5D/flash/setup/route.ts), [`order/route.ts`](app/api/theses/%5Bid%5D/flash/order/route.ts), [`orders/route.ts`](app/api/theses/%5Bid%5D/flash/orders/route.ts), and [`FlashStockOrder.tsx`](components/daybreak/theses/FlashStockOrder.tsx). The server binds the quote to the authenticated wallet, thesis, canonical stock mint, USDC mint, amount, and limit price; the wallet signs an exact reviewed setup transaction and Ed25519 order message. No live agent order endpoint is enabled.
+
+Set `DEFINITIVE_FLASH_API_KEY` on the server to attribute quotes and orders to your Definitive integrator account. Without it, the server uses Definitive's publicly documented shared trading key. `NEXT_PUBLIC_PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `DATABASE_URL`, and `SOLANA_RPC_URL` are needed for authenticated wallet signing, account verification, and Solana setup confirmation. A real order spends funds; local verification does not sign, broadcast, or submit one.
 
 ### Enable accounts and cross-device persistence
 

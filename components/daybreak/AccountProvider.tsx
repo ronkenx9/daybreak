@@ -1,7 +1,7 @@
 'use client';
 
 import { PrivyProvider, usePrivy, useWallets } from '@privy-io/react-auth';
-import { useWallets as useSolanaWallets, useSignTransaction as useSignSolanaTx, useCreateWallet as useCreateSolWallet } from '@privy-io/react-auth/solana';
+import { useWallets as useSolanaWallets, useSignTransaction as useSignSolanaTx, useSignMessage as useSignSolanaMessage, useCreateWallet as useCreateSolWallet } from '@privy-io/react-auth/solana';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { PRIVY_APP_ID, isAuthConfigured } from '@/lib/account/config';
 import { DAYBREAK_TOKEN, DAYC_TREASURY, isPinSinkConfigured } from '@/lib/base/daybreak-token';
@@ -29,6 +29,7 @@ export interface AccountState {
   solanaWallet: string | null; // first linked Solana wallet (StonkFun launches)
   ensureSolanaWallet: () => Promise<string>; // address, creating embedded on first use
   signSolanaTransaction: (unsignedBase64: string) => Promise<string>; // returns signed tx base64
+  signSolanaMessage: (message: string) => Promise<string>; // Ed25519 signature, base58
 }
 
 // Default = anonymous. This is what the app sees when auth isn't configured, so
@@ -39,6 +40,7 @@ const ANON: AccountState = {
   payDaycPin: async () => { throw new Error("Sign in first"); },
   ensureSolanaWallet: async () => { throw new Error("Sign in first"); },
   signSolanaTransaction: async () => { throw new Error("Sign in first"); },
+  signSolanaMessage: async () => { throw new Error("Sign in first"); },
 };
 
 const b64ToBytes = (b: string) => Uint8Array.from(atob(b), (c) => c.charCodeAt(0));
@@ -52,6 +54,7 @@ function AccountBridge({ children }: { children: ReactNode }) {
   const {wallets} = useWallets();
   const {wallets: solWallets} = useSolanaWallets();
   const {signTransaction: privySignTx} = useSignSolanaTx();
+  const {signMessage: privySignMessage} = useSignSolanaMessage();
   const {createWallet: createSolWallet} = useCreateSolWallet();
   const value = useMemo<AccountState>(() => {
     // Privy's User shape varies by linked method; read it defensively.
@@ -129,8 +132,15 @@ function AccountBridge({ children }: { children: ReactNode }) {
         const out = await privySignTx({ transaction: tx.serialize({ requireAllSignatures: false }), wallet: w });
         return bytesToB64(out.signedTransaction);
       },
+      signSolanaMessage: async (message) => {
+        const w = solWallets[0];
+        if (!w) { await createSolWallet(); throw new Error('Solana wallet created. Sign again to continue.'); }
+        const { signature } = await privySignMessage({ message: new TextEncoder().encode(message), wallet: w });
+        const bs58 = (await import('bs58')).default;
+        return bs58.encode(signature);
+      },
     };
-  }, [ready, authenticated, user, login, logout, linkWallet, wallets, solWallets, privySignTx, createSolWallet]);
+  }, [ready, authenticated, user, login, logout, linkWallet, wallets, solWallets, privySignTx, privySignMessage, createSolWallet]);
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;
 }
 
