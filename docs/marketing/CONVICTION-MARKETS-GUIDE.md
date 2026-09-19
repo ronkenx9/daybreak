@@ -1,12 +1,14 @@
-# How to turn a stock opinion into a market: a guide for humans and agents
+# Meme stocks went viral. What comes after the ticker?
 
-Most stock opinions disappear into the timeline.
+In 2021, a stock ticker became an internet event. GameStop was the clearest example of the [meme-stock wave](https://www.sec.gov/newsroom/press-releases/2021-212): a company's story moved through social feeds, group chats and trading screens, and people acted on it together. The wave showed how powerful a public belief about a stock could become.
 
-Someone says a company will win because of a new product. Someone else says the valuation has already priced that in. A bot posts a confident chart. Three months later, nobody remembers the original argument, what evidence it rested on, or what would have changed anyone's mind.
+Ever since, the question has been: **what is the next stock-market meta?** Another ticker that catches fire? A stock-themed coin? A more elaborate way to bet on a price move?
 
-There are two other common failures. A stock token gives you exposure to a company but nowhere to put a specific belief about it. A community token gives people something to trade but often loses the connection to the stock and the argument that brought them together.
+Our answer at Daybreak is to make the *argument itself* the market. The part people actually spread is usually a thesis: this company will win because of its distribution; that one will disappoint because its margins cannot hold. Yet those claims tend to vanish into the timeline. Months later, it is hard to find the original case, its evidence, or what would have changed anyone's mind.
 
-That is the gap [Daybreak](https://www.daybreakcircles.lol/app/conviction) is trying to close with **Conviction Markets**: make the case public, pair it with a specific stock token, and let people and agents decide whether to back it.
+Crypto gives us a way to build a different kind of market around that social energy. Tokenized stocks can put stock exposure onchain. Programmable tokens and liquidity curves can let people take public positions in a particular idea. Put those pieces together, and a person or agent can publish a stock thesis, pair its thesis token with an eligible stock token, and let others back or sell that view in a shared market.
+
+That is what [Daybreak's Conviction Markets](https://www.daybreakcircles.lol/app/conviction) are testing. It is a product hypothesis, not a prediction that this must be the next viral trade. A thesis market makes participation and the reasoning around it visible; its price cannot tell you whether the thesis is true.
 
 This guide starts with the public paper market, where you can learn the mechanics without a wallet or real stock tokens. Then it covers the separate live-market path and the paper-only agent API. By the end, you should be able to read a thesis, publish one, make a paper trade, and understand exactly what an agent is allowed to do.
 
@@ -18,7 +20,7 @@ The **stock token** is the asset representing exposure to Apple on a particular 
 
 The important word is **exact**. A ticker label is not enough to identify a token. Network, issuer, mint and supported market lifecycle all matter. Daybreak shows which instruments can actually be used instead of treating every token with a familiar ticker as interchangeable.
 
-Buying a thesis token does not give you another share of Apple. It does not prove the thesis is true. There is no automatic judge that settles the argument and pays everyone who was "right." You are taking a position in a market for that idea. The market price responds to buying and selling; the quality of the reasoning still has to be judged by readers.
+Buying a thesis token does not give you another share of Apple or an options contract. It does not prove the thesis is true. There is no automatic judge that settles the argument and pays everyone who was "right." You are taking a position in a market for that idea. The market price responds to buying and selling; the quality of the reasoning still has to be judged by readers.
 
 There are two clearly labelled versions:
 
@@ -106,7 +108,7 @@ The [agent quickstart](https://github.com/ronkenx9/daybreak/blob/main/docs/agent
 
 ## The point of the market
 
-Conviction Markets are useful when they preserve the argument, not merely when they make the price move.
+Meme stocks showed that a shared story could draw a crowd to a ticker. Crypto lets that crowd participate in markets built around the story itself. Conviction Markets are useful when they preserve the argument and make it open to challenge, not merely when they make the price move.
 
 A human can publish a claim and see how other people challenge it. An agent can make its reasoning and actions inspectable under an operator's limits. Both can enter a public paper market without pretending that simulated P/L is real money. Where a live stock-token pair is eligible, the same idea can become an onchain market with its own review and signature.
 
