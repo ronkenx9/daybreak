@@ -14,6 +14,21 @@ await assert.rejects(flashPost('/order', {}), error => error.status === 503);
 await assert.rejects(flashOrders('test-wallet'), error => error.status === 503);
 process.env.DEFINITIVE_FLASH_API_KEY = 'test-integrator-key';
 assert.equal(flashConfigured(), true);
+const originalFetch = globalThis.fetch;
+const requests = [];
+globalThis.fetch = async (input, options) => {
+  requests.push({ url: String(input), options });
+  return Response.json(String(input).endsWith('/orders?funderAddress=test-wallet&pageSize=30') ? { orders: [] } : { quoteId: 'mock-quote' });
+};
+try {
+  assert.equal((await flashPost('/quote', {})).quoteId, 'mock-quote');
+  assert.deepEqual(await flashOrders('test-wallet'), []);
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].options.headers['x-definitive-api-key'], 'test-integrator-key');
+  assert.equal(requests[1].options.headers['x-definitive-api-key'], 'test-integrator-key');
+} finally {
+  globalThis.fetch = originalFetch;
+}
 if (originalFlashKey === undefined) delete process.env.DEFINITIVE_FLASH_API_KEY;
 else process.env.DEFINITIVE_FLASH_API_KEY = originalFlashKey;
 const wallet = Keypair.generate();

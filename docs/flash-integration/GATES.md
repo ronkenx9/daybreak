@@ -20,7 +20,7 @@ Scope: A signed-in Daybreak user can review and submit a wallet-approved Flash l
   CHECK: npm run build
   EXPECT: Compiled successfully
   CWD: ../..
-  EVIDENCE: automatic-evidence=v1; definition-sha256=17992646590e52096726758d5dc47d9ebe277a0e8a47d09114765944f5bfa97e; exit=0; EXPECT=matched; output-sha256=5bbc37d858ea58a2df1e98b4dc3d01159b2292605b2a98f37e17d355302aa8ce; output-bytes=10635; shell=/bin/sh; cwd=/Users/gadgetplug/Documents/vibecoding/dayworld; path=6301b3dce452/22 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=17992646590e52096726758d5dc47d9ebe277a0e8a47d09114765944f5bfa97e; exit=0; EXPECT=matched; output-sha256=296bf3323b5c0b709fdddcb471df5eb86d610cfcd1585909836837bf342877d4; output-bytes=10635; shell=/bin/sh; cwd=/Users/gadgetplug/Documents/vibecoding/dayworld; path=6301b3dce452/22 entries
 
 - [x] G4: The README documents setup, supported scope, exact file pointers, and the live-order boundary.
   CHECK: node --conditions=react-server --import tsx scripts/verify-flash-integration.mjs
