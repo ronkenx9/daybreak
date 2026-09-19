@@ -14,7 +14,7 @@ const fmtPrice = (n: number) => n >= 1 ? `$${n.toLocaleString('en-US', { maximum
 // Interactive OHLCV chart (TradingView lightweight-charts, Apache-2.0): candles/
 // line, crosshair with a price/time tooltip, pan/zoom, volume, timeframes, touch
 // gestures, and a theme that follows the app. Real GeckoTerminal candles only.
-export default function MemeChart({ token, eventTime }: { token: string; up?: boolean; eventTime?: string }) {
+export default function MemeChart({ token, eventTime, markers: extraMarkers }: { token: string; up?: boolean; eventTime?: string; markers?: { time: number; text: string; color?: string }[] }) {
   const [tf, setTf] = useState<Tf>('1H');
   const [kind, setKind] = useState<'candles' | 'line'>('candles');
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -60,11 +60,20 @@ export default function MemeChart({ token, eventTime }: { token: string; up?: bo
     if (kind === 'candles') (priceRef.current as ISeriesApi<'Candlestick'>).setData(pts.map((p) => ({ time: p.t as UTCTimestamp, open: p.o, high: p.h, low: p.l, close: p.c })));
     else (priceRef.current as ISeriesApi<'Line'>).setData(pts.map((p) => ({ time: p.t as UTCTimestamp, value: p.c })));
     volRef.current?.setData(pts.map((p) => ({ time: p.t as UTCTimestamp, value: p.v, color: (p.c >= p.o ? UP : DOWN) + '55' })));
-    const eventSeconds = eventTime ? Math.floor(Date.parse(eventTime) / 1000) : NaN;
-    if (markersRef.current && Number.isFinite(eventSeconds) && pts.length) {
-      const nearest = pts.reduce((best, point) => Math.abs(point.t - eventSeconds) < Math.abs(best.t - eventSeconds) ? point : best);
-      markersRef.current.setMarkers([{ time: nearest.t as UTCTimestamp, position: 'aboveBar', color: '#0210ef', shape: 'circle', text: 'News' }]);
-    } else markersRef.current?.setMarkers([]);
+    if (markersRef.current && pts.length) {
+      const first = pts[0].t, last = pts[pts.length - 1].t;
+      const snap = (secs: number) => pts.reduce((best, point) => Math.abs(point.t - secs) < Math.abs(best.t - secs) ? point : best).t;
+      const marks: { time: UTCTimestamp; position: 'aboveBar' | 'belowBar'; color: string; shape: 'circle'; text: string }[] = [];
+      const eventSeconds = eventTime ? Math.floor(Date.parse(eventTime) / 1000) : NaN;
+      if (Number.isFinite(eventSeconds)) marks.push({ time: snap(eventSeconds) as UTCTimestamp, position: 'aboveBar', color: '#0210ef', shape: 'circle', text: 'News' });
+      // Corporate-action markers: only when the event falls inside the chart's data window.
+      for (const m of extraMarkers ?? []) {
+        if (m.time >= first && m.time <= last) marks.push({ time: snap(m.time) as UTCTimestamp, position: 'belowBar', color: m.color ?? '#c77d19', shape: 'circle', text: m.text });
+      }
+      // lightweight-charts requires markers sorted ascending by time.
+      marks.sort((a, b) => (a.time as number) - (b.time as number));
+      markersRef.current.setMarkers(marks);
+    }
     chartRef.current?.timeScale().fitContent();
   };
 
@@ -102,7 +111,7 @@ export default function MemeChart({ token, eventTime }: { token: string; up?: bo
   }, [kind, themeKey]);
 
   // Repaint when data (timeframe/token) changes.
-  useEffect(() => { paint(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [q.data, eventTime]);
+  useEffect(() => { paint(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [q.data, eventTime, extraMarkers]);
 
   const pts = q.data?.points ?? [];
   const last = pts[pts.length - 1]?.c, first = pts[0]?.c;
