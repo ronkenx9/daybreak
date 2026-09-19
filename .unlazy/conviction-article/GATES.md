@@ -1,20 +1,20 @@
-# Gates: Conviction Markets guide article
+# Gates: Conviction launch explainer
 
-OWNS: docs/marketing/CONVICTION-MARKETS-GUIDE.md, .unlazy/conviction-article/GATES.md
+OWNS: docs/marketing/CONVICTION-MARKETS-GUIDE.md, public/agents/START.md, components/daybreak/agents/AgentManager.tsx, .unlazy/conviction-article/GATES.md
 
-Scope: Produce a publish-ready practical guide to Conviction Markets for human and agent participants in the reference article's approachable roadmap structure.
+Scope: Replace the bulky human guide with a short feature introduction and give agents a separate handoff document that the app can copy.
 
-- [x] G1: A substantial article with actionable human and agent paths exists in the marketing drafts.
-  CHECK: node -e "const s=require('fs').readFileSync('docs/marketing/CONVICTION-MARKETS-GUIDE.md','utf8');if(s.trim().split(/\s+/).length<1200||!s.includes('for humans')||!s.includes('For agents'))process.exit(1);console.log('article structure verified')"
-  EXPECT: article structure verified
+- [x] G1: The human article is short, begins with the recent stock-token conversation, explains a stock-paired thesis with one example, and links the agent handoff before the body.
+  CHECK: node -e "const fs=require('fs');const s=fs.readFileSync('docs/marketing/CONVICTION-MARKETS-GUIDE.md','utf8');const w=s.trim().split(/\s+/).length;if(w>650||!s.slice(0,600).includes('/agents/START.md')||!s.includes('Paper')||!s.includes('Live')||!s.includes('AAPLx'))process.exit(1);console.log('short explainer verified',w)"
+  EXPECT: short explainer verified
   CWD: /Users/gadgetplug/Documents/vibecoding/dayworld
-  EVIDENCE: automatic-evidence=v1; definition-sha256=262e416fea4cce83d32efb1799ce782efc208fdf494736dc86156f18ea4b2b6a; exit=0; EXPECT=matched; output-sha256=261bf304fca0388071578845dedb228cf9fe4793e4c8ae5577b4c5206e1d72bd; output-bytes=27; shell=/bin/sh; cwd=/Users/gadgetplug/Documents/vibecoding/dayworld; path=6301b3dce452/22 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=3777b411b703d7912d3332e92fdef420836c4ad890b35705dd29e0deab246969; exit=0; EXPECT=matched; output-sha256=1c4aac520f702371b006128e109948974161fff5e7208b958541bd231f602864; output-bytes=29; shell=/bin/sh; cwd=/Users/gadgetplug/Documents/vibecoding/dayworld; path=6301b3dce452/22 entries
 
-- [x] G2: Mechanics, limitations, eligibility, links and verified tags match the current app, API guide and primary sources.
-  EVIDENCE: Checked ThesisHub, PaperTradingMode, ThesisComposer, ThesisTradePanel, docs/thesis-markets/PAPER-TRADING.md and public/agents/llms.txt against every participation step; confirmed paper-only agent boundary, 10-unit shared paper allocation, 2% fee, public activity/P&L, live wallet review and optional agent strategy. Canonical app, guide, OpenAPI and GitHub quickstart returned HTTP 200. xStocks eligibility comes from xstocks.com/partner; Meteora launch context from launch.meteora.ag. @valgui1, @xStocksFi, @MeteoraAG and @solana were checked against their own X pages or official project links; @Daybreakcircles is the app footer link.
+- [x] G2: The agent handoff and in-app copy action use one public Markdown file, and it points to runtime capabilities and the full protocol guide.
+  CHECK: node -e "const fs=require('fs');const a=fs.readFileSync('public/agents/START.md','utf8');const u=fs.readFileSync('components/daybreak/agents/AgentManager.tsx','utf8');if(!a.includes('paper-only')||!a.includes('/api/v1/agents/capabilities')||!a.includes('/agents/llms.txt')||!a.includes('Idempotency-Key')||!u.includes(\"fetch('/agents/START.md'\"))process.exit(1);console.log('agent handoff verified')"
+  EXPECT: agent handoff verified
+  CWD: /Users/gadgetplug/Documents/vibecoding/dayworld
+  EVIDENCE: automatic-evidence=v1; definition-sha256=9370b5295dd33289842c06b9b9d5e5cf683914834be842802859cab08a76e954; exit=0; EXPECT=matched; output-sha256=d4afbf43754db6ad878e5f88a023cf700d6c7baf91b92f8690e5b400a96b5ab7; output-bytes=23; shell=/bin/sh; cwd=/Users/gadgetplug/Documents/vibecoding/dayworld; path=6301b3dce452/22 entries
 
-- [x] G3: The writing follows the reference's teaching pattern (problem, plain-language model, staged steps, resources and practical tasks) without copying passages.
-  EVIDENCE: Reviewed the complete 2,609-word draft against the pasted article's teaching pattern. The opening poses a concrete market question, defines the product in plain language, gives staged human and agent routes, and ends major steps with independent practice tasks and a linked resource list. No source passage was reused.
-
-- [x] G4: The opening starts with the meme-stock wave, asks what follows a viral ticker, then explains how crypto market mechanics lead to Daybreak's stock-paired thesis market without promising that it is the inevitable next trend.
-  EVIDENCE: Opening names GameStop and links to the SEC's 2021 meme-stock account, asks "what is the next stock-market meta?", then explains tokenized stocks and programmable thesis markets. It explicitly calls Daybreak's answer a product hypothesis rather than an inevitable next viral trade. The closing returns to this frame, and the mechanics section distinguishes thesis tokens from options contracts.
+- [x] G3: The article reads as a feature announcement for a general audience, not as API documentation, and does not promise automatic gains or live agent trading.
+  EVIDENCE: Read the complete 372-word article after the rewrite. It opens with meme coins, meme stocks, and the recent stock-token conversation; explains Conviction Markets through one AAPLx example; gives a direct Paper call to action; and confines agent details to a one-line handoff link. It says positions can rise or fall, distinguishes Paper from conditional Live, and makes no live-agent claim. The separate Markdown file explicitly says the agent API is paper-only.
