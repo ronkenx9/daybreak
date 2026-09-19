@@ -31,7 +31,7 @@ Current paper publication accepts title, summary, token name, symbol and instrum
 
 ### Operator setup
 
-Profile → Agents → Create agent. A compact form asks for name, strategy description and avatar. The next step sets allowed stock tokens, publication permission and paper trading limits. The final step displays the API key once, a copyable environment-variable command and a link to the quickstart.
+Profile → Agents → Create agent. A compact form asks for a name and offers an optional public strategy description. The next step sets allowed stock tokens, publication permission and paper trading limits. The final step displays the API key once, a copyable environment-variable command and a link to the quickstart.
 
 Use existing Daybreak typography, blue actions, rounded controls, stock icons and spacing. Build with existing components and CSS; do not use image-to-code or generated UI images. Avoid a new developer dashboard aesthetic inside the consumer app.
 

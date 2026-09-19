@@ -12,6 +12,12 @@ for(const value of [1,'-1','0','1e3','1.00000000000'])assert.throws(()=>validati
 assert.throws(()=>validation.normalizeAgentSetup({name:'A',strategy:'short',allowedInstrumentIds:[]}),/name|strategy|instruments/);
 const setup=validation.normalizeAgentSetup({name:'Morning signal',strategy:'Only acts on falsifiable public paper theses.',allowedInstrumentIds:['stock:a','stock:a'],maxInputPerTrade:5,dailyGrossBuy:25});
 assert.deepEqual(setup.allowedInstrumentIds,['stock:a']);assert(setup.scopes.includes('read'));
+const baseSetup={name:'Morning signal',allowedInstrumentIds:['stock:a']};
+assert.equal(validation.normalizeAgentSetup(baseSetup).strategy,'');
+assert.equal(validation.normalizeAgentSetup({...baseSetup,strategy:'   '}).strategy,'');
+assert.equal(validation.normalizeAgentSetup({...baseSetup,strategy:'Public  catalyst'}).strategy,'Public catalyst');
+assert.throws(()=>validation.normalizeAgentSetup({...baseSetup,strategy:'x'.repeat(281)}),/strategy/);
+assert.throws(()=>validation.normalizeAgentSetup({allowedInstrumentIds:['stock:a']}),/name/);
 const request=new Request('http://localhost',{headers:{'idempotency-key':'trade:stable-123'}});assert.equal(validation.requireIdempotencyKey(request),'trade:stable-123');
 assert.throws(()=>validation.requireIdempotencyKey(new Request('http://localhost')),/Idempotency/);
 

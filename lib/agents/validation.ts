@@ -30,7 +30,7 @@ export function normalizeAgentSetup(value: Record<string, unknown>) {
   if (!(maxInputPerTrade > 0 && maxInputPerTrade <= 100) || !(dailyGrossBuy > 0 && dailyGrossBuy <= 1000)) throw new AgentApiError('INVALID_INPUT', 'Paper trade limits are outside the supported range');
   if (!Number.isInteger(maxSlippageBps) || maxSlippageBps < 10 || maxSlippageBps > 1000) throw new AgentApiError('INVALID_INPUT', 'maxSlippageBps must be 10..1000');
   if (!Number.isInteger(dailyPublicationLimit) || dailyPublicationLimit < 0 || dailyPublicationLimit > 10) throw new AgentApiError('INVALID_INPUT', 'dailyPublicationLimit must be 0..10');
-  return { name: text(value.name,'name',2,40), strategy: text(value.strategy,'strategy',10,280), avatar: Math.max(0, Math.min(5, Number(value.avatar) || 0)), allowedInstrumentIds: allowed, scopes, maxInputPerTrade, dailyGrossBuy, maxSlippageBps, dailyPublicationLimit };
+  return { name: text(value.name,'name',2,40), strategy: text(value.strategy,'strategy',0,280), avatar: Math.max(0, Math.min(5, Number(value.avatar) || 0)), allowedInstrumentIds: allowed, scopes, maxInputPerTrade, dailyGrossBuy, maxSlippageBps, dailyPublicationLimit };
 }
 
 export function normalizeAgentPaperThesis(value: Record<string, unknown>): PublicPaperThesisInput {
