@@ -4,6 +4,7 @@ out/
 .vercel/
 .env
 .env.*
+.daybreak/
 !.env.example
 *.tsbuildinfo
 *.log

@@ -2,16 +2,16 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import { and, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { getDb } from './client';
-import { agentApiKeys, agentAuditEvents, agentBudgetWindows, agentPolicies, agentQuotes, agentRequests, agents, marketActors, paperActivityLimits, paperPositions, paperStockBalances, paperThesisMarkets, paperTrades, profiles, theses, users } from './schema';
+import { agentApiKeys, agentAuditEvents, agentBudgetWindows, agentFlashOrders, agentPolicies, agentQuotes, agentRequests, agents, marketActors, paperActivityLimits, paperPositions, paperStockBalances, paperThesisMarkets, paperTrades, profiles, theses, users } from './schema';
 import { createAgentKey, parseAgentKey } from '@/lib/agents/keys';
 import { AgentApiError } from '@/lib/agents/errors';
 import { PAPER_STARTING_BASE_RESERVE, PAPER_STARTING_QUOTE_RESERVE, PAPER_STARTING_STOCK_BALANCE, paperExitMetrics, paperPositionMetrics, paperSpotPrice, quotePaperTrade, validatePaperTradePrecision, type PaperDirection, type PublicPaperThesisInput } from '@/lib/theses/paper';
 
-export type AgentScope = 'read' | 'paper:publish' | 'paper:trade';
+export type AgentScope = 'read' | 'paper:publish' | 'paper:trade' | 'live:flash';
 export interface AgentPrincipal {
   actorId: string; publicId: string; agentId: string; ownerUserId: string; name: string; strategy: string; avatar: number;
   status: string; policyVersion: number; keyId: string; keyPrefix: string; scopes: string[];
-  policy: { allowedInstrumentIds: string[]; canPublish: boolean; maxInputPerTrade: number; dailyGrossBuy: number; maxSlippageBps: number; dailyPublicationLimit: number };
+  policy: { allowedInstrumentIds: string[]; canPublish: boolean; maxInputPerTrade: number; dailyGrossBuy: number; maxSlippageBps: number; dailyPublicationLimit: number; liveFlashEnabled: boolean; liveFlashWallet: string | null; liveFlashMaxUsdcPerOrder: number; liveFlashDailyUsdc: number };
 }
 
 const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -63,6 +63,10 @@ export async function rotateOwnedAgentKey(ownerUserId: string, agentId: string, 
   return getDb().transaction(async (tx) => {
     const [agent] = await tx.select().from(agents).where(and(eq(agents.id, agentId), eq(agents.ownerUserId, ownerUserId))).limit(1);
     if (!agent || agent.status === 'revoked') throw new AgentApiError('NOT_FOUND', 'Agent not found', 404);
+    if (scopes.includes('live:flash')) {
+      const [policy] = await tx.select().from(agentPolicies).where(eq(agentPolicies.agentId, agentId)).limit(1);
+      if (!policy?.liveFlashEnabled || !policy.liveFlashWallet) throw new AgentApiError('SCOPE_REQUIRED', 'Enable a bound Flash wallet before issuing a live key', 403);
+    }
     await tx.update(agentApiKeys).set({ revokedAt: new Date() }).where(and(eq(agentApiKeys.agentId, agentId), isNull(agentApiKeys.revokedAt)));
     const [key] = await tx.insert(agentApiKeys).values({ agentId, prefix: credential.prefix, secretDigest: credential.digest, scopes }).returning({ id: agentApiKeys.id, prefix: agentApiKeys.prefix, scopes: agentApiKeys.scopes, createdAt: agentApiKeys.createdAt });
     return { key, apiKey: credential.value };
@@ -84,7 +88,7 @@ export async function authenticateAgentKey(rawKey: string): Promise<AgentPrincip
     .where(and(eq(agentApiKeys.prefix, parsed.prefix), eq(agentApiKeys.secretDigest, parsed.digest))).limit(1);
   if (!row || row.key.revokedAt || (row.key.expiresAt && row.key.expiresAt <= new Date()) || row.agent.status === 'revoked') throw new AgentApiError('KEY_REVOKED', 'This agent key is invalid, expired or revoked', 401);
   await db.update(agentApiKeys).set({ lastUsedAt: new Date() }).where(eq(agentApiKeys.id, row.key.id));
-  return { actorId: row.actor.id, publicId: row.actor.publicId, agentId: row.agent.id, ownerUserId: row.agent.ownerUserId, name: row.agent.name, strategy: row.agent.strategy, avatar: row.agent.avatar, status: row.agent.status, policyVersion: row.agent.policyVersion, keyId: row.key.id, keyPrefix: row.key.prefix, scopes: row.key.scopes, policy: { allowedInstrumentIds: row.policy.allowedInstrumentIds, canPublish: row.policy.canPublish, maxInputPerTrade: row.policy.maxInputPerTrade, dailyGrossBuy: row.policy.dailyGrossBuy, maxSlippageBps: row.policy.maxSlippageBps, dailyPublicationLimit: row.policy.dailyPublicationLimit } };
+  return { actorId: row.actor.id, publicId: row.actor.publicId, agentId: row.agent.id, ownerUserId: row.agent.ownerUserId, name: row.agent.name, strategy: row.agent.strategy, avatar: row.agent.avatar, status: row.agent.status, policyVersion: row.agent.policyVersion, keyId: row.key.id, keyPrefix: row.key.prefix, scopes: row.key.scopes, policy: { allowedInstrumentIds: row.policy.allowedInstrumentIds, canPublish: row.policy.canPublish, maxInputPerTrade: row.policy.maxInputPerTrade, dailyGrossBuy: row.policy.dailyGrossBuy, maxSlippageBps: row.policy.maxSlippageBps, dailyPublicationLimit: row.policy.dailyPublicationLimit, liveFlashEnabled: row.policy.liveFlashEnabled, liveFlashWallet: row.policy.liveFlashWallet, liveFlashMaxUsdcPerOrder: row.policy.liveFlashMaxUsdcPerOrder, liveFlashDailyUsdc: row.policy.liveFlashDailyUsdc } };
 }
 
 export function requireAgentScope(principal: AgentPrincipal, scope: AgentScope) {
@@ -205,7 +209,63 @@ export async function getAgentRequest(principal: AgentPrincipal, idempotencyKey:
 
 export async function getAgentLimits(principal: AgentPrincipal) {
   const rows = await getDb().select().from(agentBudgetWindows).where(and(eq(agentBudgetWindows.actorId, principal.actorId), sql`${agentBudgetWindows.windowStart}=current_date`));
-  return { policy: principal.policy, usage: rows, resetsAt: new Date(new Date().setUTCHours(24,0,0,0)).toISOString() };
+  const [flash] = await getDb().select({ total: sql<string>`coalesce(sum(${agentFlashOrders.amountUsdc}), 0)`, count: count() }).from(agentFlashOrders).where(and(eq(agentFlashOrders.actorId, principal.actorId), sql`${agentFlashOrders.createdAt} >= date_trunc('day', now() at time zone 'UTC') at time zone 'UTC'`));
+  return { policy: principal.policy, usage: rows, flashUsage: { reservedUsdc: Number(flash?.total ?? 0), orderAttempts: Number(flash?.count ?? 0) }, resetsAt: new Date(new Date().setUTCHours(24,0,0,0)).toISOString() };
+}
+
+export async function configureOwnedAgentFlash(ownerUserId: string, agentId: string, input: { enabled: boolean; wallet: string | null; maxUsdcPerOrder: number; dailyUsdc: number }) {
+  return getDb().transaction(async tx => {
+    const [agent] = await tx.select().from(agents).where(and(eq(agents.id, agentId), eq(agents.ownerUserId, ownerUserId))).limit(1);
+    if (!agent || agent.status === 'revoked') throw new AgentApiError('NOT_FOUND', 'Agent not found', 404);
+    const [policy] = await tx.update(agentPolicies).set({ liveFlashEnabled: input.enabled, liveFlashWallet: input.enabled ? input.wallet : null, liveFlashMaxUsdcPerOrder: input.maxUsdcPerOrder, liveFlashDailyUsdc: input.dailyUsdc, updatedAt: new Date() }).where(eq(agentPolicies.agentId, agentId)).returning();
+    await tx.update(agents).set({ policyVersion: sql`${agents.policyVersion}+1`, updatedAt: new Date() }).where(eq(agents.id, agentId));
+    return policy;
+  });
+}
+
+export type AgentFlashIntent = { actorId: string; policyVersion: number; thesisId: string; instrumentId: string; wallet: string; mint: string; qty: string; limitCrossPrice: string; quoteId: string; orderMessage: string; nonce: string; deadline: string; expireTime: string; setupMessageHash: string | null; issuedAt: number };
+
+export function assertAgentFlashPolicy(principal: AgentPrincipal, input: Pick<AgentFlashIntent, 'instrumentId'|'wallet'|'qty'|'policyVersion'>) {
+  if (!principal.policy.liveFlashEnabled || !principal.policy.liveFlashWallet || input.wallet !== principal.policy.liveFlashWallet) throw new AgentApiError('SCOPE_REQUIRED', 'This agent has no enabled Flash wallet', 403);
+  if (!principal.policy.allowedInstrumentIds.includes(input.instrumentId)) throw new AgentApiError('INSTRUMENT_DISABLED', 'This stock token is outside the agent policy', 403);
+  if (input.policyVersion !== principal.policyVersion || Number(input.qty) > principal.policy.liveFlashMaxUsdcPerOrder) throw new AgentApiError('BUDGET_EXCEEDED', 'The live order exceeds the current agent policy; request a new quote', 409);
+}
+
+export async function assertCurrentAgentFlashPolicy(principal: AgentPrincipal, input: Pick<AgentFlashIntent, 'instrumentId'|'wallet'|'qty'|'policyVersion'>) {
+  const [current] = await getDb().select({ agent: agents, key: agentApiKeys, policy: agentPolicies }).from(agents).innerJoin(agentApiKeys, eq(agentApiKeys.agentId, agents.id)).innerJoin(agentPolicies, eq(agentPolicies.agentId, agents.id)).where(and(eq(agents.id, principal.agentId), eq(agentApiKeys.id, principal.keyId))).limit(1);
+  if (!current || current.agent.status !== 'active' || current.key.revokedAt || (current.key.expiresAt && current.key.expiresAt <= new Date()) || !current.key.scopes.includes('live:flash') || !current.policy.liveFlashEnabled || current.policy.liveFlashWallet !== input.wallet || current.agent.policyVersion !== input.policyVersion || !current.policy.allowedInstrumentIds.includes(input.instrumentId) || Number(input.qty) > current.policy.liveFlashMaxUsdcPerOrder) throw new AgentApiError('SCOPE_REQUIRED', 'Live Flash permission changed; request a new quote', 403);
+}
+
+export async function reserveAgentFlashOrder(principal: AgentPrincipal, intent: AgentFlashIntent, idempotencyKey: string, requestHash: string) {
+  return getDb().transaction(async tx => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${principal.actorId}, 12))`);
+    const [current] = await tx.select({ agent: agents, key: agentApiKeys, policy: agentPolicies }).from(agents).innerJoin(agentApiKeys, eq(agentApiKeys.agentId, agents.id)).innerJoin(agentPolicies, eq(agentPolicies.agentId, agents.id)).where(and(eq(agents.id, principal.agentId), eq(agentApiKeys.id, principal.keyId))).limit(1);
+    if (!current || current.agent.status !== 'active' || current.key.revokedAt || (current.key.expiresAt && current.key.expiresAt <= new Date()) || !current.key.scopes.includes('live:flash')) throw new AgentApiError('SCOPE_REQUIRED', 'This live agent key is inactive', 403);
+    const policy = current.policy;
+    if (!policy.liveFlashEnabled || policy.liveFlashWallet !== intent.wallet || current.agent.policyVersion !== intent.policyVersion || !policy.allowedInstrumentIds.includes(intent.instrumentId) || Number(intent.qty) > policy.liveFlashMaxUsdcPerOrder) throw new AgentApiError('BUDGET_EXCEEDED', 'The live order exceeds the current agent policy; request a new quote', 409);
+    const [existing] = await tx.select().from(agentFlashOrders).where(and(eq(agentFlashOrders.actorId, principal.actorId), eq(agentFlashOrders.idempotencyKey, idempotencyKey))).limit(1);
+    if (existing) {
+      if (existing.requestHash !== requestHash) throw new AgentApiError('IDEMPOTENCY_CONFLICT', 'This key was used for another live order', 409);
+      return { created: false, order: existing };
+    }
+    const [sameQuote] = await tx.select({ id: agentFlashOrders.id }).from(agentFlashOrders).where(and(eq(agentFlashOrders.actorId, principal.actorId), eq(agentFlashOrders.quoteId, intent.quoteId))).limit(1);
+    if (sameQuote) throw new AgentApiError('IDEMPOTENCY_CONFLICT', 'This Flash quote has already been submitted', 409);
+    const [spent] = await tx.select({ total: sql<string>`coalesce(sum(${agentFlashOrders.amountUsdc}), 0)` }).from(agentFlashOrders).where(and(eq(agentFlashOrders.actorId, principal.actorId), sql`${agentFlashOrders.createdAt} >= date_trunc('day', now() at time zone 'UTC') at time zone 'UTC'`));
+    if (Number(spent?.total ?? 0) + Number(intent.qty) > policy.liveFlashDailyUsdc) throw new AgentApiError('BUDGET_EXCEEDED', 'The live order exceeds this agent’s daily USDC allowance', 409);
+    const [order] = await tx.insert(agentFlashOrders).values({ actorId: principal.actorId, thesisId: intent.thesisId, instrumentId: intent.instrumentId, wallet: intent.wallet, quoteId: intent.quoteId, idempotencyKey, requestHash, amountUsdc: Number(intent.qty) }).returning();
+    await tx.insert(agentAuditEvents).values({ actorId: principal.actorId, keyPrefix: principal.keyPrefix, operation: 'live:flash:reserve', resultCode: 'reserved', requestId: order.id });
+    return { created: true, order };
+  });
+}
+
+export async function markAgentFlashOrder(principal: AgentPrincipal, id: string, orderId: string | null) {
+  const [order] = await getDb().update(agentFlashOrders).set({ status: orderId ? 'submitted' : 'unknown', flashOrderId: orderId, updatedAt: new Date() }).where(and(eq(agentFlashOrders.id, id), eq(agentFlashOrders.actorId, principal.actorId))).returning();
+  if (orderId) await getDb().insert(agentAuditEvents).values({ actorId: principal.actorId, keyPrefix: principal.keyPrefix, operation: 'live:flash:order', resultCode: 'submitted', requestId: id });
+  return order;
+}
+
+export async function listAgentFlashOrders(principal: AgentPrincipal) {
+  return getDb().select({ id: agentFlashOrders.id, thesisId: agentFlashOrders.thesisId, instrumentId: agentFlashOrders.instrumentId, wallet: agentFlashOrders.wallet, amountUsdc: agentFlashOrders.amountUsdc, status: agentFlashOrders.status, flashOrderId: agentFlashOrders.flashOrderId, idempotencyKey: agentFlashOrders.idempotencyKey, createdAt: agentFlashOrders.createdAt }).from(agentFlashOrders).where(eq(agentFlashOrders.actorId, principal.actorId)).orderBy(desc(agentFlashOrders.createdAt)).limit(50);
 }
 
 export async function getPublicAgentProfile(publicId: string) {

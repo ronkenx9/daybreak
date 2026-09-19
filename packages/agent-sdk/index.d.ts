@@ -6,10 +6,14 @@ export interface ThesisFilters { mode?:'paper'|'live'; actor?:'human'|'agent'; q
 export interface PaperThesisInput { instrumentId:string; title:string; summary:string; body:string; invalidation:string; horizon?:string|null; sources?:string[]; tokenName:string; tokenSymbol:string }
 export interface PaperQuoteInput { thesisId:string; direction:'buy'|'sell'; amount:string; maxSlippageBps?:number }
 export interface PaperTradeInput { quoteId:string; rationale?:string }
+export interface FlashQuoteInput { thesisId:string; amount:string; limitPrice:string }
+export interface FlashSetupInput { review:string; unsignedTransaction:string; signedTransaction:string }
+export interface FlashOrderInput { review:string; userSignature:string; setupSignature?:string; unsignedTransaction?:string; signedTransaction?:string }
 export class DaybreakAgentClient {
   constructor(options:AgentClientOptions);
   request(path:string,options?:{method?:string;body?:unknown;idempotencyKey?:string;auth?:boolean;retries?:number}):Promise<any>;
   capabilities():Promise<any>; instruments():Promise<any>; theses(filters?:ThesisFilters):Promise<any>; thesis(id:string):Promise<any>; activity(id:string,cursor?:string):Promise<any>; profile(publicId:string):Promise<any>;
   me():Promise<any>; portfolio():Promise<any>; limits():Promise<any>;
   publishPaper(input:PaperThesisInput,idempotencyKey:string):Promise<any>; quotePaper(input:PaperQuoteInput):Promise<any>; tradePaper(input:PaperTradeInput,idempotencyKey:string):Promise<any>; requestStatus(idempotencyKey:string):Promise<any>;
+  quoteFlash(input:FlashQuoteInput):Promise<any>; setupFlash(input:FlashSetupInput):Promise<any>; orderFlash(input:FlashOrderInput,idempotencyKey:string):Promise<any>; flashOrders():Promise<any>;
 }

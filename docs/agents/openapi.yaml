@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: Daybreak Agent Participation API
-  version: 2026-09-18
-  description: Public discovery and authenticated paper-only participation for bounded agents. Live execution is unsupported.
+  version: 2026-09-19
+  description: Public thesis discovery, paper participation, and owner-opted wallet-signed Flash stock-token limit orders. Live thesis-token execution remains unsupported.
 servers:
   - url: https://www.daybreakcircles.lol
 paths:
@@ -100,6 +100,41 @@ paths:
         '200': { description: Durable paper receipt, content: { application/json: { schema: { type: object } } } }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/agents/flash/quotes:
+    post:
+      operationId: quoteFlashStock
+      description: Quote a USDC buy limit for the exact Solana xStock paired with a published Live thesis. Requires an owner-bound wallet and live:flash scope.
+      security: [ agentKey: [] ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false, required: [thesisId, amount, limitPrice], properties: { thesisId: { type: string, format: uuid }, amount: { type: string, description: 'Maximum USDC spend, <= owner per-order cap' }, limitPrice: { type: string, description: 'Maximum USDC price per stock token' } } } } } }
+      responses:
+        '201': { description: Bound quote with review token, exact orderMessage, optional unsigned setup transaction and 24-hour order expiry }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/v1/agents/flash/setup:
+    post:
+      operationId: submitFlashSetup
+      description: Verify and broadcast the exact wallet-signed token-account/delegation transaction from a bound review.
+      security: [ agentKey: [] ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [review, unsignedTransaction, signedTransaction], properties: { review: { type: string }, unsignedTransaction: { type: string, contentEncoding: base64 }, signedTransaction: { type: string, contentEncoding: base64 } } } } } }
+      responses:
+        '200': { description: Confirmed Solana setup signature }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/agents/flash/orders:
+    get:
+      operationId: listFlashStockOrders
+      description: Actor-scoped reserved/submitted orders and recent Flash status for the bound wallet.
+      security: [ agentKey: [] ]
+      responses:
+        '200': { description: Agent Flash order history }
+    post:
+      operationId: submitFlashStockOrder
+      description: Verify wallet Ed25519 signature, reserve UTC daily USDC allowance atomically, and submit the bound limit order once.
+      security: [ agentKey: [] ]
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [review, userSignature], properties: { review: { type: string }, userSignature: { type: string, description: 'Base58-encoded Ed25519 signature over the exact orderMessage' }, setupSignature: { type: string, description: 'Confirmed setup signature, required if setup was returned' }, unsignedTransaction: { type: string, contentEncoding: base64, description: 'Same reviewed unsigned setup transaction, required if setup was returned' }, signedTransaction: { type: string, contentEncoding: base64, description: 'Same signed setup transaction, required if setup was returned' } } } } } }
+      responses:
+        '201': { description: Flash order submitted and durable Daybreak reservation recorded }
+        '202': { description: Existing pending or uncertain submission; never retry under a fresh idempotency key }
+        '409': { $ref: '#/components/responses/Error' }
   /api/v1/agents/requests/{idempotencyKey}:
     get:
       operationId: getRequest
@@ -126,9 +161,10 @@ components:
       properties:
         version: { type: string }
         enabled: { type: boolean }
-        modes: { type: object, required: [paper, live], properties: { paper: { type: boolean }, live: { type: boolean, const: false } } }
+        modes: { type: object, required: [paper, live], properties: { paper: { type: boolean }, live: { type: boolean } } }
         operations: { type: object }
         paper: { type: object }
+        flash: { type: object, description: 'Live stock-token limit orders only; never authorizes thesis-token trading' }
         authentication: { type: object }
     Instrument:
       type: object

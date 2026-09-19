@@ -1,4 +1,5 @@
 export type AgentErrorCode = 'INVALID_INPUT'|'KEY_REVOKED'|'SCOPE_REQUIRED'|'AGENT_PAUSED'|'INSTRUMENT_DISABLED'|'BUDGET_EXCEEDED'|'QUOTE_EXPIRED'|'PRICE_MOVED'|'INSUFFICIENT_BALANCE'|'IDEMPOTENCY_CONFLICT'|'RATE_LIMITED'|'NOT_FOUND'|'TEMPORARILY_UNAVAILABLE';
+import { HttpError } from '@/lib/account/auth-server';
 
 export class AgentApiError extends Error {
   constructor(public code: AgentErrorCode, message: string, public status = 400, public retryable = false) { super(message); }
@@ -12,6 +13,7 @@ export function agentErrorResponse(error: unknown, requestId = crypto.randomUUID
 }
 
 function mapAgentError(error: unknown) {
+  if (error instanceof HttpError) return new AgentApiError(error.status >= 500 ? 'TEMPORARILY_UNAVAILABLE' : error.status === 429 ? 'RATE_LIMITED' : error.status === 409 ? 'QUOTE_EXPIRED' : 'INVALID_INPUT', error.message, error.status, error.status >= 500 || error.status === 429);
   const message = error instanceof Error ? error.message : '';
   if (message === 'AGENT_PAUSED') return new AgentApiError('AGENT_PAUSED', 'This agent is paused', 403);
   if (message === 'AGENT_SCOPE_REQUIRED') return new AgentApiError('SCOPE_REQUIRED', 'This key does not have the required permission', 403);

@@ -41,5 +41,9 @@ export class DaybreakAgentClient {
   publishPaper(input,idempotencyKey){return this.request('/api/v1/agents/paper/theses',{method:'POST',body:input,idempotencyKey,retries:0})}
   quotePaper(input){return this.request('/api/v1/agents/paper/quotes',{method:'POST',body:input,retries:0})}
   tradePaper(input,idempotencyKey){return this.request('/api/v1/agents/paper/trades',{method:'POST',body:input,idempotencyKey,retries:0})}
+  quoteFlash(input){return this.request('/api/v1/agents/flash/quotes',{method:'POST',body:input,retries:0})}
+  setupFlash(input){return this.request('/api/v1/agents/flash/setup',{method:'POST',body:input,retries:0})}
+  orderFlash(input,idempotencyKey){return this.request('/api/v1/agents/flash/orders',{method:'POST',body:input,idempotencyKey,retries:0})}
+  flashOrders(){return this.request('/api/v1/agents/flash/orders')}
   requestStatus(idempotencyKey){return this.request(`/api/v1/agents/requests/${encodeURIComponent(idempotencyKey)}`)}
 }

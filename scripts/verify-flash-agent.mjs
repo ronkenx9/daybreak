@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import { readFileSync, existsSync } from 'node:fs';
+import { Keypair } from '@solana/web3.js';
+import { assertAgentFlashPolicy } from '../lib/db/repo-agents.ts';
+import { openIntent, sealIntent, verifyOrderSignature } from '../lib/flash/stock-order.ts';
+
+process.env.PRIVY_APP_SECRET = 'flash-agent-test-secret-more-than-twenty-characters';
+const wallet = Keypair.generate();
+const agent = { actorId: crypto.randomUUID(), policyVersion: 4, policy: { allowedInstrumentIds: ['solana:mainnet:aapl'], liveFlashEnabled: true, liveFlashWallet: wallet.publicKey.toBase58(), liveFlashMaxUsdcPerOrder: 5, liveFlashDailyUsdc: 10 } };
+const terms = { instrumentId: 'solana:mainnet:aapl', wallet: wallet.publicKey.toBase58(), qty: '2', policyVersion: 4 };
+assertAgentFlashPolicy(agent, terms);
+for (const changed of [{ ...terms, wallet: Keypair.generate().publicKey.toBase58() }, { ...terms, instrumentId: 'solana:mainnet:tsla' }, { ...terms, qty: '6' }, { ...terms, policyVersion: 3 }]) assert.throws(() => assertAgentFlashPolicy(agent, changed));
+assert.throws(() => assertAgentFlashPolicy({ ...agent, policy: { ...agent.policy, liveFlashEnabled: false } }, terms));
+const intent = { version: 1, userId: `agent:${agent.actorId}`, actorId: agent.actorId, policyVersion: 4, instrumentId: terms.instrumentId, thesisId: crypto.randomUUID(), wallet: terms.wallet, mint: Keypair.generate().publicKey.toBase58(), qty: terms.qty, limitCrossPrice: '250', quoteId: 'q_agent_test', orderMessage: 'Buy exact paired stock token', nonce: '123', deadline: String(Math.floor(Date.now()/1000)+300), expireTime: new Date(Date.now()+86_400_000).toISOString(), setupMessageHash: null, issuedAt: Date.now() };
+assert.deepEqual(openIntent(sealIntent(intent)), intent);
+assert.throws(() => openIntent(sealIntent({ ...intent, issuedAt: Date.now()-11*60_000 })), /expired/);
+assert.throws(() => verifyOrderSignature(intent.orderMessage, 'bad-signature', wallet.publicKey.toBase58()));
+
+const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+for (const path of ['drizzle/0023_agent_flash_orders.sql', 'app/api/v1/agents/flash/quotes/route.ts', 'app/api/v1/agents/flash/setup/route.ts', 'app/api/v1/agents/flash/orders/route.ts', 'app/api/me/agents/[id]/flash/route.ts', 'docs/agents/QUICKSTART.md', 'public/agents/llms.txt', 'docs/agents/openapi.yaml', 'public/agents/openapi.yaml']) assert(existsSync(new URL(`../${path}`, import.meta.url)), `Missing ${path}`);
+assert.match(read('app/api/v1/agents/flash/quotes/route.ts'), /requireFlashAgent\(request\)/);
+assert.match(read('app/api/v1/agents/flash/quotes/route.ts'), /forceMinimalAllowance: true/);
+assert.match(read('app/api/v1/agents/flash/orders/route.ts'), /requireIdempotencyKey\(request\)/);
+assert.match(read('app/api/v1/agents/flash/orders/route.ts'), /verifyOrderSignature\(intent.orderMessage, userSignature, intent.wallet\)/);
+assert.match(read('lib/db/repo-agents.ts'), /pg_advisory_xact_lock/);
+assert.match(read('lib/db/repo-agents.ts'), /liveFlashDailyUsdc/);
+assert.match(read('app/api/me/agents/[id]/keys/route.ts'), /live:flash/);
+assert.match(read('docs/agents/QUICKSTART.md'), /real USDC/i);
+assert.match(read('public/agents/llms.txt'), /live:flash/);
+assert.match(read('docs/agents/openapi.yaml'), /\/api\/v1\/agents\/flash\/orders:/);
+assert.equal(read('docs/agents/openapi.yaml'), read('public/agents/openapi.yaml'));
+console.log('flash agent verification passed');

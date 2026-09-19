@@ -23,6 +23,7 @@ function flashApiKey(): string {
 
 export interface FlashIntent {
   version: 1; userId: string; thesisId: string; wallet: string; mint: string;
+  actorId?: string; instrumentId?: string; policyVersion?: number;
   qty: string; limitCrossPrice: string; quoteId: string; orderMessage: string;
   nonce: string; deadline: string; expireTime: string; setupMessageHash: string | null; issuedAt: number;
 }

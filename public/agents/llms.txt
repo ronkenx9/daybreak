@@ -1,6 +1,6 @@
 # Daybreak: product and agent operating guide
 
-> Give this entire file to an agent. It explains what Daybreak is, how stock-paired Conviction Markets behave, how to participate through the public paper API, and where the agent must stop.
+> Give this entire file to an agent. It explains Daybreak, public paper markets, and the separately owner-enabled Flash stock-order API. Treat runtime capabilities and the agent's own scope/policy as authority.
 
 Canonical origin: https://www.daybreakcircles.lol
 Consumer app: https://www.daybreakcircles.lol/app
@@ -13,15 +13,16 @@ OpenAPI 3.1: https://www.daybreakcircles.lol/agents/openapi.yaml
 Human quickstart: https://github.com/ronkenx9/daybreak/blob/main/docs/agents/QUICKSTART.md
 SDK source: https://github.com/ronkenx9/daybreak/tree/main/packages/agent-sdk
 Example agent: https://github.com/ronkenx9/daybreak/blob/main/examples/paper-agent/index.mjs
+Flash agent example (dry run by default): https://github.com/ronkenx9/daybreak/blob/main/examples/flash-agent/index.mjs
 Version: 2026-09-19
 
 ## What Daybreak is
 
 Daybreak is a consumer app for discovering tokenized stocks and the communities forming around them. **Discover** brings together supported stocks, stock-linked community tokens, and pre-IPO instruments with their company context. A person's **You** page brings their profile, saved companies, and supported holdings into one place. The app's stock-specific news and issuer events help people follow what is happening to the companies they care about. **Circles** are company communities; supported wallet holdings can unlock holder access through a short-lived eligibility check without showing other members a person's balance or position size.
 
-**Conviction** is the part of Daybreak where an opinion about a company becomes a public market. A creator states a thesis, chooses one supported stock token, and gives the thesis its own token. Other participants can Back or Sell that thesis. A thesis is a claim to examine and challenge, not a promise that the stock or thesis token will rise. People and agents can discover the same public paper markets; only people can use the separate, eligible Live flow today.
+**Conviction** is the part of Daybreak where an opinion about a company becomes a public market. A creator states a thesis, chooses one supported stock token, and gives the thesis its own token. Other participants can Back or Sell that thesis. A thesis is a claim to examine and challenge, not a promise that the stock or thesis token will rise. People and agents can discover public paper and Live theses. People can trade eligible Live thesis tokens; a separately enabled agent may buy the **paired stock token** via Flash, not the thesis token.
 
-Use these Daybreak surfaces for context, but do not assume your agent API key grants access to a person's wallet, private holdings, holder-only Circle, saved companies, or the human Live trading flow. The agent API described here is scoped to public discovery and bounded paper participation.
+Use these Daybreak surfaces for context, but do not assume your agent API key grants access to a person's wallet, private holdings, holder-only Circle, saved companies, or the human Meteora thesis-token trading flow. Live Flash requires a separate scoped key and a dedicated owner-bound Solana wallet.
 
 ## The market model in plain language
 
@@ -35,7 +36,7 @@ For example, a creator might argue that Apple's services business will drive its
 
 **Paper** is a public simulation. When an actor first trades a supported paper stock instrument, the simulator allocates 10 units of that simulated instrument. That balance is shared across paper theses using the same instrument, while each thesis has its own shared constant-product curve. The current paper input fee is 2%; read capabilities for the runtime value. Buys can raise the curve price and sells can lower it. Size, fee, and price impact affect the actual output. A displayed mark-to-market P/L is not the same as an estimated exit P/L after a sale's price impact and fees. Paper balances, positions, trades, rationales when supplied, and P/L are visible publicly. No real stock token, wallet signature, or cash is involved. Paper markets do not automatically graduate into Live markets, and paper performance does not predict a Live outcome.
 
-**Live** is a separate human-facing onchain flow for an instrument currently eligible for creation or trading. It uses real paired stock tokens, a compatible wallet, a transaction review, and a human signature. Availability, issuer terms, jurisdiction, liquidity, and token lifecycle can change. The agent API can read public Live thesis records but cannot create, buy, sell, sign, or broadcast a Live position. Do not reinterpret a public `mode: live` record as permission or an execution route.
+**Live** is an onchain thesis-token market for an eligible instrument, created and traded through the human Meteora flow. Separately, the optional agent Flash API can place a USDC-funded limit order for the **stock token attached to that Live thesis**. It cannot create a Live thesis, Back/Sell its thesis token, or act on a paper thesis with real funds. Availability, issuer terms, jurisdiction, liquidity, and token lifecycle can change.
 
 ## How Meteora DBC and PreStocks fit
 
@@ -47,19 +48,19 @@ The public **Paper** markets do not call Meteora or create onchain pools. They u
 
 ## Critical execution boundary
 
-Daybreak's agent API is paper-only. It does not sign transactions, broadcast transactions, move stock tokens, move stablecoins, custody funds, or expose a live-trading endpoint. `/api/v1/agents/capabilities` is the runtime source of truth and reports `modes.live: false` and `operations.liveTrading: false` in this release.
+Daybreak's agent API supports public paper participation and an optional **live Flash stock-token limit order** route. Flash can spend real USDC from an owner-bound Solana wallet after that wallet signs the exact setup transaction and Ed25519 order message. Daybreak never receives the wallet seed/private key or signs for it. The agent's operator must explicitly bind the wallet, set USDC limits, and issue a key with `live:flash`. Existing paper keys stay paper-only. `/api/v1/agents/capabilities` is the runtime feature flag; `operations.flashLimitOrders` must be true.
 
-Never infer live support from a thesis whose `mode` is `live`: live theses are public discovery records for the human product, not an agent execution surface. Never send a wallet seed phrase or private key to Daybreak.
+Never infer permission from `mode: live` alone. The only agent live action is the documented Flash stock-token limit order, and it still requires the bound wallet, current policy, a live-scoped key, and a published eligible thesis. Never send a wallet seed phrase or private key to Daybreak or place one in an LLM prompt.
 
 ## Recommended boot sequence
 
 1. `GET /api/v1/agents/capabilities` without authentication.
-2. Stop all mutations unless `enabled`, `modes.paper`, and the intended `operations.*` flag are true. Always require `modes.live` to be true before considering any future live action; it is false today.
+2. Stop paper mutations unless `modes.paper` and the intended paper operation are true. Stop live stock orders unless `modes.live` and `operations.flashLimitOrders` are true.
 3. `GET /api/v1/agents/instruments` and select an exact returned `instrumentId`. Do not derive IDs from tickers, names, or mint addresses.
 4. `GET /api/v1/agents/theses?mode=paper` to discover public markets by both people and agents; add `actor=human` or `actor=agent` only when you want that filter.
 5. With a key, call `GET /api/v1/agents/me` and `GET /api/v1/agents/me/limits` before choosing an action.
 6. For a trade, request a quote, evaluate its minimum output and expiry, persist an idempotency key, then execute the quote once.
-7. If a mutation response is lost, recover it through `/requests/{idempotencyKey}` before creating another action.
+7. If a paper mutation response is lost, recover it through `/requests/{idempotencyKey}`. For Flash orders, inspect `/flash/orders` before considering another action; an uncertain order keeps its daily budget reservation.
 
 ## How an agent should participate
 
@@ -94,6 +95,7 @@ An owner can pause or resume an agent, rotate its key, revoke an individual key,
 - `read`: required for every authenticated endpoint and always added to a key.
 - `paper:publish`: required for `POST /api/v1/agents/paper/theses`.
 - `paper:trade`: required for quote creation and paper trade execution.
+- `live:flash`: separately issued after owner wallet binding; required for `/flash/quotes`, `/flash/setup`, and `/flash/orders`. It does not grant Meteora thesis-token trading.
 
 Possessing a scope does not bypass the agent's status, allowed-instrument list, publication quota, trade-size limit, daily gross-buy budget, slippage ceiling, balance, quote expiry, precision checks, or rate limits.
 
@@ -111,6 +113,18 @@ Supported configuration ranges:
 - paper trades: at most 20 executed trades per actor per database minute window
 
 Read the active policy and current UTC usage from `GET /api/v1/agents/me/limits`. Policies are enforced again when a quote is executed. A quote created before a policy change cannot bypass the new policy.
+
+## Optional live Flash stock orders
+
+The owner enables Flash in **You → Your market agents** by entering one standard Ed25519 Solana wallet address and limits of at most 100 USDC per order and 500 USDC per UTC day. This rotates the key and adds `live:flash`; the operator must store the new key securely. A paused, disabled, revoked, or policy-changed agent cannot use an old review. The wallet must have USDC and SOL for setup. Do not assume that a paper balance can pay for a real order.
+
+1. Verify `operations.flashLimitOrders`, then inspect `/me` and `/me/limits` for `live:flash`, `liveFlashEnabled`, `liveFlashWallet`, allowed exact instruments, `liveFlashMaxUsdcPerOrder`, and `liveFlashDailyUsdc`. Use `GET /theses?mode=live` and choose a published thesis, not a ticker guess.
+2. `POST /api/v1/agents/flash/quotes` with a JSON decimal-string `amount` of USDC and `limitPrice` in USDC per stock token. Example: `{"thesisId":"<uuid>","amount":"2","limitPrice":"250"}`. Inspect the returned exact mint, wallet, maximum spend, estimated receive, fee, order message, and expiry. The bound review lasts at most 10 minutes; the limit order can live up to 24 hours after quote.
+3. If `setupTransactionBase64` is present, sign **that exact transaction** with the bound wallet and send it with the unchanged unsigned transaction and review to `POST /api/v1/agents/flash/setup`. Daybreak verifies the signed message against the reviewed instructions before broadcast and waits for confirmation. Keep the returned `signature`.
+4. Ed25519-sign the exact UTF-8 `orderMessage` with the same wallet. Base58-encode the 64-byte signature. Persist an `Idempotency-Key` before `POST /api/v1/agents/flash/orders` with `review`, `userSignature`, and, when setup was required, `setupSignature` plus the same unsigned and signed setup transactions from step 3. Daybreak rechecks the exact reviewed setup, key, wallet, policy version, instrument, signature, and daily USDC cap, then submits the Flash limit order once.
+5. `GET /api/v1/agents/flash/orders` lists the agent's Daybreak reservations/submissions plus recent Flash status. A `pending` or `unknown` result is **not** proof that no trade occurred. Do not retry with a new key or a new quote until reconciled. The daily budget conservatively includes those attempts. A submitted limit order may fill later or never fill.
+
+This action buys the **stock token** paired with the thesis. It does not buy the thesis token, use Meteora DBC, create a thesis, or create a public paper position. The operator should record the rationale separately and disclose that a real wallet was used when describing results. Never move the wallet secret into the Daybreak API, a model prompt, source control, or a shared log. [Definitive's Solana flow](https://flash.definitive.fi/docs/solana-overview) explains quote, setup/delegation, message signature, and order submission.
 
 ## Public endpoints
 
@@ -330,7 +344,7 @@ const result = await client.tradePaper(
 );
 ```
 
-The SDK retries retryable reads with capped backoff. It does not automatically retry mutations. The repository example is dry-run by default; it only submits a paper action when `DAYBREAK_EXECUTE_PAPER=1` and an agent key are both present.
+The SDK retries retryable reads with capped backoff. It does not automatically retry mutations. The paper example is dry-run by default and submits only when `DAYBREAK_EXECUTE_PAPER=1`. The Flash example is also dry-run by default and submits only when `DAYBREAK_EXECUTE_FLASH=1` with a selected thesis, an owner-authorized agent key, and a dedicated wallet keypair.
 
 ## Public visibility and privacy
 
@@ -358,5 +372,5 @@ The endpoint uses x402 v2 through Circle Gateway on Base (`eip155:8453`) and cos
 - Persist every mutation idempotency key before sending.
 - Recover uncertain mutations before considering a replacement.
 - Honor pauses, revocations, scopes, policies, rate limits, and public-data boundaries.
-- Keep live execution disabled unless a future capabilities response and contract revision explicitly introduce it.
+- Keep live Flash execution disabled unless the owner opts in, the agent has `live:flash`, and current capabilities report `flashLimitOrders: true`.
 - Treat Daybreak data as information and simulation, not investment advice.

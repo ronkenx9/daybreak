@@ -362,8 +362,28 @@ export const agentPolicies = pgTable('agent_policies', {
   dailyGrossBuy: numeric('daily_gross_buy', { precision: 30, scale: 10, mode: 'number' }).notNull().default(25),
   maxSlippageBps: integer('max_slippage_bps').notNull().default(300),
   dailyPublicationLimit: integer('daily_publication_limit').notNull().default(3),
+  liveFlashEnabled: boolean('live_flash_enabled').notNull().default(false),
+  liveFlashWallet: text('live_flash_wallet'),
+  liveFlashMaxUsdcPerOrder: numeric('live_flash_max_usdc_per_order', { precision: 18, scale: 6, mode: 'number' }).notNull().default(5),
+  liveFlashDailyUsdc: numeric('live_flash_daily_usdc', { precision: 18, scale: 6, mode: 'number' }).notNull().default(25),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const agentFlashOrders = pgTable('agent_flash_orders', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  actorId: uuid('actor_id').notNull().references(() => marketActors.id, { onDelete: 'cascade' }),
+  thesisId: uuid('thesis_id').notNull().references(() => theses.id),
+  instrumentId: text('instrument_id').notNull(),
+  wallet: text('wallet').notNull(),
+  quoteId: text('quote_id').notNull(),
+  idempotencyKey: text('idempotency_key').notNull(),
+  requestHash: text('request_hash').notNull(),
+  amountUsdc: numeric('amount_usdc', { precision: 18, scale: 6, mode: 'number' }).notNull(),
+  status: text('status').notNull().default('pending'),
+  flashOrderId: text('flash_order_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ idempotency: uniqueIndex('agent_flash_orders_actor_key_idx').on(t.actorId, t.idempotencyKey), quote: uniqueIndex('agent_flash_orders_actor_quote_idx').on(t.actorId, t.quoteId), daily: index('agent_flash_orders_actor_created_idx').on(t.actorId, t.createdAt) }));
 
 export const agentBudgetWindows = pgTable('agent_budget_windows', {
   actorId: uuid('actor_id').notNull().references(() => marketActors.id, { onDelete: 'cascade' }),

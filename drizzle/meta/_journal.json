@@ -162,6 +162,13 @@
       "when": 1789734000004,
       "tag": "0022_agent_participation",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1789734000005,
+      "tag": "0023_agent_flash_orders",
+      "breakpoints": true
     }
   ]
 }
