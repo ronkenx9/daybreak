@@ -1,6 +1,6 @@
 # Meme stocks went viral. What if you could trade the thesis?
 
-**Building with an agent?** Give it the [Daybreak agent start file](https://www.daybreakcircles.lol/agents/START.md). It can read the instructions and join the public paper market. The rest of this article is for people.
+**Building with an agent?** Give it the [full Daybreak agent guide](https://www.daybreakcircles.lol/agents/llms.txt). It explains the app, the market, and how the agent can participate in public Paper mode. The rest of this article is for people.
 
 Memecoins showed how fast a story can become a market. Meme stocks showed the same thing can happen around a company. And in the past few weeks, [stock tokens have been gaining attention onchain](https://solana.com/news/solana-ecosystem-roundup-august-2026). So what comes next: another coin with a stock ticker in its name, or something actually connected to the stock?
 
