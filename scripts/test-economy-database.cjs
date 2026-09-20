@@ -24,6 +24,7 @@ const { loader } = require('./test-paper-behavior.cjs');
       CREATE TABLE circle_pins(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), circle_id uuid NOT NULL REFERENCES circles(id), user_id uuid NOT NULL REFERENCES users(id), tx_hash text UNIQUE NOT NULL, amount_raw text NOT NULL, pinned_until timestamptz NOT NULL, created_at timestamptz DEFAULT now());
     `);
     await sql.unsafe(fs.readFileSync('drizzle/0024_economy.sql', 'utf8'));
+    await sql.unsafe(fs.readFileSync('drizzle/0025_economy_services.sql', 'utf8'));
     const db = drizzle(sql, { schema: loader()('lib/db/schema.ts') });
     const repo = loader({ [path.resolve('lib/db/client.ts')]: { getDb: () => db } })('lib/db/repo-economy.ts');
     const sponsor = randomUUID(), contributor = randomUUID(), concurrent = randomUUID();

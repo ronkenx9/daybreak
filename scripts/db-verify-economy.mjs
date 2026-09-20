@@ -3,7 +3,7 @@ import postgres from 'postgres';
 const databaseUrl = process.env.DATABASE_URL?.trim();
 if (!databaseUrl) throw new Error('DATABASE_URL is required');
 const sql = postgres(databaseUrl, { prepare: false, max: 1, connect_timeout: 10, idle_timeout: 5 });
-const tables = ['economy_accounts', 'economy_quotes', 'economy_payments', 'economy_entries', 'economy_service_orders', 'economy_challenges', 'economy_submissions', 'economy_awards'];
+const tables = ['economy_accounts', 'economy_quotes', 'economy_payments', 'economy_entries', 'economy_service_orders', 'economy_challenges', 'economy_submissions', 'economy_awards', 'economy_research_settings', 'economy_research_jobs', 'economy_refund_requests', 'economy_disputes'];
 try {
   const rows = await sql`
     SELECT c.relname AS name, c.relrowsecurity AS rls,
@@ -16,10 +16,11 @@ try {
   const [totals] = await sql`
     SELECT
       (SELECT COALESCE(SUM(credits_cents),0) FROM economy_payments)::bigint AS purchased,
+      (SELECT COALESCE(SUM(amount_cents),0) FROM economy_refund_requests WHERE status='fulfilled')::bigint AS refunded,
       (SELECT COALESCE(SUM(balance_cents),0) FROM economy_accounts)::bigint AS available,
-      (SELECT COALESCE(SUM(cost_cents),0) FROM economy_service_orders)::bigint AS delivered,
-      (SELECT COALESCE(SUM(budget_cents),0) FROM economy_challenges WHERE status='open')::bigint AS reserved
+      ((SELECT COALESCE(SUM(cost_cents),0) FROM economy_service_orders) + (SELECT COALESCE(SUM(cost_cents),0) FROM economy_research_jobs WHERE status='completed'))::bigint AS delivered,
+      ((SELECT COALESCE(SUM(budget_cents),0) FROM economy_challenges WHERE status IN ('open','disputed')) + (SELECT COALESCE(SUM(cost_cents),0) FROM economy_research_jobs WHERE status='pending') + (SELECT COALESCE(SUM(amount_cents),0) FROM economy_refund_requests WHERE status IN ('pending','processing')))::bigint AS reserved
   `;
-  if (BigInt(totals.purchased) !== BigInt(totals.available) + BigInt(totals.delivered) + BigInt(totals.reserved)) throw new Error('Credit liability does not reconcile to verified purchases');
+  if (BigInt(totals.purchased) - BigInt(totals.refunded) !== BigInt(totals.available) + BigInt(totals.delivered) + BigInt(totals.reserved)) throw new Error('Credit liability does not reconcile to verified purchases');
   console.log('ECONOMY_DB_OK');
 } finally { await sql.end({ timeout: 5 }); }

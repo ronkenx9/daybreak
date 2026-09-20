@@ -114,6 +114,37 @@ export const economyServiceOrders = pgTable('economy_service_orders', {
   costCents: integer('cost_cents').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({ uniqueKey: uniqueIndex('economy_service_orders_user_key_idx').on(t.userId, t.idempotencyKey) }));
+export const economyResearchSettings = pgTable('economy_research_settings', {
+  userId: uuid('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  dailySpendCapCents: integer('daily_spend_cap_cents').notNull().default(100),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const economyResearchJobs = pgTable('economy_research_jobs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  idempotencyKey: text('idempotency_key').notNull(),
+  symbol: text('symbol').notNull(),
+  costCents: integer('cost_cents').notNull(),
+  memberDiscountCents: integer('member_discount_cents').notNull().default(0),
+  status: text('status').notNull().default('pending'),
+  result: jsonb('result'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniqueKey: uniqueIndex('economy_research_jobs_user_key_idx').on(t.userId, t.idempotencyKey), userTime: index('economy_research_jobs_user_time_idx').on(t.userId, t.createdAt) }));
+export const economyRefundRequests = pgTable('economy_refund_requests', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  paymentTxHash: text('payment_tx_hash').notNull().references(() => economyPayments.txHash),
+  wallet: text('wallet').notNull(),
+  amountCents: integer('amount_cents').notNull(),
+  reason: text('reason').notNull(),
+  status: text('status').notNull().default('pending'),
+  refundTxHash: text('refund_tx_hash'),
+  reviewerUserId: uuid('reviewer_user_id').references(() => users.id),
+  resolutionNote: text('resolution_note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+}, (t) => ({ userTime: index('economy_refunds_user_time_idx').on(t.userId, t.createdAt) }));
 export const economyChallenges = pgTable('economy_challenges', {
   id: uuid('id').defaultRandom().primaryKey(),
   circleId: uuid('circle_id').notNull().references(() => circles.id),
@@ -141,6 +172,16 @@ export const economyAwards = pgTable('economy_awards', {
   recipientUserId: uuid('recipient_user_id').notNull().references(() => users.id),
   creditsCents: integer('credits_cents').notNull(),
   awardedAt: timestamp('awarded_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const economyDisputes = pgTable('economy_disputes', {
+  challengeId: uuid('challenge_id').primaryKey().references(() => economyChallenges.id, { onDelete: 'cascade' }),
+  filedByUserId: uuid('filed_by_user_id').notNull().references(() => users.id),
+  reason: text('reason').notNull(),
+  status: text('status').notNull().default('open'),
+  reviewerUserId: uuid('reviewer_user_id').references(() => users.id),
+  resolutionNote: text('resolution_note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
 });
 
 // A short-lived proof that a verified, user-owned wallet held a supported stock.
