@@ -12,8 +12,12 @@ export async function GET(request: Request) {
   try {
     const options = thesisDiscovery(new URL(request.url).searchParams);
     const rows = await listPublishedTheses(41, options);
-    return Response.json({ items: rows.slice(0, 40), hasMore: rows.length > 40 }, { headers: { 'Cache-Control': 'public, s-maxage=20, stale-while-revalidate=40' } });
-  } catch (error) { return errorResponse(error); }
+    return Response.json({ items: rows.slice(0, 40), hasMore: rows.length > 40 }, { headers: { 'Cache-Control': 'public, s-maxage=20, stale-while-revalidate=40', 'Access-Control-Allow-Origin': '*' } });
+  } catch (error) {
+    const response = errorResponse(error);
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    return response;
+  }
 }
 
 export async function POST(request: Request) {

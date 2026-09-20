@@ -13,8 +13,8 @@ let cache: { at: number; stats: Stats } | null = null;
 const one = async (p: Promise<{ v: number }[]>): Promise<number | null> => { try { const [r] = await p; return Number(r?.v ?? 0); } catch { return null; } };
 
 export async function GET() {
-  if (!isDbConfigured) return Response.json({ configured: false }, { headers: { 'Cache-Control': 'no-store' } });
-  if (cache && Date.now() - cache.at < 60_000) return Response.json({ configured: true, ...cache.stats, cached: true });
+  if (!isDbConfigured) return Response.json({ configured: false }, { headers: { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
+  if (cache && Date.now() - cache.at < 60_000) return Response.json({ configured: true, ...cache.stats, cached: true }, { headers: { 'Access-Control-Allow-Origin': '*' } });
   const db = getDb();
   const [accounts, launches, creations, circleCount, members, messages, community, wallets] = await Promise.all([
     one(db.select({ v: count() }).from(users)),
@@ -29,5 +29,5 @@ export async function GET() {
   const stats: Stats = { accounts, launches, creations, circles: circleCount, members, messages, communityTokens: community, wallets };
   // Only cache a fully-read snapshot; a partial read shouldn't be served for 60s.
   if (Object.values(stats).every((v) => v !== null)) cache = { at: Date.now(), stats };
-  return Response.json({ configured: true, ...stats });
+  return Response.json({ configured: true, ...stats }, { headers: { 'Access-Control-Allow-Origin': '*' } });
 }

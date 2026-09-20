@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   Alert,
+  Animated,
   Linking,
   Modal,
-  Pressable,
+  Platform,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -30,706 +32,411 @@ import {
   type Thesis,
 } from "./src/api";
 import { palette as p } from "./src/theme";
+import { MotionPressable } from "./src/components/MotionPressable";
 
-type Tab = "discover" | "circles" | "conviction" | "stats" | "you";
-const tabs: { id: Tab; icon: string; label: string }[] = [
-  { id: "discover", icon: "◇", label: "Discover" },
-  { id: "circles", icon: "◎", label: "Circles" },
-  { id: "conviction", icon: "✳", label: "Conviction" },
-  { id: "stats", icon: "▤", label: "Stats" },
-  { id: "you", icon: "◯", label: "You" },
+type Tab = "home" | "markets" | "circles" | "conviction" | "you";
+type Appearance = "light" | "dark" | "system";
+const tabs: { id: Tab; label: string }[] = [
+  { id: "home", label: "Today" },
+  { id: "markets", label: "Markets" },
+  { id: "circles", label: "Circles" },
+  { id: "conviction", label: "Ideas" },
+  { id: "you", label: "You" },
 ];
-const titles: Record<Tab, [string, string]> = {
-  discover: [
-    "Your world. Your stocks.",
-    "One company. More ways to explore onchain.",
-  ],
-  circles: [
-    "Find your people.",
-    "Stock communities, built around what you hold.",
-  ],
-  conviction: ["Back an idea.", "Public theses from people and agents."],
-  stats: ["Daybreak in motion.", "The network, in real numbers."],
-  you: ["Your Daybreak.", "Your profile, portfolio and saved companies."],
-};
-const count = (n: number | null | undefined) =>
-  typeof n === "number" ? n.toLocaleString("en-US") : "—";
-const money = (n: number | null | undefined) =>
-  typeof n === "number"
-    ? `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    : "Unavailable";
-function web(path: string) {
+const number = (value: number | null | undefined) =>
+  typeof value === "number" ? value.toLocaleString("en-US") : "—";
+const money = (value: number | null | undefined) =>
+  typeof value === "number"
+    ? `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : "Price unavailable";
+const priceSource = (value: EquityPrice | undefined) =>
+  value?.source === "pyth"
+    ? "Pyth equity reference"
+    : value?.source === "chainlink-ref"
+      ? "Chainlink equity reference"
+      : "Equity reference unavailable";
+function openWeb(path: string) {
   Linking.openURL(appLink(path)).catch(() =>
     Alert.alert("Could not open Daybreak", "Please try again."),
   );
 }
 
 function Main() {
-  const dark = useColorScheme() === "dark";
+  const systemScheme = useColorScheme();
+  const [appearance, setAppearance] = useState<Appearance>("light");
+  const dark = appearance === "dark" || (appearance === "system" && systemScheme === "dark");
   const c = {
-    bg: dark ? p.dark : p.canvas,
-    card: dark ? p.darkCard : p.white,
-    ink: dark ? p.white : p.ink,
-    muted: dark ? p.darkMuted : p.muted,
-    line: dark ? p.darkLine : p.line,
-    accent: dark ? "#AFC0FF" : p.blue,
+    bg: dark ? "#141923" : "#FFFFFF",
+    surface: dark ? "#141923" : "#FFFFFF",
+    soft: dark ? "#202839" : "#F5F7FB",
+    ink: dark ? "#F1F4FA" : "#202A40",
+    muted: dark ? "#AEB8C9" : "#6D7789",
+    line: dark ? "#303848" : "#E8ECF3",
+    blue: dark ? "#AFC0FF" : p.blue,
   };
-  const [tab, setTab] = useState<Tab>("discover");
+  const [tab, setTab] = useState<Tab>("home");
   const [mode, setMode] = useState<"all" | "paper" | "live">("all");
   const [query, setQuery] = useState("");
   const [revision, setRevision] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [companyRows, setCompanies] = useState<Company[]>([]);
-  const [priceRows, setPrices] = useState<Record<string, EquityPrice>>({});
-  const [circleRows, setCircles] = useState<Circle[]>([]);
-  const [thesisRows, setTheses] = useState<Thesis[]>([]);
-  const [statRows, setStats] = useState<Stats | null>(null);
-  const [company, selectCompany] = useState<Company | null>(null);
-  const [thesis, selectThesis] = useState<Thesis | null>(null);
-  const reload = () => setRevision((n) => n + 1);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const [companyRows, setCompanyRows] = useState<Company[]>([]);
+  const [priceRows, setPriceRows] = useState<Record<string, EquityPrice>>({});
+  const [circleRows, setCircleRows] = useState<Circle[]>([]);
+  const [thesisRows, setThesisRows] = useState<Thesis[]>([]);
+  const [statRows, setStatRows] = useState<Stats | null>(null);
+  const [company, setCompany] = useState<Company | null>(null);
+  const [thesis, setThesis] = useState<Thesis | null>(null);
+  const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const reveal = useRef(new Animated.Value(1)).current;
+  const refresh = () => setRevision((value) => value + 1);
+  const nativeDriver = Platform.OS !== "web";
 
   useEffect(() => {
-    if (tab === "you") {
-      setBusy(false);
-      setError(null);
-      return;
-    }
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    reveal.setValue(reduceMotion ? 1 : 0);
+    Animated.timing(reveal, {
+      toValue: 1,
+      duration: reduceMotion ? 0 : 210,
+      useNativeDriver: nativeDriver,
+    }).start();
+  }, [tab, mode, reduceMotion, reveal, nativeDriver]);
+
+  useEffect(() => {
     const controller = new AbortController();
-    setBusy(true);
-    setError(null);
-    const run = async () => {
-      if (tab === "discover") {
-        const items = await companies(controller.signal);
-        if (!controller.signal.aborted) setCompanies(items);
-        try {
-          const quotes = await prices(
-            items.map((item) => item.ticker),
-            controller.signal,
-          );
-          if (!controller.signal.aborted) setPrices(quotes);
-        } catch {
-          if (!controller.signal.aborted) setPrices({});
-        }
-      } else if (tab === "circles") {
-        const items = await circles(controller.signal);
-        if (!controller.signal.aborted) setCircles(items);
-      } else if (tab === "conviction") {
-        const items = await theses(mode, controller.signal);
-        if (!controller.signal.aborted) setTheses(items);
-      } else {
-        const item = await stats(controller.signal);
-        if (!controller.signal.aborted) setStats(item);
+    const active = (key: string, value: boolean) =>
+      setLoading((old) => ({ ...old, [key]: value }));
+    const failed = (key: string, value?: string) =>
+      setErrors((old) => {
+        const next = { ...old };
+        if (value) next[key] = value;
+        else delete next[key];
+        return next;
+      });
+    const run = async (key: string, task: () => Promise<void>) => {
+      active(key, true);
+      failed(key);
+      try {
+        await task();
+      } catch (error) {
+        if (!controller.signal.aborted)
+          failed(key, error instanceof Error ? error.message : "Could not load this feed.");
+      } finally {
+        if (!controller.signal.aborted) active(key, false);
       }
     };
-    run()
-      .catch((cause: unknown) => {
+    void run("markets", async () => {
+      const items = await companies(controller.signal);
+      if (controller.signal.aborted) return;
+      setCompanyRows(items);
+      try {
+        const result = await prices(items.map((item) => item.ticker), controller.signal);
+        if (!controller.signal.aborted) setPriceRows(result);
+      } catch {
+        if (!controller.signal.aborted) setPriceRows({});
+      }
+    });
+    void run("circles", async () => {
+      const result = await circles(controller.signal);
+      if (!controller.signal.aborted) setCircleRows(result);
+    });
+    void run("stats", async () => {
+      const result = await stats(controller.signal);
+      if (!controller.signal.aborted) setStatRows(result);
+    });
+    return () => controller.abort();
+  }, [revision]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading((old) => ({ ...old, ideas: true }));
+    setErrors((old) => {
+      const next = { ...old };
+      delete next.ideas;
+      return next;
+    });
+    theses(mode, controller.signal)
+      .then((items) => {
+        if (!controller.signal.aborted) setThesisRows(items);
+      })
+      .catch((error: unknown) => {
         if (!controller.signal.aborted)
-          setError(
-            cause instanceof Error ? cause.message : "Could not load Daybreak.",
-          );
+          setErrors((old) => ({ ...old, ideas: error instanceof Error ? error.message : "Could not load ideas." }));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setBusy(false);
+        if (!controller.signal.aborted) setLoading((old) => ({ ...old, ideas: false }));
       });
     return () => controller.abort();
-  }, [tab, mode, revision]);
+  }, [mode, revision]);
 
-  const companyMatches = companyRows.filter((item) =>
-    `${item.name} ${item.ticker} ${item.baseSymbol} ${item.solanaSymbol ?? ""}`
-      .toLowerCase()
-      .includes(query.trim().toLowerCase()),
+  const text = (value: string, style?: object, lines?: number) => (
+    <Text numberOfLines={lines} style={[{ color: c.ink }, style]}>{value}</Text>
   );
-  const T = ({
-    children,
-    style,
-    numberOfLines,
-  }: {
-    children: React.ReactNode;
-    style?: object;
-    numberOfLines?: number;
-  }) => (
-    <Text numberOfLines={numberOfLines} style={[{ color: c.ink }, style]}>
-      {children}
-    </Text>
+  const action = (label: string, onPress: () => void, secondary = false) => (
+    <MotionPressable onPress={onPress} reduceMotion={reduceMotion} style={[
+      s.action,
+      { backgroundColor: secondary ? c.soft : p.blue },
+    ]}>
+      {text(label, { color: secondary ? c.blue : p.white, fontSize: 15, fontWeight: "700" })}
+      {text("↗", { color: secondary ? c.blue : p.white, fontSize: 19 })}
+    </MotionPressable>
   );
-  const Action = ({
-    label,
-    path,
-    outline = false,
-  }: {
-    label: string;
-    path: string;
-    outline?: boolean;
-  }) => (
-    <Pressable
-      accessibilityRole="button"
-      onPress={() => web(path)}
-      style={[
-        s.action,
-        {
-          backgroundColor: outline ? c.card : p.blue,
-          borderColor: outline ? c.line : p.blue,
-        },
-      ]}
-    >
-      <T style={{ color: outline ? c.accent : p.white, fontWeight: "800" }}>
-        {label}
-      </T>
-      <T style={{ color: outline ? c.accent : p.white, fontSize: 19 }}>↗</T>
-    </Pressable>
-  );
-  const heading = (title: string, detail?: string) => (
-    <View style={s.sectionHead}>
-      <T style={s.sectionTitle}>{title}</T>
-      <T style={{ color: c.muted, fontSize: 12 }}>{detail}</T>
+  const section = (title: string, detail?: string) => (
+    <View style={s.section}>
+      {text(title, s.sectionTitle)}
+      {detail ? text(detail, { color: c.muted, fontSize: 12 }) : null}
     </View>
   );
-  const card = { backgroundColor: c.card, borderColor: c.line };
+  const feedback = (key: string) => loading[key]
+    ? text("Loading Daybreak…", { color: c.muted, fontSize: 14, marginTop: 18 })
+    : errors[key]
+      ? <View style={[s.feedback, { backgroundColor: c.soft }]}>
+          {text(errors[key], { color: c.muted, fontSize: 13 })}
+          <MotionPressable onPress={refresh} reduceMotion={reduceMotion} style={{ paddingVertical: 10 }}>
+            {text("Try again ↗", { color: c.blue, fontWeight: "700" })}
+          </MotionPressable>
+        </View>
+      : null;
+  const featured = companyRows.find((item) => item.ticker === "NVDA") ?? companyRows[0];
+  const matches = companyRows.filter((item) =>
+    `${item.name} ${item.ticker} ${item.baseSymbol} ${item.solanaSymbol ?? ""}`
+      .toLowerCase().includes(query.trim().toLowerCase()),
+  );
+  const route = (next: Tab) => setTab(next);
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: c.bg }}
-      edges={["top", "bottom"]}
-    >
-      <StatusBar
-        barStyle={dark ? "light-content" : "dark-content"}
-        backgroundColor={c.bg}
-      />
-      <View style={[s.header, { borderColor: c.line }]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }} edges={["top", "bottom"]}>
+      <StatusBar barStyle={dark ? "light-content" : "dark-content"} backgroundColor={c.bg} />
+      <View style={[s.topbar, { borderColor: c.line }]}>
         <View style={s.brand}>
-          <View style={s.mark}>
-            <View style={s.slash} />
-          </View>
-          <T
-            style={{
-              color: c.accent,
-              fontSize: 25,
-              fontWeight: "800",
-              letterSpacing: -1.6,
-            }}
-          >
-            daybreak
-          </T>
+          <View style={s.mark}><View style={s.slash} /></View>
+          {text("daybreak", { color: c.blue, fontSize: 22, fontWeight: "800", letterSpacing: -1.2 })}
         </View>
-        <Pressable
-          onPress={() => web("/app")}
-          accessibilityRole="button"
-          style={s.headerButton}
-        >
-          <T style={{ color: c.accent, fontSize: 13, fontWeight: "700" }}>
-            Open web ↗
-          </T>
-        </Pressable>
+        <MotionPressable onPress={() => openWeb("/app")} reduceMotion={reduceMotion} accessibilityLabel="Open Daybreak web app" style={[s.topbarLink, { backgroundColor: c.soft }]}>
+          {text("Open app ↗", { color: c.blue, fontSize: 12, fontWeight: "700" })}
+        </MotionPressable>
       </View>
       <ScrollView
         key={tab}
         style={{ flex: 1 }}
         contentContainerStyle={s.content}
         keyboardShouldPersistTaps="handled"
-        refreshControl={
-          tab === "you" ? undefined : (
-            <RefreshControl
-              refreshing={busy && revision > 0}
-              onRefresh={reload}
-              tintColor={p.blue}
-            />
-          )
-        }
+        refreshControl={<RefreshControl refreshing={revision > 0 && Object.values(loading).some(Boolean)} onRefresh={refresh} tintColor={p.blue} />}
       >
-        <View style={s.intro}>
-          <T style={[s.eyebrow, { color: c.accent }]}>
-            DAYBREAK / {tab.toUpperCase()}
-          </T>
-          <T style={s.headline}>{titles[tab][0]}</T>
-          <T style={[s.subtitle, { color: c.muted }]}>{titles[tab][1]}</T>
-        </View>
-
-        {tab !== "you" && (
-          <View style={s.hero}>
-            <T style={s.heroLabel}>
-              {tab === "discover"
-                ? "DISCOVER STOCK TOKENS"
-                : tab === "circles"
-                  ? "STOCK COMMUNITIES"
-                  : tab === "conviction"
-                    ? "CONVICTION MARKETS"
-                    : "THE NETWORK"}
-            </T>
-            <T style={s.heroTitle}>
-              {tab === "discover"
-                ? "Start with the company."
-                : tab === "circles"
-                  ? "Follow the conversation."
-                  : tab === "conviction"
-                    ? "A thesis you can back."
-                    : "People make the market."}
-            </T>
-            <T style={s.heroBody}>
-              {tab === "discover"
-                ? "Explore supported Base stocks and Solana xStocks side by side."
-                : tab === "circles"
-                  ? "Active public circles. Holder-only participation is verified in Daybreak."
-                  : tab === "conviction"
-                    ? "Ideas pair with a stock token. Paper practice and live markets are separate."
-                    : "Live counts from Daybreak, updated as activity changes."}
-            </T>
-          </View>
-        )}
-
-        {tab === "discover" && (
-          <>
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search companies or tickers"
-              placeholderTextColor={c.muted}
-              accessibilityLabel="Search companies or tickers"
-              autoCapitalize="none"
-              style={[
-                s.search,
-                { backgroundColor: c.card, color: c.ink, borderColor: c.line },
-              ]}
-            />
-            {heading("Stocks", `${companyMatches.length} companies`)}
-            {companyMatches.map((item) => (
-              <Pressable
-                key={item.ticker}
-                accessibilityRole="button"
-                accessibilityLabel={`Open ${item.name}`}
-                onPress={() => selectCompany(item)}
-                style={[s.stockRow, { borderColor: c.line }]}
-              >
-                <View
-                  style={[
-                    s.stockLogo,
-                    { backgroundColor: dark ? "#314578" : p.faint },
-                  ]}
-                >
-                  <T style={{ color: c.accent, fontWeight: "900" }}>
-                    {item.ticker.slice(0, 2)}
-                  </T>
+        <Animated.View style={{ opacity: reveal, transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [reduceMotion ? 0 : 12, 0] }) }] }}>
+          {tab === "home" && <>
+            <View style={s.intro}>
+              {text("TODAY ON DAYBREAK", { ...s.overline, color: c.blue })}
+              {text("What’s moving today?", s.title)}
+              {text("One place for stocks, ideas and the people around them.", { ...s.subtitle, color: c.muted })}
+            </View>
+            {featured && <MotionPressable onPress={() => setCompany(featured)} reduceMotion={reduceMotion} accessibilityLabel={`Open ${featured.name} stock detail`} style={[s.featureCard, { backgroundColor: c.soft }]}>
+              <View style={s.featureTop}>
+                {text(featured.ticker, { color: c.blue, fontSize: 12, fontWeight: "800", letterSpacing: 0.8 })}
+                {text("STOCK IN FOCUS", { ...s.overline, color: c.muted })}
+                {text("↗", { color: c.blue, fontSize: 20, marginLeft: "auto" })}
+              </View>
+              {text(featured.name, { fontSize: 29, fontWeight: "700", letterSpacing: -0.8, marginTop: 22 })}
+              {text(featured.ticker, { color: c.muted, fontSize: 14, marginTop: 3 })}
+              <View style={[s.featureBottom, { borderColor: c.line }]}>
+                <View>
+                  {text(money(priceRows[featured.ticker]?.priceUsd), { fontSize: 25, fontWeight: "700", letterSpacing: -0.5 })}
+                  {text(priceSource(priceRows[featured.ticker]) + (priceRows[featured.ticker]?.stale ? " · stale" : ""), { color: c.muted, fontSize: 11, marginTop: 4 })}
                 </View>
-                <View style={{ flex: 1 }}>
-                  <T style={s.rowTitle}>{item.name}</T>
-                  <T style={[s.rowDetail, { color: c.muted }]}>
-                    {item.baseSymbol} on Base ·{" "}
-                    {item.solanaSymbol ?? "No xStock"}
-                  </T>
-                </View>
-                <View style={{ alignItems: "flex-end", maxWidth: 104 }}>
-                  <T
-                    style={{
-                      fontSize: 13,
-                      fontWeight: "800",
-                      textAlign: "right",
-                    }}
-                  >
-                    {money(priceRows[item.ticker]?.priceUsd)}
-                  </T>
-                  <T
-                    style={{
-                      color: c.muted,
-                      fontSize: 10,
-                      textAlign: "right",
-                      marginTop: 3,
-                    }}
-                  >
-                    {priceRows[item.ticker]?.source === "pyth"
-                      ? "Pyth equity ref."
-                      : priceRows[item.ticker]?.source === "chainlink-ref"
-                        ? "Chainlink equity ref."
-                        : "Equity reference"}
-                    {priceRows[item.ticker]?.stale ? " · stale" : ""}
-                  </T>
-                </View>
-              </Pressable>
-            ))}
-            {!busy && !error && companyMatches.length === 0 && (
-              <T style={[s.empty, { color: c.muted }]}>
-                No matching companies.
-              </T>
-            )}
-          </>
-        )}
-
-        {tab === "circles" && (
-          <>
-            {heading("Active circles", `${circleRows.length} public`)}
-            {circleRows.map((item) => (
-              <Pressable
-                key={item.slug}
-                accessibilityRole="button"
-                accessibilityLabel={`Explore ${item.name}`}
-                onPress={() => web("/app/groups")}
-                style={[s.card, card]}
-              >
-                <View style={s.cardTop}>
-                  <View style={[s.stockLogo, { backgroundColor: p.sky }]}>
-                    <T style={{ color: p.blue, fontWeight: "900" }}>
-                      {item.tickers[0]?.charAt(0) ?? "D"}
-                    </T>
-                  </View>
+                {text("View stock  →", { color: c.blue, fontSize: 13, fontWeight: "700" })}
+              </View>
+            </MotionPressable>}
+            {feedback("markets")}
+            {section("Make your next move")}
+            <View style={s.path}>
+              {[
+                ["01", "Explore a stock", "See the equity reference and token options.", "markets"],
+                ["02", "Read an idea", "Understand a thesis before you back it.", "conviction"],
+                ["03", "Find its circle", "See what holders are talking about.", "circles"],
+              ].map(([index, title, description, destination], i) => (
+                <MotionPressable key={index} onPress={() => route(destination as Tab)} reduceMotion={reduceMotion} style={[s.pathRow, i > 0 && { borderTopWidth: 1, borderColor: c.line }]}>
+                  {text(index, { color: c.blue, fontSize: 12, fontWeight: "800", width: 30 })}
                   <View style={{ flex: 1 }}>
-                    <T style={s.cardTitle}>{item.name}</T>
-                    <T style={[s.rowDetail, { color: c.muted }]}>
-                      {item.tickers.join(" · ")}
-                    </T>
+                    {text(title, { fontSize: 15, fontWeight: "700" })}
+                    {text(description, { color: c.muted, fontSize: 12, marginTop: 4, lineHeight: 17 })}
                   </View>
-                  <T style={{ color: c.accent, fontSize: 20 }}>↗</T>
-                </View>
-                {!!item.description && (
-                  <T style={[s.cardBody, { color: c.muted }]}>
-                    {item.description}
-                  </T>
-                )}
-                <View style={s.cardFoot}>
-                  <T style={{ color: c.muted, fontSize: 12 }}>
-                    {count(item.memberCount)} members
-                  </T>
-                  {item.pinned && (
-                    <T
-                      style={{
-                        color: p.green,
-                        fontSize: 10,
-                        fontWeight: "800",
-                      }}
-                    >
-                      HAPPENING NOW
-                    </T>
-                  )}
-                </View>
-              </Pressable>
-            ))}
-            {!busy && !error && !circleRows.length && (
-              <T style={[s.empty, { color: c.muted }]}>
-                No active public circles yet.
-              </T>
-            )}
-          </>
-        )}
-
-        {tab === "conviction" && (
-          <>
-            <View style={s.filters}>
-              {(["all", "paper", "live"] as const).map((value) => (
-                <Pressable
-                  key={value}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: mode === value }}
-                  onPress={() => setMode(value)}
-                  style={[
-                    s.filter,
-                    {
-                      backgroundColor: mode === value ? p.blue : c.card,
-                      borderColor: mode === value ? p.blue : c.line,
-                    },
-                  ]}
-                >
-                  <T
-                    style={{
-                      color: mode === value ? p.white : c.muted,
-                      fontWeight: "700",
-                      textTransform: "capitalize",
-                    }}
-                  >
-                    {value}
-                  </T>
-                </Pressable>
+                  {text("›", { color: c.muted, fontSize: 24 })}
+                </MotionPressable>
               ))}
             </View>
-            {heading("Latest theses", `${thesisRows.length} shown`)}
-            {thesisRows.map((item) => (
-              <Pressable
-                key={item.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Read ${item.title}`}
-                onPress={() => selectThesis(item)}
-                style={[s.card, card]}
-              >
-                <View style={s.cardTop}>
-                  <T style={[s.eyebrow, { color: c.accent, flex: 1 }]}>
-                    {item.tokenSymbol || item.companyId.toUpperCase()}
-                  </T>
-                  <T
-                    style={{
-                      color: item.mode === "live" ? p.green : c.accent,
-                      fontSize: 10,
-                      fontWeight: "900",
-                    }}
-                  >
-                    {item.mode.toUpperCase()}
-                  </T>
-                </View>
-                <T style={s.cardTitle}>{item.title}</T>
-                <T style={[s.cardBody, { color: c.muted }]} numberOfLines={3}>
-                  {item.summary}
-                </T>
-                <View
-                  style={[
-                    s.cardFoot,
-                    { borderTopWidth: 1, borderColor: c.line, paddingTop: 13 },
-                  ]}
-                >
-                  <T style={{ color: c.muted, fontSize: 12 }}>
-                    {item.authorKind === "agent" ? "Agent" : "Person"} ·{" "}
-                    {item.authorName || "Daybreak member"}
-                  </T>
-                  <T style={{ color: c.muted, fontSize: 12 }}>
-                    {item.mode === "paper"
-                      ? `${count(item.paperTradeCount)} paper trades`
-                      : "View market"}
-                  </T>
-                </View>
-              </Pressable>
-            ))}
-            {!busy && !error && !thesisRows.length && (
-              <T style={[s.empty, { color: c.muted }]}>
-                No public {mode === "all" ? "" : mode} theses right now.
-              </T>
-            )}
-          </>
-        )}
+            {statRows?.configured && <>
+              {section("The network", "Live Daybreak activity")}
+              <MotionPressable onPress={() => openWeb("/app/stats")} reduceMotion={reduceMotion} style={[s.network, { backgroundColor: c.soft }]}>
+                <View>{text(number(statRows.accounts), { fontSize: 24, fontWeight: "800" })}{text("members", { color: c.muted, fontSize: 12 })}</View>
+                <View>{text(number(statRows.circles), { fontSize: 24, fontWeight: "800" })}{text("circles", { color: c.muted, fontSize: 12 })}</View>
+                {text("↗", { color: c.blue, fontSize: 20 })}
+              </MotionPressable>
+            </>}
+          </>}
 
-        {tab === "stats" && (
-          <>
-            {statRows?.configured && (
-              <View style={s.grid}>
-                {(
-                  [
-                    ["Members", statRows.accounts],
-                    ["Circles", statRows.circles],
-                    ["Circle members", statRows.members],
-                    ["Shared discoveries", statRows.messages],
-                    ["Token launches", statRows.launches],
-                    ["Linked wallets", statRows.wallets],
-                  ] as const
-                ).map(([label, value]) => (
-                  <View key={label} style={[s.statCell, card]}>
-                    <T style={s.statValue}>{count(value)}</T>
-                    <T style={{ color: c.muted, fontSize: 12, marginTop: 7 }}>
-                      {label}
-                    </T>
-                  </View>
-                ))}
-              </View>
-            )}
-            {!busy && !error && statRows && !statRows.configured && (
-              <T style={[s.empty, { color: c.muted }]}>
-                Stats are temporarily unavailable.
-              </T>
-            )}
-            <Action label="Explore full stats" path="/app/stats" outline />
-          </>
-        )}
+          {tab === "markets" && <>
+            <View style={s.intro}>
+              {text("DISCOVER", { ...s.overline, color: c.blue })}
+              {text("Markets", s.title)}
+              {text("Start with a company. Choose how to explore it.", { ...s.subtitle, color: c.muted })}
+            </View>
+            <TextInput value={query} onChangeText={setQuery} placeholder="Search a company or ticker" placeholderTextColor={c.muted} accessibilityLabel="Search a company or ticker" autoCapitalize="none" style={[s.search, { backgroundColor: c.surface, borderColor: c.line, color: c.ink }]} />
+            {section("Stocks", `${matches.length} companies`)}
+            <View style={s.list}>
+              {matches.map((item, i) => <MotionPressable key={item.ticker} onPress={() => setCompany(item)} reduceMotion={reduceMotion} accessibilityLabel={`Open ${item.name}`} style={[s.marketRow, i > 0 && { borderTopWidth: 1, borderColor: c.line }]}>
+                {text(item.ticker, { color: c.blue, fontSize: 12, fontWeight: "800", width: 49 })}
+                <View style={{ flex: 1 }}>
+                  {text(item.name, { fontSize: 15, fontWeight: "700" }, 1)}
+                  {text(`${item.ticker} · ${item.solanaSymbol ? "Base + Solana" : "Base"}`, { color: c.muted, fontSize: 12, marginTop: 3 })}
+                </View>
+                <View style={{ alignItems: "flex-end" }}>
+                  {text(money(priceRows[item.ticker]?.priceUsd), { fontSize: 13, fontWeight: "700" })}
+                  {text(priceRows[item.ticker]?.stale ? "Stale reference" : "Equity ref.", { color: c.muted, fontSize: 10, marginTop: 3 })}
+                </View>
+              </MotionPressable>)}
+            </View>
+            {feedback("markets")}
+            {!loading.markets && !errors.markets && matches.length === 0 && text("No matching companies.", { color: c.muted, marginTop: 16 })}
+          </>}
 
-        {tab === "you" && (
-          <>
-            <View style={[s.profile, card]}>
-              <View style={[s.avatar, { backgroundColor: p.sky }]}>
-                <T style={{ color: p.blue, fontSize: 31, fontWeight: "900" }}>
-                  D
-                </T>
+          {tab === "circles" && <>
+            <View style={s.intro}>
+              {text("COMMUNITY", { ...s.overline, color: c.blue })}
+              {text("Circles", s.title)}
+              {text("The conversation around the stocks you follow.", { ...s.subtitle, color: c.muted })}
+            </View>
+            {section("Explore circles", `${circleRows.length} public`)}
+            {circleRows.map((item) => <MotionPressable key={item.slug} onPress={() => openWeb("/app/groups")} reduceMotion={reduceMotion} accessibilityLabel={`Open ${item.name}`} style={[s.circleCard, { borderColor: c.line }]}>
+              <View style={s.circleTop}>
+                {text(item.tickers[0]?.slice(0, 5) ?? "D", { color: c.blue, fontSize: 12, fontWeight: "800", width: 53 })}
+                <View style={{ flex: 1 }}>{text(item.name, { fontSize: 17, fontWeight: "700" })}{text(item.tickers.join(" · "), { color: c.muted, fontSize: 12, marginTop: 4 })}</View>
+                {text("↗", { color: c.blue, fontSize: 20 })}
               </View>
+              {!!item.description && text(item.description, { color: c.muted, fontSize: 13, lineHeight: 19, marginTop: 18 }, 3)}
+              <View style={[s.circleFoot, { borderColor: c.line }]}>
+                {text(`${number(item.memberCount)} members`, { color: c.muted, fontSize: 12 })}
+                {item.pinned && text("HAPPENING NOW", { color: p.green, fontSize: 10, fontWeight: "800", letterSpacing: 0.6 })}
+              </View>
+            </MotionPressable>)}
+            {feedback("circles")}
+            {!loading.circles && !errors.circles && !circleRows.length && text("No public circles are available right now.", { color: c.muted, marginTop: 14 })}
+            <View style={{ marginTop: 14 }}>{action("Open all circles", () => openWeb("/app/groups"), true)}</View>
+          </>}
+
+          {tab === "conviction" && <>
+            <View style={s.intro}>
+              {text("CONVICTION MARKETS", { ...s.overline, color: c.blue })}
+              {text("Ideas worth testing.", s.title)}
+              {text("Public theses paired with stock tokens. Read first, then decide.", { ...s.subtitle, color: c.muted })}
+            </View>
+            <View style={[s.segment, { backgroundColor: c.soft }]}>
+              {(["all", "paper", "live"] as const).map((value) => <MotionPressable key={value} onPress={() => setMode(value)} reduceMotion={reduceMotion} selected={mode === value} fill style={[s.segmentItem, mode === value && { backgroundColor: c.surface, shadowColor: "#142754", shadowOpacity: 0.06, shadowRadius: 5 }]}>
+                {text(value === "all" ? "All" : value === "paper" ? "Paper" : "Live", { color: mode === value ? c.ink : c.muted, fontSize: 13, fontWeight: mode === value ? "700" : "600" })}
+              </MotionPressable>)}
+            </View>
+            {section("Latest ideas", `${thesisRows.length} shown`)}
+            {thesisRows.map((item) => <MotionPressable key={item.id} onPress={() => setThesis(item)} reduceMotion={reduceMotion} accessibilityLabel={`Read ${item.title}`} style={[s.ideaCard, { borderColor: c.line }]}>
+              <View style={s.ideaTop}>
+                {text(item.tokenSymbol || item.companyId.toUpperCase(), { color: c.blue, fontSize: 12, fontWeight: "800" })}
+                <View style={[s.modePill, { backgroundColor: item.mode === "paper" ? c.soft : "#E4F7EF" }]}>{text(item.mode === "paper" ? "PAPER" : "LIVE", { color: item.mode === "paper" ? c.blue : p.green, fontSize: 10, fontWeight: "800" })}</View>
+              </View>
+              {text(item.title, { fontSize: 19, fontWeight: "700", letterSpacing: -0.3, lineHeight: 25 }, 2)}
+              {text(item.summary, { color: c.muted, fontSize: 13, lineHeight: 19, marginTop: 8 }, 2)}
+              <View style={[s.ideaFoot, { borderColor: c.line }]}>
+                {text(`${item.authorKind === "agent" ? "Agent" : "Member"} · ${item.authorName || "Daybreak"}`, { color: c.muted, fontSize: 11 }, 1)}
+                {text(item.mode === "paper" ? `${number(item.paperTradeCount)} paper trades  ↗` : "View market  ↗", { color: c.blue, fontSize: 11, fontWeight: "700" })}
+              </View>
+            </MotionPressable>)}
+            {feedback("ideas")}
+            {!loading.ideas && !errors.ideas && !thesisRows.length && text("No public ideas in this view yet.", { color: c.muted, marginTop: 14 })}
+            <View style={{ marginTop: 14 }}>{action("Explore conviction", () => openWeb("/app/conviction"), true)}</View>
+          </>}
+
+          {tab === "you" && <>
+            <View style={s.intro}>
+              {text("YOUR SPACE", { ...s.overline, color: c.blue })}
+              {text("Your Daybreak.", s.title)}
+              {text("Your profile, portfolio and saved companies, together.", { ...s.subtitle, color: c.muted })}
+            </View>
+            <View style={s.profile}>
+              <View style={[s.avatar, { backgroundColor: c.soft }]}>{text("D", { color: c.blue, fontSize: 28, fontWeight: "800" })}</View>
               <View style={{ flex: 1 }}>
-                <T style={s.cardTitle}>Make it yours.</T>
-                <T style={[s.cardBody, { color: c.muted, marginTop: 5 }]}>
-                  Sign in to see your profile, real holdings and saved
-                  companies.
-                </T>
+                {text("Make it yours", { fontSize: 21, fontWeight: "700" })}
+                {text("Sign in to view your actual balance, holdings and saved companies.", { color: c.muted, fontSize: 13, lineHeight: 19, marginTop: 5 })}
               </View>
             </View>
-            <Action label="Sign in to Daybreak" path="/app/profile" />
-            {heading("Your space")}
-            {[
-              ["Holdings", "Verified positions across supported networks"],
-              ["Saved companies", "Your watchlist, ready when you return"],
-              ["Wallet verification", "Unlock holder-only circles"],
-            ].map(([label, detail]) => (
-              <View key={label} style={[s.profileRow, { borderColor: c.line }]}>
-                <T style={s.rowTitle}>{label}</T>
-                <T style={[s.rowDetail, { color: c.muted }]}>{detail}</T>
-              </View>
-            ))}
-            <T style={[s.note, { color: c.muted }]}>
-              Balances are never inferred from public market activity.
-            </T>
-          </>
-        )}
-
-        {busy && (
-          <T style={[s.empty, { color: c.muted }]}>
-            Loading live Daybreak data…
-          </T>
-        )}
-        {!!error && (
-          <View
-            style={[s.error, { backgroundColor: dark ? "#4B2638" : "#FFF0F1" }]}
-          >
-            <T style={{ color: dark ? "#FFD1D5" : p.red, fontSize: 13 }}>
-              {error}
-            </T>
-            <Pressable onPress={reload} accessibilityRole="button">
-              <T
-                style={{
-                  color: dark ? "#FFD1D5" : p.red,
-                  fontWeight: "800",
-                  marginTop: 10,
-                }}
-              >
-                Try again ↗
-              </T>
-            </Pressable>
-          </View>
-        )}
+            {action("Sign in to Daybreak", () => openWeb("/app/profile"))}
+            {section("Your account")}
+            <View style={s.list}>
+              {[
+                ["Holdings", "Verified positions across networks"],
+                ["Saved companies", "The stocks you follow"],
+                ["Wallet verification", "Access holder-only circles"],
+              ].map(([label, detail], index) => <MotionPressable key={label} onPress={() => openWeb("/app/profile")} reduceMotion={reduceMotion} style={[s.accountRow, index > 0 && { borderTopWidth: 1, borderColor: c.line }]}>
+                <View style={{ flex: 1 }}>{text(label, { fontWeight: "700", fontSize: 15 })}{text(detail, { color: c.muted, fontSize: 12, marginTop: 4 })}</View>
+                {text("›", { color: c.muted, fontSize: 23 })}
+              </MotionPressable>)}
+            </View>
+            {section("Appearance")}
+            <View style={[s.segment, { backgroundColor: c.soft }]}>
+              {(["light", "dark", "system"] as const).map((value) => <MotionPressable key={value} onPress={() => setAppearance(value)} reduceMotion={reduceMotion} selected={appearance === value} fill style={[s.segmentItem, appearance === value && { backgroundColor: c.surface }]}>
+                {text(value.charAt(0).toUpperCase() + value.slice(1), { color: appearance === value ? c.ink : c.muted, fontSize: 13, fontWeight: appearance === value ? "700" : "600" })}
+              </MotionPressable>)}
+            </View>
+            {text("Balances are shown only after sign-in and are never inferred from market activity.", { color: c.muted, fontSize: 11, lineHeight: 17, marginTop: 18 })}
+          </>}
+        </Animated.View>
       </ScrollView>
-      <View style={[s.tabs, { backgroundColor: c.card, borderColor: c.line }]}>
-        {tabs.map((item) => (
-          <Pressable
-            key={item.id}
-            onPress={() => setTab(item.id)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: tab === item.id }}
-            style={s.tab}
-          >
-            <T
-              style={{
-                color: tab === item.id ? c.accent : c.muted,
-                fontSize: 21,
-              }}
-            >
-              {item.icon}
-            </T>
-            <T
-              style={{
-                color: tab === item.id ? c.accent : c.muted,
-                fontSize: 10,
-                fontWeight: "700",
-              }}
-            >
-              {item.label}
-            </T>
-          </Pressable>
-        ))}
+      <View style={[s.nav, { backgroundColor: c.surface, borderColor: c.line }]}>
+        {tabs.map((item) => <MotionPressable key={item.id} onPress={() => route(item.id)} reduceMotion={reduceMotion} accessibilityRole="tab" selected={tab === item.id} style={s.navItem}>
+          {text(item.label, { color: tab === item.id ? c.blue : c.muted, fontSize: 10, fontWeight: tab === item.id ? "800" : "600", marginTop: 3 })}
+          <View style={[s.navDot, { backgroundColor: tab === item.id ? c.blue : "transparent" }]} />
+        </MotionPressable>)}
       </View>
 
-      <Modal
-        visible={!!company}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => selectCompany(null)}
-      >
+      <Modal visible={!!company} animationType={reduceMotion ? "fade" : "slide"} presentationStyle="pageSheet" onRequestClose={() => setCompany(null)}>
         <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
-          <ScrollView contentContainerStyle={s.modal}>
-            <Pressable
-              onPress={() => selectCompany(null)}
-              accessibilityRole="button"
-              style={s.close}
-            >
-              <T style={{ color: c.muted }}>Close ✕</T>
-            </Pressable>
-            {company && (
-              <>
-                <T style={[s.eyebrow, { color: c.accent }]}>STOCK DISCOVERY</T>
-                <T style={s.modalTitle}>{company.name}</T>
-                <T style={[s.subtitle, { color: c.muted }]}>
-                  {company.ticker} · Supported instruments
-                </T>
-                <View style={[s.detailBox, card]}>
-                  <T style={[s.eyebrow, { color: c.muted }]}>
-                    EQUITY REFERENCE PRICE
-                  </T>
-                  <T style={s.statValue}>
-                    {money(priceRows[company.ticker]?.priceUsd)}
-                  </T>
-                  <T style={[s.rowDetail, { color: c.muted }]}>
-                    Source: {priceRows[company.ticker]?.source ?? "unavailable"}
-                    {priceRows[company.ticker]?.stale ? " · stale" : ""}. This
-                    is not a token quote.
-                  </T>
-                </View>
-                <View style={[s.profileRow, { borderColor: c.line }]}>
-                  <T style={s.rowTitle}>Base stock token</T>
-                  <T style={[s.rowDetail, { color: c.muted }]}>
-                    {company.baseSymbol} · B20
-                  </T>
-                </View>
-                {company.solanaSymbol && (
-                  <View style={[s.profileRow, { borderColor: c.line }]}>
-                    <T style={s.rowTitle}>Solana stock token</T>
-                    <T style={[s.rowDetail, { color: c.muted }]}>
-                      {company.solanaSymbol} · xStocks
-                    </T>
-                  </View>
-                )}
-                <Action
-                  label="Explore on Daybreak"
-                  path={stockLink(company.ticker)}
-                />
-              </>
-            )}
+          <ScrollView contentContainerStyle={s.sheet}>
+            <MotionPressable onPress={() => setCompany(null)} reduceMotion={reduceMotion} style={s.sheetClose}>{text("Done", { color: c.blue, fontSize: 15, fontWeight: "700" })}</MotionPressable>
+            {company && <>
+              <View style={[s.logoLarge, { backgroundColor: c.soft }]}>{text(company.ticker.slice(0, 2), { color: c.blue, fontSize: 26, fontWeight: "800" })}</View>
+              {text(company.name, { fontSize: 32, fontWeight: "800", letterSpacing: -1, marginTop: 20 })}
+              {text(`${company.ticker} · Stock detail`, { color: c.muted, fontSize: 14, marginTop: 5 })}
+              <View style={[s.priceBox, { backgroundColor: c.surface, borderColor: c.line }]}>
+                {text("EQUITY REFERENCE", { ...s.overline, color: c.muted })}
+                {text(money(priceRows[company.ticker]?.priceUsd), { fontSize: 32, fontWeight: "700", marginTop: 12 })}
+                {text(`${priceSource(priceRows[company.ticker])}${priceRows[company.ticker]?.stale ? " · stale" : ""}. This is not a token quote.`, { color: c.muted, fontSize: 12, lineHeight: 18, marginTop: 10 })}
+              </View>
+              {section("Available instruments")}
+              <View style={s.list}>
+                <View style={s.instrumentRow}>{text("Base", { fontWeight: "700" })}{text(`${company.baseSymbol} · B20`, { color: c.muted, fontSize: 13 })}</View>
+                {company.solanaSymbol && <View style={[s.instrumentRow, { borderTopWidth: 1, borderColor: c.line }]}>{text("Solana", { fontWeight: "700" })}{text(`${company.solanaSymbol} · xStocks`, { color: c.muted, fontSize: 13 })}</View>}
+              </View>
+              <View style={{ marginTop: 28 }}>{action("Explore on Daybreak", () => openWeb(stockLink(company.ticker)))}</View>
+            </>}
           </ScrollView>
         </SafeAreaView>
       </Modal>
-      <Modal
-        visible={!!thesis}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => selectThesis(null)}
-      >
+      <Modal visible={!!thesis} animationType={reduceMotion ? "fade" : "slide"} presentationStyle="pageSheet" onRequestClose={() => setThesis(null)}>
         <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
-          <ScrollView contentContainerStyle={s.modal}>
-            <Pressable
-              onPress={() => selectThesis(null)}
-              accessibilityRole="button"
-              style={s.close}
-            >
-              <T style={{ color: c.muted }}>Close ✕</T>
-            </Pressable>
-            {thesis && (
-              <>
-                <T style={[s.eyebrow, { color: c.accent }]}>
-                  {thesis.mode.toUpperCase()} MARKET · {thesis.tokenSymbol}
-                </T>
-                <T style={s.modalTitle}>{thesis.title}</T>
-                <T style={[s.subtitle, { color: c.muted }]}>
-                  By{" "}
-                  {thesis.authorName ||
-                    (thesis.authorKind === "agent"
-                      ? "Daybreak agent"
-                      : "Daybreak member")}
-                </T>
-                <T style={s.modalSection}>The idea</T>
-                <T style={[s.modalBody, { color: c.muted }]}>
-                  {thesis.body || thesis.summary}
-                </T>
-                {!!thesis.invalidation && (
-                  <>
-                    <T style={s.modalSection}>What would change it</T>
-                    <T style={[s.modalBody, { color: c.muted }]}>
-                      {thesis.invalidation}
-                    </T>
-                  </>
-                )}
-                {!!thesis.horizon && (
-                  <T style={[s.note, { color: c.muted }]}>
-                    Time horizon: {thesis.horizon}
-                  </T>
-                )}
-                <Action
-                  label={
-                    thesis.mode === "paper"
-                      ? "Practice on Daybreak"
-                      : "View live market"
-                  }
-                  path={thesisLink(thesis.slug, thesis.mode)}
-                />
-                <T style={[s.note, { color: c.muted }]}>
-                  Any trade is reviewed and confirmed in Daybreak. Paper trades
-                  do not move real assets.
-                </T>
-              </>
-            )}
+          <ScrollView contentContainerStyle={s.sheet}>
+            <MotionPressable onPress={() => setThesis(null)} reduceMotion={reduceMotion} style={s.sheetClose}>{text("Done", { color: c.blue, fontSize: 15, fontWeight: "700" })}</MotionPressable>
+            {thesis && <>
+              {text(`${thesis.mode.toUpperCase()} MARKET · ${thesis.tokenSymbol}`, { ...s.overline, color: c.blue })}
+              {text(thesis.title, { fontSize: 30, fontWeight: "700", letterSpacing: -0.8, lineHeight: 36, marginTop: 14 })}
+              {text(`By ${thesis.authorName || (thesis.authorKind === "agent" ? "Daybreak agent" : "Daybreak member")}`, { color: c.muted, fontSize: 13, marginTop: 9 })}
+              {section("The idea")}
+              {text(thesis.body || thesis.summary, { color: c.ink, fontSize: 15, lineHeight: 23 })}
+              {!!thesis.invalidation && <>{section("What would change it")}{text(thesis.invalidation, { color: c.muted, fontSize: 14, lineHeight: 21 })}</>}
+              {!!thesis.horizon && text(`Time horizon: ${thesis.horizon}`, { color: c.muted, fontSize: 12, marginTop: 20 })}
+              <View style={{ marginTop: 28 }}>{action(thesis.mode === "paper" ? "Practice on Daybreak" : "View live market", () => openWeb(thesisLink(thesis.slug, thesis.mode)))}</View>
+              {text("Trades are reviewed and confirmed in Daybreak. Paper trades never move real assets.", { color: c.muted, fontSize: 11, lineHeight: 17, marginTop: 13 })}
+            </>}
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -738,188 +445,51 @@ function Main() {
 }
 
 export default function App() {
-  return (
-    <SafeAreaProvider>
-      <Main />
-    </SafeAreaProvider>
-  );
+  return <SafeAreaProvider><Main /></SafeAreaProvider>;
 }
 
 const s = StyleSheet.create({
-  header: {
-    minHeight: 58,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderBottomWidth: 1,
-  },
-  headerButton: { minHeight: 44, justifyContent: "center" },
+  topbar: { height: 62, borderBottomWidth: 1, paddingHorizontal: 22, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   brand: { flexDirection: "row", alignItems: "center", gap: 9 },
-  mark: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
-    backgroundColor: p.blue,
-    overflow: "hidden",
-  },
-  slash: {
-    width: 36,
-    height: 6,
-    backgroundColor: p.white,
-    position: "absolute",
-    top: 13,
-    left: 0,
-    transform: [{ rotate: "-45deg" }],
-  },
-  content: { paddingHorizontal: 20, paddingBottom: 26 },
-  intro: { paddingTop: 34, paddingBottom: 26 },
-  eyebrow: { fontSize: 11, fontWeight: "800", letterSpacing: 1.3 },
-  headline: {
-    fontSize: 37,
-    lineHeight: 41,
-    fontWeight: "800",
-    letterSpacing: -1.5,
-    marginTop: 12,
-  },
-  subtitle: { fontSize: 15, lineHeight: 23, marginTop: 10 },
-  hero: {
-    backgroundColor: p.blue,
-    borderRadius: 27,
-    padding: 23,
-    minHeight: 170,
-    justifyContent: "center",
-    marginBottom: 22,
-  },
-  heroLabel: {
-    color: "#C5D0FF",
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.3,
-  },
-  heroTitle: {
-    color: p.white,
-    fontSize: 26,
-    fontWeight: "800",
-    letterSpacing: -0.6,
-    marginTop: 12,
-  },
-  heroBody: { color: "#E4E8FF", fontSize: 14, lineHeight: 21, marginTop: 9 },
-  search: {
-    minHeight: 52,
-    borderWidth: 1,
-    borderRadius: 17,
-    paddingHorizontal: 16,
-    fontSize: 15,
-  },
-  sectionHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 24,
-    marginBottom: 14,
-  },
-  sectionTitle: { fontSize: 20, fontWeight: "800", letterSpacing: -0.4 },
-  stockRow: {
-    minHeight: 81,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  stockLogo: {
-    width: 45,
-    height: 45,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rowTitle: { fontSize: 15, fontWeight: "700" },
-  rowDetail: { fontSize: 12, lineHeight: 18, marginTop: 4 },
-  card: { borderWidth: 1, borderRadius: 21, padding: 18, marginBottom: 12 },
-  cardTop: { flexDirection: "row", gap: 12, alignItems: "center" },
-  cardTitle: { fontSize: 18, fontWeight: "800", letterSpacing: -0.3 },
-  cardBody: { fontSize: 14, lineHeight: 21, marginTop: 12 },
-  cardFoot: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 17,
-    gap: 8,
-  },
-  filters: { flexDirection: "row", gap: 8 },
-  filter: {
-    minHeight: 42,
-    paddingHorizontal: 17,
-    borderRadius: 21,
-    borderWidth: 1,
-    justifyContent: "center",
-  },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  statCell: {
-    width: "48%",
-    minHeight: 115,
-    borderWidth: 1,
-    borderRadius: 19,
-    padding: 17,
-    justifyContent: "center",
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: "800",
-    letterSpacing: -0.8,
-    marginTop: 10,
-  },
-  profile: {
-    borderWidth: 1,
-    borderRadius: 22,
-    padding: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  profileRow: { paddingVertical: 17, borderBottomWidth: 1 },
-  note: { fontSize: 12, lineHeight: 18, marginTop: 20 },
-  action: {
-    minHeight: 54,
-    borderRadius: 17,
-    borderWidth: 1,
-    paddingHorizontal: 18,
-    marginTop: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  tabs: {
-    borderTopWidth: 1,
-    flexDirection: "row",
-    minHeight: 62,
-    paddingHorizontal: 3,
-  },
-  tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 3 },
-  empty: {
-    fontSize: 14,
-    lineHeight: 21,
-    textAlign: "center",
-    paddingVertical: 24,
-  },
-  error: { padding: 17, borderRadius: 15, marginTop: 18 },
-  modal: { padding: 24, paddingBottom: 70 },
-  close: { alignSelf: "flex-end", minHeight: 44, justifyContent: "center" },
-  modalTitle: {
-    fontSize: 34,
-    fontWeight: "800",
-    letterSpacing: -1,
-    lineHeight: 40,
-    marginTop: 12,
-  },
-  detailBox: { borderWidth: 1, borderRadius: 20, padding: 20, marginTop: 24 },
-  modalSection: { fontSize: 17, fontWeight: "800", marginTop: 26 },
-  modalBody: { fontSize: 15, lineHeight: 23, marginTop: 10 },
+  mark: { width: 23, height: 23, borderRadius: 6, backgroundColor: p.blue, overflow: "hidden" },
+  slash: { width: 30, height: 5, backgroundColor: p.white, position: "absolute", top: 11, left: -3, transform: [{ rotate: "-45deg" }] },
+  topbarLink: { minHeight: 34, borderRadius: 17, paddingHorizontal: 12, justifyContent: "center" },
+  content: { paddingHorizontal: 22, paddingBottom: 42 },
+  intro: { paddingTop: 30, paddingBottom: 27 },
+  overline: { fontSize: 10, fontWeight: "800", letterSpacing: 1.4 },
+  title: { fontSize: 34, lineHeight: 39, fontWeight: "800", letterSpacing: -1.2, marginTop: 12 },
+  subtitle: { fontSize: 14, lineHeight: 21, marginTop: 8 },
+  section: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginTop: 27, marginBottom: 14, gap: 12 },
+  sectionTitle: { fontSize: 19, fontWeight: "700", letterSpacing: -0.4 },
+  featureCard: { borderRadius: 20, padding: 20 },
+  featureTop: { flexDirection: "row", alignItems: "center", gap: 10 },
+  logoLarge: { width: 66, height: 66, borderRadius: 19, alignItems: "center", justifyContent: "center" },
+  featureBottom: { borderTopWidth: 1, marginTop: 28, paddingTop: 17, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  path: { paddingHorizontal: 1 },
+  pathRow: { minHeight: 78, paddingVertical: 15, flexDirection: "row", alignItems: "center", gap: 8 },
+  network: { minHeight: 88, borderRadius: 20, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  search: { height: 51, borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, fontSize: 14 },
+  list: { overflow: "hidden" },
+  marketRow: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 0, paddingVertical: 11 },
+  circleCard: { borderBottomWidth: 1, paddingVertical: 22, marginBottom: 0 },
+  circleTop: { flexDirection: "row", alignItems: "center", gap: 12 },
+  circleFoot: { borderTopWidth: 1, paddingTop: 15, marginTop: 17, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  segment: { borderRadius: 15, padding: 4, flexDirection: "row", gap: 4 },
+  segmentItem: { flex: 1, height: 39, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  ideaCard: { borderBottomWidth: 1, paddingVertical: 20, marginBottom: 0 },
+  ideaTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
+  modePill: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 5 },
+  ideaFoot: { borderTopWidth: 1, marginTop: 17, paddingTop: 13, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  profile: { paddingVertical: 13, flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 17 },
+  avatar: { width: 62, height: 62, borderRadius: 31, alignItems: "center", justifyContent: "center" },
+  accountRow: { minHeight: 69, paddingHorizontal: 0, paddingVertical: 14, flexDirection: "row", alignItems: "center" },
+  action: { minHeight: 54, borderRadius: 17, paddingHorizontal: 19, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  feedback: { borderRadius: 14, padding: 14, marginTop: 16 },
+  nav: { borderTopWidth: 1, minHeight: 64, flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingHorizontal: 5 },
+  navItem: { width: 68, height: 58, alignItems: "center", justifyContent: "center" },
+  navDot: { width: 15, height: 2, borderRadius: 1, marginTop: 6 },
+  sheet: { paddingHorizontal: 24, paddingBottom: 60 },
+  sheetClose: { alignSelf: "flex-end", paddingVertical: 20, minHeight: 54 },
+  priceBox: { borderWidth: 1, borderRadius: 22, padding: 20, marginTop: 27 },
+  instrumentRow: { minHeight: 59, paddingHorizontal: 17, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
 });

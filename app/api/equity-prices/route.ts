@@ -11,7 +11,7 @@ interface Priced { priceUsd: number | null; source: 'pyth' | 'chainlink-ref' | '
 export async function GET(req: Request) {
   const tickers = (new URL(req.url).searchParams.get('tickers') || '')
     .split(',').map((t) => t.trim().toUpperCase()).filter(Boolean).slice(0, 20);
-  if (!tickers.length) return Response.json({ prices: {}, pyth: isPythConfigured });
+  if (!tickers.length) return Response.json({ prices: {}, pyth: isPythConfigured }, { headers: { 'Access-Control-Allow-Origin': '*' } });
 
   const pyth = await fetchPythEquityPrices(tickers);
   const out: Record<string, Priced> = {};
@@ -33,5 +33,5 @@ export async function GET(req: Request) {
     }
   }
   const market = usMarketSession();
-  return Response.json({ prices: out, pyth: isPythConfigured, market }, { headers: { 'Cache-Control': 'private, max-age=20' } });
+  return Response.json({ prices: out, pyth: isPythConfigured, market }, { headers: { 'Cache-Control': 'private, max-age=20', 'Access-Control-Allow-Origin': '*' } });
 }

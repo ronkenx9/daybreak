@@ -502,3 +502,9 @@ The mobile build is complete when a new user can:
 
 The design is not complete if only the happy-path screens resemble the mockups. Loading, partial, stale, unavailable, restricted, failure, and recovery states must feel equally intentional.
 
+
+## Native iOS translation — 2026-09-20
+
+The original mockups above define screen hierarchy and user journeys. The native Expo foundation now translates that hierarchy into a quieter, current-product navigation: **Today, Markets, Circles, Ideas, You**. Today carries the focused company and three next actions from the Home mockup. Markets carries search and stock detail. Circles carries real public communities. Ideas is the Conviction market added after these mockups. Holdings and portfolio remain inside You, matching the current merged profile. Network stats live on Today and link to the full public stats view. This is the deliberate mapping from the older Home / Markets / Circles / Portfolio / You drawing, not a claim that every illustrated flow has shipped natively.
+
+The iOS screen language uses the Daybreak mark and blue as a restrained action accent, open white space, dark ink, large titles, hairline dividers, one softly tinted stock focus, and compact source labels. Each primary screen has one main task. Tab changes use a short reveal to orient the user; press surfaces compress briefly to confirm touch; stock and idea detail use native sheets; segmented controls change the actual data or appearance mode. System Reduce Motion removes travel and press scaling while preserving state changes. There are no looping decorative animations or simulated portfolio balances. Native account, wallet and execution flows still open the existing Daybreak web app until those flows are implemented securely in the native client.

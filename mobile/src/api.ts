@@ -1,4 +1,4 @@
-export const API_ORIGIN = "https://www.daybreakcircles.lol";
+export const API_ORIGIN = process.env.EXPO_PUBLIC_API_ORIGIN || "https://www.daybreakcircles.lol";
 
 export type Company = {
   ticker: string;
@@ -81,6 +81,7 @@ async function getJson(path: string, signal?: AbortSignal): Promise<unknown> {
     return await response.json();
   } catch (error) {
     if (timedOut) throw new ApiError(408, "This feed is taking too long. Pull to retry.");
+    if (error instanceof TypeError) throw new ApiError(0, "Daybreak is unavailable. Pull to retry.");
     throw error;
   } finally {
     clearTimeout(timer);

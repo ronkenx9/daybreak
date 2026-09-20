@@ -9,5 +9,5 @@ export function GET() {
     ticker: token.ticker, name: token.name, baseSymbol: token.onchainSymbol,
     solanaSymbol: solana.get(token.ticker)?.symbol ?? null,
     solanaInstrumentId: solana.get(token.ticker)?.id ?? null,
-  })) }, { headers: { 'Cache-Control': 'public, max-age=300, s-maxage=3600' } });
+  })) }, { headers: { 'Cache-Control': 'public, max-age=300, s-maxage=3600', 'Access-Control-Allow-Origin': '*' } });
 }
