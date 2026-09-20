@@ -48,6 +48,26 @@ export interface CircleView {
   tickers: string[]; memberCount: number; joined: boolean; eligible: boolean; owned: boolean; tokenAddress: string | null; pinned: boolean;
 }
 
+/** Public discovery only: never include membership or eligibility for a viewer. */
+export async function listPublicCircles() {
+  await ensureCircles();
+  const db = getDb();
+  const [rows, counts] = await Promise.all([
+    db.select({ id: circles.id, slug: circles.slug, name: circles.name, description: circles.description,
+      kind: circles.kind, tickers: circles.tickers, pinnedUntil: circles.pinnedUntil })
+      .from(circles).where(and(eq(circles.status, 'active'), eq(circles.visibility, 'public'))).limit(100),
+    db.select({ circleId: circleMemberships.circleId, value: count() }).from(circleMemberships)
+      .where(eq(circleMemberships.status, 'active')).groupBy(circleMemberships.circleId),
+  ]);
+  const totals = new Map(counts.map((row) => [row.circleId, Number(row.value)]));
+  return rows.map((row) => ({ slug: row.slug, name: row.name, description: row.description,
+    kind: row.kind, tickers: Array.isArray(row.tickers) ? row.tickers : [],
+    memberCount: totals.get(row.id) ?? 0,
+    pinned: !!row.pinnedUntil && new Date(row.pinnedUntil).getTime() > Date.now(),
+  })).filter((row) => row.kind !== 'interest' && !(row.kind === 'stock' && row.memberCount === 0))
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.memberCount - a.memberCount || a.name.localeCompare(b.name));
+}
+
 export async function listCircles(userId: string): Promise<CircleView[]> {
   await ensureCircles();
   const db = getDb();

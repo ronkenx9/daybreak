@@ -1,0 +1,16 @@
+export const palette = {
+  blue: "#0210EF",
+  ink: "#182446",
+  muted: "#687594",
+  faint: "#EFF3FF",
+  line: "#DDE5FA",
+  canvas: "#FAFBFF",
+  white: "#FFFFFF",
+  sky: "#DDEBFF",
+  green: "#0A8F70",
+  red: "#BB4050",
+  dark: "#10192E",
+  darkCard: "#1A2741",
+  darkLine: "#344263",
+  darkMuted: "#B4C2DD",
+};

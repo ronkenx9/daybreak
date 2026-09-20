@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Daybreak",
+    "slug": "daybreak-ios",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["ios", "web"],
+    "backgroundColor": "#FAFBFF",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "lol.daybreakcircles.ios"
+    },
+    "web": {
+      "favicon": "./assets/icon.png"
+    }
+  }
+}
