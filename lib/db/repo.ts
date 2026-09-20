@@ -50,7 +50,6 @@ export interface CircleView {
 
 /** Public discovery only: never include membership or eligibility for a viewer. */
 export async function listPublicCircles() {
-  await ensureCircles();
   const db = getDb();
   const [rows, counts] = await Promise.all([
     db.select({ id: circles.id, slug: circles.slug, name: circles.name, description: circles.description,
