@@ -57,18 +57,35 @@ export class ApiError extends Error {
 }
 
 async function getJson(path: string, signal?: AbortSignal): Promise<unknown> {
-  const response = await fetch(`${API_ORIGIN}${path}`, {
-    headers: { Accept: "application/json" },
-    signal,
-  });
-  if (!response.ok)
-    throw new ApiError(
-      response.status,
-      response.status === 429
-        ? "Daybreak is busy. Pull to retry."
-        : "Could not load this feed. Pull to retry.",
-    );
-  return response.json();
+  const controller = new AbortController();
+  let timedOut = false;
+  const abort = () => controller.abort();
+  signal?.addEventListener("abort", abort, { once: true });
+  if (signal?.aborted) controller.abort();
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 12_000);
+  try {
+    const response = await fetch(`${API_ORIGIN}${path}`, {
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
+    if (!response.ok)
+      throw new ApiError(
+        response.status,
+        response.status === 429
+          ? "Daybreak is busy. Pull to retry."
+          : "Could not load this feed. Pull to retry.",
+      );
+    return await response.json();
+  } catch (error) {
+    if (timedOut) throw new ApiError(408, "This feed is taking too long. Pull to retry.");
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", abort);
+  }
 }
 
 const record = (value: unknown): value is Record<string, unknown> =>
