@@ -16,6 +16,8 @@ Discover companies, follow your interests, and give your watchlist a little pers
 
 ## The product
 
+Proposed economic design: [DAYC, service credits, creator incentives and treasury policy](docs/DAYBREAK-ECONOMICS.md). This is a design proposal, not implemented token commitments.
+
 Your interests are bigger than a ticker symbol. Gaming, AI, the brands you use every day: they connect companies, culture, and people.
 
 Daybreak is building a discovery layer around those connections. Explore companies and their tokenized stocks on Base, read the stories behind them, save what catches your eye, and make the experience yours. The longer-term home for all of this is your **circle**: people with shared interests exchanging watchlists, memes, and discoveries.
