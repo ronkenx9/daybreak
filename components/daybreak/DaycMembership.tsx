@@ -26,8 +26,8 @@ export default function DaycMembership() {
           {!address ? 'Your Daybreak wallet is loading…'
             : q.isPending ? 'Checking your $DAYC balance…'
             : q.isError ? 'Could not check right now. Try again shortly.'
-            : member ? `You hold ${Math.floor(q.data!.balance).toLocaleString()} DAYC — member perks unlocked.`
-            : `Hold ${DAYC_MEMBER_MIN.toLocaleString()} $DAYC to unlock the member badge and perks.`}
+            : member ? `You hold ${Math.floor(q.data!.balance).toLocaleString()} DAYC — your current wallet-balance badge is active. Service credits are separate.`
+            : `Hold ${DAYC_MEMBER_MIN.toLocaleString()} DAYC to unlock the current member badge. A term lock is not active yet.`}
         </small>
       </div>
       {!member && q.isSuccess && (

@@ -10,6 +10,7 @@ import { DAYBREAK_TOKEN, DAYC_PIN_PRICE, isPinSinkConfigured } from '@/lib/base/
 import { Avatar, ProfileAvatar } from './Identity';
 import CircleDiscoveries from './CircleDiscoveries';
 import CircleNews from './CircleNews';
+import CircleEconomy from './CircleEconomy';
 import { isPreStockSymbol } from '@/lib/solana/prestocks-symbols';
 
 interface Circle {
@@ -123,6 +124,21 @@ export default function CirclesHub() {
     } finally { setWorking(false); }
   };
 
+  const pinWithCredits = async () => {
+    if (!active) return;
+    setWorking(true); setNotice('');
+    try {
+      const storageKey = `daybreak-pin-attempt:${active.slug}`;
+      let idempotencyKey = sessionStorage.getItem(storageKey);
+      if (!idempotencyKey) { idempotencyKey = crypto.randomUUID(); sessionStorage.setItem(storageKey, idempotencyKey); }
+      const res = await authedFetch<{ pinnedUntil?: string }>(`/api/economy/circles/${encodeURIComponent(active.slug)}/pin`, { method: 'POST', body: JSON.stringify({ idempotencyKey }) });
+      sessionStorage.removeItem(storageKey);
+      setNotice(res.pinnedUntil ? `Pinned through ${new Date(res.pinnedUntil).toLocaleString()}.` : 'Circle pin confirmed.');
+      void load(active.slug);
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not pin with credits.'); }
+    finally { setWorking(false); }
+  };
+
   const create = async (event: React.FormEvent) => {
     event.preventDefault(); setWorking(true); setNotice('');
     try {
@@ -155,10 +171,11 @@ export default function CirclesHub() {
     {notice && <p className="db-circle-notice" role="status">{notice}</p>}
     {loading ? <div className="db-empty"><p>Loading circles…</p></div> : <div className="db-group-grid">{visible.map((circle, index) => <button key={circle.slug} className={`db-group-card group-${index % 3} ${active?.slug === circle.slug ? 'selected' : ''}`} onClick={() => setActiveSlug(circle.slug)} aria-pressed={active?.slug === circle.slug}><Avatar seed={index % 6} size={64}/><span className={circle.pinned ? 'db-card-pinned' : undefined}>{circle.pinned ? <><Pin size={11}/> Pinned</> : circle.kind === 'stock' ? (circle.eligible ? 'Verified holding' : circle.tickers.some(isPreStockSymbol) ? 'Pre-IPO circle' : 'Stock circle') : circle.owned ? 'Created by you' : 'Community'}</span><h3>{circle.name}</h3><p>{circle.description}</p><div>{circle.tickers.map((ticker) => <span key={ticker}>{ticker}</span>)}<span>{circle.memberCount} {circle.memberCount === 1 ? 'member' : 'members'}</span></div></button>)}</div>}
     {active && <>
-      <div className="db-section-heading db-disc-heading"><div><span className="db-eyebrow">{active.name}</span><h2>{active.joined ? 'Inside the circle.' : active.eligible ? 'You have access.' : 'A holding is required.'}</h2></div><div className="db-circle-head-actions">{isPinSinkConfigured && (active.joined || active.owned) && <button className="db-button db-pin-button" disabled={working} onClick={() => void pin()} title={`Pin this circle to the top for ${DAYC_PIN_PRICE.toLocaleString()} DAYC`}><Pin size={15}/> {active.pinned ? 'Pinned' : `Pin · ${DAYC_PIN_PRICE.toLocaleString()} DAYC`}</button>}<button className="db-button db-blue-button" disabled={working || active.owned || (!active.joined && !active.eligible)} onClick={toggleJoin}>{active.owned ? <Check size={17}/> : active.joined ? <Check size={17}/> : active.eligible ? <Plus size={17}/> : <LockKeyhole size={17}/>} {active.owned ? 'Circle owner' : active.joined ? 'Leave circle' : active.eligible ? 'Join circle' : 'Locked'}</button></div></div>
+      <div className="db-section-heading db-disc-heading"><div><span className="db-eyebrow">{active.name}</span><h2>{active.joined ? 'Inside the circle.' : active.eligible ? 'You have access.' : 'A holding is required.'}</h2></div><div className="db-circle-head-actions">{(active.joined || active.owned) && <button className="db-button db-pin-button" disabled={working} onClick={() => void pinWithCredits()} title="Pin this Circle for 48 hours using $0.25 Daybreak Credits"><Pin size={15}/> Pin · $0.25 credits</button>}{isPinSinkConfigured && (active.joined || active.owned) && <button className="db-button db-pin-button" disabled={working} onClick={() => void pin()} title={`Pin this circle for 48 hours with ${DAYC_PIN_PRICE.toLocaleString()} DAYC`}><Pin size={15}/> {DAYC_PIN_PRICE.toLocaleString()} DAYC</button>}<button className="db-button db-blue-button" disabled={working || active.owned || (!active.joined && !active.eligible)} onClick={toggleJoin}>{active.owned ? <Check size={17}/> : active.joined ? <Check size={17}/> : active.eligible ? <Plus size={17}/> : <LockKeyhole size={17}/>} {active.owned ? 'Circle owner' : active.joined ? 'Leave circle' : active.eligible ? 'Join circle' : 'Locked'}</button></div></div>
       <CircleDiscoveries slug={active.slug} isMember={active.joined} onJoin={toggleJoin} tickers={active.tickers}/>
       {active.tokenAddress && <p className="db-circle-token"><strong>Live community token</strong><code>{active.tokenAddress.slice(0, 8)}…{active.tokenAddress.slice(-6)}</code><a href={`https://basescan.org/token/${active.tokenAddress}`} target="_blank" rel="noreferrer">View on BaseScan ↗</a></p>}
       {active.tickers.length > 0 && <CircleNews key={active.slug} slug={active.slug} isMember={active.joined} title={`${active.name} · latest stories`} initialStoryUrl={active.slug === requestedContext.circle ? requestedContext.story : undefined}/>}
+      <CircleEconomy key={active.slug} slug={active.slug} canFund={active.joined || active.owned}/>
       <section className="db-circle-members"><div className="db-board-header"><div><span className="db-eyebrow">People</span><h2>{active.joined ? `${members.length} in this circle.` : 'Join to meet members.'}</h2><p>Joining is consent to show your Daybreak name, profile photo and verified stock badges inside this circle. Wallets and balances stay private.</p></div><ShieldCheck size={22}/></div>{active.joined && (members.length ? <div className="db-member-grid">{members.map((member, index) => <article key={`${member.displayName}-${index}`}><ProfileAvatar imageUrl={member.avatarUrl} seed={member.avatar} size={48}/><div><strong>{member.displayName}</strong><small>{member.handle || (member.role === 'owner' ? 'Circle creator' : 'Member')}</small><p>{member.verifiedTickers.map((ticker) => <span key={ticker}>{ticker} ✓</span>)}</p></div></article>)}</div> : <div className="db-empty"><Users size={28}/><h3>You’re the first one here.</h3><p>Share the circle with another holder to meet them here.</p></div>)}</section>
     </>}
   </>;

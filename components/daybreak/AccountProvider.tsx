@@ -26,6 +26,7 @@ export interface AccountState {
   linkWallet: () => void;
   payCreationTransfer: (transaction: {to:string;value:string;data:string}) => Promise<string>;
   payDaycPin: (amountRaw: string) => Promise<{ hash: string; from: string }>; // DAYC -> treasury, user signs
+  payEconomyUsdc: (amountRaw: string) => Promise<{ hash: string; from: string }>;
   solanaWallet: string | null; // first linked Solana wallet (StonkFun launches)
   ensureSolanaWallet: () => Promise<string>; // address, creating embedded on first use
   signSolanaTransaction: (unsignedBase64: string) => Promise<string>; // returns signed tx base64
@@ -38,6 +39,7 @@ const ANON: AccountState = {
   configured: false, ready: true, authenticated: false, user: null, solanaWallet: null,
   login() {}, logout() {}, linkWallet() {}, payCreationTransfer: async () => { throw new Error("Sign in first"); },
   payDaycPin: async () => { throw new Error("Sign in first"); },
+  payEconomyUsdc: async () => { throw new Error("Sign in first"); },
   ensureSolanaWallet: async () => { throw new Error("Sign in first"); },
   signSolanaTransaction: async () => { throw new Error("Sign in first"); },
   signSolanaMessage: async () => { throw new Error("Sign in first"); },
@@ -110,6 +112,20 @@ function AccountBridge({ children }: { children: ReactNode }) {
         const provider=await signer.getEthereumProvider();
         const hash=await provider.request({method:'eth_sendTransaction',params:[{from:signer.address,to:DAYBREAK_TOKEN.address,data,value:'0x0',chainId:'0x2105'}]});
         if(typeof hash!=='string'||!/^0x[a-f0-9]{64}$/i.test(hash))throw new Error('Wallet did not return a payment transaction');
+        return { hash, from: signer.address };
+      },
+      payEconomyUsdc: async (amountRaw) => {
+        if (!isPinSinkConfigured) throw new Error('Credit payments are unavailable.');
+        const amount = BigInt(amountRaw);
+        if (amount < 5_000_000n || amount > 25_000_000n || amount % 10_000n !== 0n) throw new Error('Invalid credit amount.');
+        const signer = wallets.find(w => w.address.toLowerCase() === wallet?.toLowerCase());
+        if (!signer) throw new Error('Your Base wallet is still loading.');
+        const usdc = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913';
+        const data = '0xa9059cbb' + DAYC_TREASURY.slice(2).toLowerCase().padStart(64,'0') + amount.toString(16).padStart(64,'0');
+        await signer.switchChain(8453);
+        const provider = await signer.getEthereumProvider();
+        const hash = await provider.request({ method: 'eth_sendTransaction', params: [{ from: signer.address, to: usdc, data, value: '0x0', chainId: '0x2105' }] });
+        if (typeof hash !== 'string' || !/^0x[a-f0-9]{64}$/i.test(hash)) throw new Error('Wallet did not return a payment transaction.');
         return { hash, from: signer.address };
       },
       ensureSolanaWallet: async () => {

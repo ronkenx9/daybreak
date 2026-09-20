@@ -14,7 +14,8 @@
     "db:generate": "drizzle-kit generate",
     "db:preflight": "node --env-file-if-exists=.env.local scripts/db-preflight.mjs",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs",
-    "db:verify": "node --env-file-if-exists=.env.local scripts/db-verify.mjs"
+    "db:verify": "node --env-file-if-exists=.env.local scripts/db-verify.mjs",
+    "db:verify-economy": "node --env-file-if-exists=.env.local scripts/db-verify-economy.mjs"
   },
   "dependencies": {
     "@base-org/account": "^2.5.10",

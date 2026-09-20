@@ -73,6 +73,76 @@ export const circlePins = pgTable('circle_pins', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({ circleLookup: index('circle_pins_circle_idx').on(t.circleId) }));
 
+// Prepaid, non-transferable service credits. Cents are integer accounting units.
+export const economyAccounts = pgTable('economy_accounts', {
+  userId: uuid('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  balanceCents: integer('balance_cents').notNull().default(0),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const economyQuotes = pgTable('economy_quotes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  wallet: text('wallet').notNull(),
+  creditsCents: integer('credits_cents').notNull(),
+  amountRaw: numeric('amount_raw', { precision: 38, scale: 0 }).notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const economyPayments = pgTable('economy_payments', {
+  txHash: text('tx_hash').primaryKey(),
+  quoteId: uuid('quote_id').notNull().unique().references(() => economyQuotes.id),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  token: text('token').notNull().default('USDC'),
+  amountRaw: numeric('amount_raw', { precision: 38, scale: 0 }).notNull(),
+  creditsCents: integer('credits_cents').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+export const economyEntries = pgTable('economy_entries', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  deltaCents: integer('delta_cents').notNull(),
+  kind: text('kind').notNull(),
+  reference: text('reference').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniqueRef: uniqueIndex('economy_entries_kind_reference_idx').on(t.kind, t.reference), userLookup: index('economy_entries_user_idx').on(t.userId, t.createdAt) }));
+export const economyServiceOrders = pgTable('economy_service_orders', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  idempotencyKey: text('idempotency_key').notNull(),
+  service: text('service').notNull(),
+  target: text('target').notNull(),
+  costCents: integer('cost_cents').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniqueKey: uniqueIndex('economy_service_orders_user_key_idx').on(t.userId, t.idempotencyKey) }));
+export const economyChallenges = pgTable('economy_challenges', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  circleId: uuid('circle_id').notNull().references(() => circles.id),
+  sponsorUserId: uuid('sponsor_user_id').notNull().references(() => users.id),
+  idempotencyKey: text('idempotency_key').notNull(),
+  title: text('title').notNull(),
+  brief: text('brief').notNull(),
+  criteria: text('criteria').notNull(),
+  budgetCents: integer('budget_cents').notNull(),
+  status: text('status').notNull().default('open'),
+  deadline: timestamp('deadline', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniqueSponsorKey: uniqueIndex('economy_challenges_sponsor_key_idx').on(t.sponsorUserId, t.idempotencyKey) }));
+export const economySubmissions = pgTable('economy_submissions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  challengeId: uuid('challenge_id').notNull().references(() => economyChallenges.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  workUrl: text('work_url').notNull(),
+  summary: text('summary').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({ uniqueSubmission: uniqueIndex('economy_submissions_challenge_user_idx').on(t.challengeId, t.userId) }));
+export const economyAwards = pgTable('economy_awards', {
+  challengeId: uuid('challenge_id').primaryKey().references(() => economyChallenges.id, { onDelete: 'cascade' }),
+  submissionId: uuid('submission_id').notNull().unique().references(() => economySubmissions.id),
+  recipientUserId: uuid('recipient_user_id').notNull().references(() => users.id),
+  creditsCents: integer('credits_cents').notNull(),
+  awardedAt: timestamp('awarded_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 // A short-lived proof that a verified, user-owned wallet held a supported stock.
 // Quantities are deliberately not stored: circles only need a yes/no eligibility
 // fact, and members never receive another member's wallet address.

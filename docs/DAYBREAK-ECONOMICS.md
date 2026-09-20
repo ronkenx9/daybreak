@@ -2,7 +2,7 @@
 
 Date: 2026-09-20
 
-Status: proposed product and economic design; not implemented or an announced token commitment.
+Status: Stage 1 app implementation. The broader DAYC lock, revenue allocation and treasury policies below remain proposals, not announced token commitments.
 
 Scope: DAYC utility, service credits, creator economics, community funding and treasury policy.
 
@@ -33,7 +33,9 @@ Paper balances remain simulated. Public paper positions, trades and P/L do not b
 
 The repository already includes DAYC membership checks and a DAYC Circle-pin payment path on Base. Conviction includes public paper participation and separate Solana live-market functionality. Flash stock orders are distinct from Meteora thesis-token trades.
 
-This document proposes new credits, term membership, funded challenges, accounting and treasury allocation. Their presence here does not mean they are available in the app.
+The app now includes an initial Credits ledger, Base USDC credit packs, a credit-funded Circle pin, and funded Circle research challenges. Each challenge reserves purchased credits, accepts one submission per account, and lets the sponsor award one contributor. Sponsors can cancel and recover a challenge only before any submission. The Stats tab shows verified credit purchases, account balances, open challenge budgets, delivered pin services and awarded credits separately. Credit purchases are not shown as earned revenue.
+
+The present $DAYC membership badge still checks the linked wallet's balance. A timed lock, member allowance, higher agent tiers, surplus allocation and treasury purchase mechanism are **not active**. They require the independent pricing, custody, reserve, accounting and control work described below. This first release does not change Meteora's creator fee recipient or represent uncollected fees as Daybreak revenue.
 
 Current DBC launch code sets `feeClaimer` to the creator. Do not assume Daybreak already receives a platform fee stream. Before recognising trading revenue, implement and verify the intended recipient configuration and reconcile actual receipts. Relevant code: [DAYC settings](../lib/base/daybreak-token.ts), [membership gate](../lib/base/dayc-gate.ts), [pin verification](../lib/base/dayc-pin.ts), [DBC launch](../lib/solana/dbc/launch.ts), [DBC configuration](../lib/solana/dbc/config.ts).
 
