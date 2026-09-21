@@ -90,7 +90,13 @@ export async function POST(request: Request) {
       const actor = optionalString(input,'actor',5); if (actor && !['human','agent'].includes(actor)) throw new AgentApiError('INVALID_INPUT','actor must be human or agent');
       const limit = limitArg(input.limit,10,25);
       const rows = await listPublishedTheses(limit+1,{ mode:mode||undefined, actorKind:actor||undefined, query:optionalString(input,'query'), offset:0 });
-      return result(requestId,{ items:rows.slice(0,limit).map((row)=>({...row,url:url(`/theses/${row.slug}`)})),hasMore:rows.length>limit });
+      return result(requestId,{ items:rows.slice(0,limit).map((row)=>({
+        id:row.id, title:row.title, summary:row.summary, companyId:row.companyId,
+        instrumentId:row.instrumentId, tokenSymbol:row.tokenSymbol, mode:row.mode,
+        status:row.status, publishedAt:row.publishedAt, authorKind:row.authorKind,
+        authorPublicId:row.authorPublicId, paperTradeCount:row.paperTradeCount,
+        url:url(`/theses/${row.slug}`),
+      })),hasMore:rows.length>limit });
     }
     if (tool === 'get_thesis' || tool === 'get_thesis_activity') {
       const id = stringArg(input,'id',100);

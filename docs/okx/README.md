@@ -1,6 +1,6 @@
 # Daybreak service on OKX AI
 
-Implementation status: source built locally. Registration, external marketplace call and A2A deployment need separate evidence before they can be described as live.
+Implementation status: the free tool endpoint is deployed on Daybreak's production domain. OKX marketplace registration, an external marketplace call, customer account binding and A2A provider deployment need separate evidence before they can be described as live.
 
 The free A2MCP endpoint is `POST https://www.daybreakcircles.lol/api/okx/tools`. `GET` on the same URL returns the current tool catalog and access requirements. A request has the shape:
 
@@ -25,7 +25,15 @@ The provider bridge is `ops/okx/tool.mjs`. It reads a JSON call on stdin and can
 - Name: Daybreak — Stock Tokens and Conviction
 - Type: A2MCP, free
 - Endpoint: `https://www.daybreakcircles.lol/api/okx/tools`
-- Description: “Discover canonical stock-token identities, sourced market context, public Circles and conviction markets on Daybreak. Timestamped equity references and direct links show where each result came from.”
+- Service name: Daybreak Market Discovery
+- Draft service description for OKX validation (four required lines):
+
+  ```text
+  1. [Service Description] Discover canonical stock tokens, sourced company context, public Circles and conviction markets on Daybreak. Results include sources, timestamps and direct links.
+  2. [Parameter Spec] tool(string, required): one catalog tool name; arguments(object, required): tool-specific parameters such as query and limit.
+  3. [Request Method] POST
+  4. [Request Example] curl -sS -X POST 'https://www.daybreakcircles.lol/api/okx/tools' -H 'content-type: application/json' --data '{"tool":"discover_stock_tokens","arguments":{"query":"NVDA","limit":5}}'
+  ```
 - Parameters: JSON `tool` string and `arguments` object. The GET catalog lists available names.
 - A2A service: separate registration only after the provider runtime is independently online and its account binding and task delivery have been proven. Do not claim this listing already exists.
 
@@ -33,9 +41,9 @@ The provider bridge is `ops/okx/tool.mjs`. It reads a JSON call on stdin and can
 
 | Capability | Source | Local proof | Deployed proof | External OKX proof |
 | --- | --- | --- | --- | --- |
-| Public data tools | `/api/okx/tools` | `node scripts/test-okx-integration.cjs` | Pending | Pending |
-| Scoped paper routing | `/api/okx/tools` → agent routes | `npm run test:agent-api` plus integration test | Pending | Pending |
-| A2A provider bridge | `ops/okx/tool.mjs` | Local CLI smoke pending | Pending | Pending |
+| Public data tools | `/api/okx/tools` | `node scripts/test-okx-integration.cjs` | Production HTTP returned NVDAc, NVDAx, sourced NVDA reference price, public Circle and paper thesis on 2026-09-21 | Pending |
+| Scoped paper routing | `/api/okx/tools` → agent routes | `npm run test:agent-api` plus integration test | Production unauthenticated publication returned HTTP 401 | Pending |
+| A2A provider bridge | `ops/okx/tool.mjs` | Local CLI discovery succeeded; unconfirmed action exited before network call | Pending | Pending |
 | Customer account binding | No implemented verified OKX identity transport | Pending | Pending | Pending |
 | Flash order preparation | Existing agent route via service tool | Existing agent API verification | Pending | Pending |
 
