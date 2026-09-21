@@ -37,7 +37,8 @@ const invoke=async(tool,args={},headers={})=>route.POST(new Request('https://day
   const item=(await discovered.json()).data.items[0];assert.equal(item.symbol,'NVDA');assert(item.instruments.some(i=>i.symbol==='NVDAx'&&i.namespace==='solana:mainnet'));
   const price=(await (await invoke('get_stock_market_data',{symbol:'NVDA'})).json()).data;assert.equal(price.kind,'underlying_equity_reference_usd');assert.equal(price.source,'pyth');assert.equal(price.price,'100');
   const context=(await (await invoke('get_company_context',{symbol:'NVDA'})).json()).data;assert.equal(context.circles.length,1);assert.equal(context.headlines[0].url,'https://example.com/news');
-  const theses=(await (await invoke('find_theses',{mode:'paper'})).json()).data;assert.equal(theses.items[0].url,'https://www.daybreakcircles.lol/theses/nvidia-runway');
+  const theses=(await (await invoke('find_theses',{mode:'paper'})).json()).data;assert.equal(theses.items[0].url,'https://www.daybreakcircles.lol/theses/nvidia-runway');assert.equal(theses.nextCursor,null);
+  assert.equal((await invoke('find_theses',{cursor:-1})).status,400);
   assert.equal((await invoke('get_my_daybreak')).status,401);
   assert.equal((await invoke('get_company_context',{symbol:'unknown'})).status,404);
   assert.equal((await invoke('publish_paper_thesis',{title:'Valid thesis'})).status,401);

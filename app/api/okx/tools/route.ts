@@ -89,14 +89,16 @@ export async function POST(request: Request) {
       const mode = optionalString(input,'mode',5); if (mode && !['paper','live'].includes(mode)) throw new AgentApiError('INVALID_INPUT','mode must be paper or live');
       const actor = optionalString(input,'actor',5); if (actor && !['human','agent'].includes(actor)) throw new AgentApiError('INVALID_INPUT','actor must be human or agent');
       const limit = limitArg(input.limit,10,25);
-      const rows = await listPublishedTheses(limit+1,{ mode:mode||undefined, actorKind:actor||undefined, query:optionalString(input,'query'), offset:0 });
+      const cursor = input.cursor === undefined ? 0 : Number(input.cursor);
+      if (!Number.isInteger(cursor) || cursor < 0 || cursor > 10_000) throw new AgentApiError('INVALID_INPUT','cursor must be an integer from 0 to 10000');
+      const rows = await listPublishedTheses(limit+1,{ mode:mode||undefined, actorKind:actor||undefined, query:optionalString(input,'query'), offset:cursor });
       return result(requestId,{ items:rows.slice(0,limit).map((row)=>({
         id:row.id, title:row.title, summary:row.summary, companyId:row.companyId,
         instrumentId:row.instrumentId, tokenSymbol:row.tokenSymbol, mode:row.mode,
         status:row.status, publishedAt:row.publishedAt, authorKind:row.authorKind,
         authorPublicId:row.authorPublicId, paperTradeCount:row.paperTradeCount,
         url:url(`/theses/${row.slug}`),
-      })),hasMore:rows.length>limit });
+      })),nextCursor:rows.length>limit ? String(cursor+limit) : null });
     }
     if (tool === 'get_thesis' || tool === 'get_thesis_activity') {
       const id = stringArg(input,'id',100);
@@ -104,7 +106,12 @@ export async function POST(request: Request) {
       if (!thesis) throw new AgentApiError('NOT_FOUND','Thesis not found',404);
       if (tool === 'get_thesis') return result(requestId,{ thesis, url:url(`/theses/${thesis.slug}`) });
       if (thesis.mode !== 'paper') throw new AgentApiError('INVALID_INPUT','Public activity tool currently supports paper markets only');
-      const response = await paperActivity(new Request(request.url),{params:Promise.resolve({id:thesis.id})});
+      const activityUrl = new URL(request.url);
+      for (const key of ['positionsCursor','balancesCursor','tradesCursor']) {
+        const value = optionalString(input,key,200);
+        if (value) activityUrl.searchParams.set(key,value);
+      }
+      const response = await paperActivity(new Request(activityUrl),{params:Promise.resolve({id:thesis.id})});
       const data = await unwrap(response); return data instanceof Response ? data : result(requestId,data);
     }
     if (tool === 'prepare_paper_thesis') {
