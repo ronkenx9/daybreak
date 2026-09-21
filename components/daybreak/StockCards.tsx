@@ -29,18 +29,10 @@ export default function StockCards({ tokens, prices, pricesLoaded, pricesError, 
         const basis = !pricesLoaded ? 'Loading' : p?.state === 'paused' ? 'Oracle paused' : p?.priceUsd == null ? 'Unavailable' : pricesError ? 'Previous ref' : p?.isStale ? 'Aged ref' : 'Oracle · Base';
         const isSaved = saved.includes(token.ticker);
         return (
-          <button key={token.ticker} className="db-meme-card db-stock-card" onClick={() => onOpen(token)}>
+          <article key={token.ticker} className="db-meme-card db-stock-card">
+            <button className="db-stock-card-open" aria-label={`Explore ${token.name}`} onClick={() => onOpen(token)}>
             <div className="db-meme-card-art db-stock-card-art">
               <StockIcon ticker={token.ticker} size={72} />
-              <span
-                className={`db-meme-card-fav${isSaved ? ' is-on' : ''}`}
-                role="button"
-                tabIndex={0}
-                aria-label={`${isSaved ? 'Unsave' : 'Save'} ${token.name}`}
-                aria-pressed={isSaved}
-                onClick={(e) => { e.stopPropagation(); onToggleSave(token.ticker); }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onToggleSave(token.ticker); } }}
-              ><Bookmark size={15} fill={isSaved ? 'currentColor' : 'none'} /></span>
               <div className="db-meme-card-badge db-stock-card-badge">
                 <div><span>PRICE</span><strong>{priceText}</strong></div>
               </div>
@@ -53,7 +45,9 @@ export default function StockCards({ tokens, prices, pricesLoaded, pricesError, 
                 <div><b>{basis}</b><span>PRICE BASIS</span></div>
               </div>
             </div>
-          </button>
+            </button>
+            <button type="button" className={`db-meme-card-fav${isSaved ? ' is-on' : ''}`} aria-label={`${isSaved ? 'Unfollow' : 'Follow'} ${token.name}`} aria-pressed={isSaved} onClick={() => onToggleSave(token.ticker)}><Bookmark size={15} fill={isSaved ? 'currentColor' : 'none'} /></button>
+          </article>
         );
       })}
     </div>
