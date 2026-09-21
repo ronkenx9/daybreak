@@ -1616,3 +1616,49 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-economy-operator{margin-top:24px;padding:22px;border:1px solid var(--db-line);border-radius:18px}.db-economy-operator h3{font:500 23px var(--db-display);margin:7px 0}.db-economy-operator>p,.db-economy-operator article p{font-size:11px;line-height:1.6;color:var(--db-muted)}.db-economy-operator article{border-top:1px solid var(--db-line);padding:18px 0}.db-economy-operator article strong,.db-economy-operator article small{display:block}.db-economy-operator article strong{font-size:13px}.db-economy-operator article small{font-size:10px;color:var(--db-muted);margin-top:4px}.db-economy-operator article code{font-size:11px;overflow-wrap:anywhere}.db-economy-operator article>label{display:grid;gap:7px;margin:12px 0;color:var(--db-muted);font-size:11px}.db-economy-operator article textarea,.db-economy-operator article input:not([type="radio"]){width:100%;padding:10px;border:1px solid var(--db-line);border-radius:9px;background:var(--db-surface,#fff);color:var(--db-ink);font:inherit}.db-economy-operator article textarea{min-height:70px}.db-economy-operator-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.db-economy-operator-actions .db-button{min-height:38px;padding:0 13px}.db-economy-operator-submissions{display:grid;gap:8px;margin-top:10px}.db-economy-operator-submissions label{display:flex;align-items:flex-start;gap:8px;font-size:11px;line-height:1.5}.db-economy-operator-submissions a{color:var(--db-blue)}
 @media(max-width:760px){.db-research-columns{grid-template-columns:1fr}.db-research-result-head{flex-direction:column;gap:4px}.db-research-controls .db-button{width:100%;justify-content:center}}
 @media(max-width:680px){.db-economy-wallet-head,.db-circle-economy-head{flex-direction:column}.db-economy-balance{text-align:left}.db-circle-economy{padding:19px}.db-economy-form-pair{grid-template-columns:1fr}.db-economy-pending{align-items:flex-start;flex-direction:column}}
+
+/* Focused nav: Send spear + More overflow */
+.db-nav-send{display:flex;align-items:center;gap:9px;border-radius:16px;padding:12px 18px;font-size:13px;font-weight:600;color:#fff;background:var(--db-blue);box-shadow:0 2px 8px #0210ef2e;transition:transform .18s,box-shadow .18s}
+.db-nav-send:hover{transform:translateY(-1px);box-shadow:0 6px 16px #0210ef38}
+.db-nav-send:active{transform:scale(.97)}
+.db-nav-more{position:relative;display:flex}
+.db-nav-more>button:not(.db-nav-more-scrim){display:flex;align-items:center;gap:9px;border-radius:16px;padding:12px 18px;font-size:13px;font-weight:550;color:var(--db-muted);transition:background .2s}
+.db-nav-more>button.is-active{color:var(--db-blue);background:#e9edff}
+.db-nav-more>button:hover{background:#eef1fa}
+.db-app[data-theme="dark"] .db-nav-more>button:hover{background:#1a2136}
+.db-nav-more-scrim{position:fixed;inset:0;z-index:40;background:transparent;border:0;cursor:default}
+.db-nav-more-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:41;min-width:180px;display:flex;flex-direction:column;padding:6px;border-radius:16px;background:var(--db-white,#fff);border:1px solid var(--db-line);box-shadow:0 16px 40px #16265922}
+.db-app[data-theme="dark"] .db-nav-more-menu{background:#141a2b;border-color:#283049}
+.db-nav-more-menu a{padding:11px 13px;border-radius:11px;font-size:13px;font-weight:550;color:var(--db-ink)}
+.db-nav-more-menu a:hover{background:#eef1fa}
+.db-app[data-theme="dark"] .db-nav-more-menu a:hover{background:#1a2136}
+.db-nav-more-menu a[aria-current=page]{color:var(--db-blue);background:#e9edff}
+
+/* Send-a-stock spear modal */
+.db-send{display:flex;flex-direction:column}
+.db-send-lead{font-size:14px;line-height:1.6;color:var(--db-muted);margin:2px 0 18px}
+.db-send-step{display:flex;align-items:center;gap:9px;margin:14px 0 10px}
+.db-send-step strong{font-size:13px}
+.db-send-num{width:20px;height:20px;flex:none;display:grid;place-items:center;border-radius:50%;background:var(--db-blue);color:#fff;font-size:11px;font-weight:700}
+.db-send-stocks{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px}
+.db-send-stock{display:flex;flex-direction:column;align-items:center;gap:6px;padding:11px 6px;border:1px solid var(--db-line);border-radius:14px;background:#fff;font-size:11px;font-weight:600;color:var(--db-muted);transition:border-color .15s,background .15s}
+.db-app[data-theme="dark"] .db-send-stock{background:#141a2b;border-color:#283049}
+.db-send-stock.is-on{border-color:var(--db-blue);background:#eef1ff;color:var(--db-blue)}
+.db-app[data-theme="dark"] .db-send-stock.is-on{background:#1c2550}
+.db-send-amounts{display:flex;flex-wrap:wrap;gap:8px}
+.db-send-amounts button{min-width:56px;padding:11px 14px;border:1px solid var(--db-line);border-radius:12px;font-size:14px;font-weight:600;color:var(--db-ink);background:#fff}
+.db-app[data-theme="dark"] .db-send-amounts button{background:#141a2b;border-color:#283049}
+.db-send-amounts button.is-on{border-color:var(--db-blue);background:#eef1ff;color:var(--db-blue)}
+.db-send-custom{display:inline-flex;align-items:center;gap:4px;padding:0 12px;border:1px solid var(--db-line);border-radius:12px;font-size:14px;font-weight:600;color:var(--db-muted)}
+.db-send-custom input{width:56px;border:0;background:transparent;font-size:14px;font-weight:600;color:var(--db-ink);outline:none;padding:11px 0}
+.db-send-summary{display:flex;align-items:center;gap:10px;margin:18px 0 12px;padding:13px 15px;border-radius:14px;background:#f5f7fe;font-size:14px}
+.db-app[data-theme="dark"] .db-send-summary{background:#141a2b}
+.db-send-cta{width:100%}
+.db-send-done{text-align:center;padding:8px 0 6px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.db-send-done-mark{width:60px;height:60px;border-radius:50%;display:grid;place-items:center;color:#fff;background:radial-gradient(circle at 30% 20%,#4a63ff,#0210ef)}
+.db-send-done h2{font-size:22px;font-weight:600;letter-spacing:-.5px}
+.db-send-link{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;border:1px solid var(--db-line);border-radius:14px;background:#f8faff}
+.db-app[data-theme="dark"] .db-send-link{background:#141a2b;border-color:#283049}
+.db-send-link code{flex:1;min-width:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.db-send-link .db-button{flex:none;min-height:40px;font-size:12px}
+.db-send-preview-note{color:#b8791b}
