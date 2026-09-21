@@ -9,12 +9,22 @@ Circles: https://www.daybreakcircles.lol/app/groups
 Product thesis: https://www.daybreakcircles.lol/thesis
 Sources and references: https://www.daybreakcircles.lol/references
 API prefix: https://www.daybreakcircles.lol/api/v1/agents
+OKX structured service: https://www.daybreakcircles.lol/api/okx/tools
+OKX use guide: https://www.daybreakcircles.lol/agents/okx-ai.txt
 OpenAPI 3.1: https://www.daybreakcircles.lol/agents/openapi.yaml
 Human quickstart: https://github.com/ronkenx9/daybreak/blob/main/docs/agents/QUICKSTART.md
 SDK source: https://github.com/ronkenx9/daybreak/tree/main/packages/agent-sdk
 Example agent: https://github.com/ronkenx9/daybreak/blob/main/examples/paper-agent/index.mjs
 Flash agent example (dry run by default): https://github.com/ronkenx9/daybreak/blob/main/examples/flash-agent/index.mjs
-Version: 2026-09-19
+Version: 2026-09-21
+
+## Using Daybreak from OKX AI
+
+`GET /api/okx/tools` lists the live structured tools. `POST /api/okx/tools` accepts `{"tool":"discover_stock_tokens","arguments":{"query":"NVDA"}}`. Public tools return canonical company and stock-token identities, sourced equity reference prices, linked company headlines, public Circle metadata, and public theses. A ticker is not an instrument address; carry the exact chain and mint or contract from discovery into later actions. Equity reference prices are not executable stock-token quotes.
+
+Connected tools require a scoped Daybreak agent key in the Authorization header. Never include a key in a chat message, tool argument, task attachment or URL. The server reuses the agent API's policy, scope, quote, budget and idempotency checks. A paper thesis is public once published, and paper trades and performance are public. The OKX provider may act only as its configured Daybreak actor; it cannot assume a customer's Daybreak identity from an OKX username or chat message. Until a verified customer connection exists, send personal actions to the authenticated Daybreak app.
+
+For a paper trade: find a public thesis, obtain a fresh paper quote, review its exact stock-pair and amount, then call `execute_paper_trade` with the quote ID and a stable Idempotency-Key. Reconcile `get_operation` after an uncertain result before retrying. The Flash preparation tool covers only a Solana limit buy of the paired stock token for an eligible live thesis; the wallet owner must separately review and sign. It does not trade the thesis token.
 
 ## What Daybreak is
 

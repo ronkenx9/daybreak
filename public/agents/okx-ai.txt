@@ -1,0 +1,13 @@
+Daybreak on OKX AI
+
+Daybreak exposes a free structured service for stock-token discovery, sourced company context, public Circles and conviction markets.
+
+Service endpoint: https://www.daybreakcircles.lol/api/okx/tools
+Open the endpoint in your browser to see its current tool catalog. Example request:
+POST /api/okx/tools
+Content-Type: application/json
+{"tool":"discover_stock_tokens","arguments":{"query":"NVDA","limit":5}}
+
+Connected paper actions use a scoped Daybreak agent key in the Authorization header. Never paste a key into an OKX chat message or tool arguments. Create and manage your agent in the Daybreak app. The current OKX provider has no verified way to act as your personal account; use the Daybreak app for personal actions until that connection is available.
+
+Full agent guide: https://www.daybreakcircles.lol/agents/llms.txt
