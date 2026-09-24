@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, LockKeyhole, Pin, Plus, RefreshCw, ShieldCheck, Users } from 'lucide-react';
+import { Check, Gift, LockKeyhole, Pin, Plus, RefreshCw, ShieldCheck, Users } from 'lucide-react';
+import SendStock from './SendStock';
 import { useAccount } from 'wagmi';
 import { authedFetch } from '@/lib/account/api-client';
 import { TOKENS } from '@/lib/base/tokens';
@@ -17,7 +18,7 @@ interface Circle {
   slug: string; name: string; description: string | null; kind: string; gateMode: string;
   tickers: string[]; memberCount: number; joined: boolean; eligible: boolean; owned: boolean; tokenAddress: string | null; pinned: boolean;
 }
-interface Member { displayName: string; handle: string | null; avatar: number; avatarUrl: string | null; role: string; verifiedTickers: string[] }
+interface Member { memberRef: string; isYou: boolean; canReceive: boolean; displayName: string; handle: string | null; avatar: number; avatarUrl: string | null; role: string; verifiedTickers: string[] }
 
 export default function CirclesHub() {
   const account = useAccountState();
@@ -30,6 +31,9 @@ export default function CirclesHub() {
   const [circles, setCircles] = useState<Circle[]>([]);
   const [activeSlug, setActiveSlug] = useState('');
   const [members, setMembers] = useState<Member[]>([]);
+  const [sendTo, setSendTo] = useState<Member | null>(null);
+  const [receiving, setReceiving] = useState<boolean | null>(null);
+  const [receiveBusy, setReceiveBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [working, setWorking] = useState(false);
   const [notice, setNotice] = useState('');
@@ -62,6 +66,7 @@ export default function CirclesHub() {
     setMembers([]);
     if (!active?.joined) return;
     authedFetch<{ members: Member[] }>(`/api/circles/members?slug=${encodeURIComponent(active.slug)}`).then((result) => setMembers(result.members)).catch(() => setMembers([]));
+    authedFetch<{ enabled: boolean }>('/api/me/receive').then((r) => setReceiving(r.enabled)).catch(() => setReceiving(null));
   }, [active?.slug, active?.joined]);
 
   // Concept 3 — "happening now": the liveliest circles by real membership, so the
@@ -176,7 +181,10 @@ export default function CirclesHub() {
       {active.tokenAddress && <p className="db-circle-token"><strong>Live community token</strong><code>{active.tokenAddress.slice(0, 8)}…{active.tokenAddress.slice(-6)}</code><a href={`https://basescan.org/token/${active.tokenAddress}`} target="_blank" rel="noreferrer">View on BaseScan ↗</a></p>}
       {active.tickers.length > 0 && <CircleNews key={active.slug} slug={active.slug} isMember={active.joined} title={`${active.name} · latest stories`} initialStoryUrl={active.slug === requestedContext.circle ? requestedContext.story : undefined}/>}
       <CircleEconomy key={active.slug} slug={active.slug} canFund={active.joined || active.owned}/>
-      <section className="db-circle-members"><div className="db-board-header"><div><span className="db-eyebrow">People</span><h2>{active.joined ? `${members.length} in this circle.` : 'Join to meet members.'}</h2><p>Joining is consent to show your Daybreak name, profile photo and verified stock badges inside this circle. Wallets and balances stay private.</p></div><ShieldCheck size={22}/></div>{active.joined && (members.length ? <div className="db-member-grid">{members.map((member, index) => <article key={`${member.displayName}-${index}`}><ProfileAvatar imageUrl={member.avatarUrl} seed={member.avatar} size={48}/><div><strong>{member.displayName}</strong><small>{member.handle || (member.role === 'owner' ? 'Circle creator' : 'Member')}</small><p>{member.verifiedTickers.map((ticker) => <span key={ticker}>{ticker} ✓</span>)}</p></div></article>)}</div> : <div className="db-empty"><Users size={28}/><h3>You’re the first one here.</h3><p>Share the circle with another holder to meet them here.</p></div>)}</section>
+      <section className="db-circle-members"><div className="db-board-header"><div><span className="db-eyebrow">People</span><h2>{active.joined ? `${members.length} in this circle.` : 'Join to meet members.'}</h2><p>Joining is consent to show your Daybreak name, profile photo and verified stock badges inside this circle. Balances stay private, and your wallet is shared only if you turn on receiving stock.</p></div><ShieldCheck size={22}/></div>
+        {active.joined && receiving !== null && <label className="db-receive-toggle"><input type="checkbox" checked={receiving} disabled={receiveBusy} onChange={async (e) => { const enabled = e.target.checked; setReceiveBusy(true); try { const r = await authedFetch<{ enabled: boolean }>('/api/me/receive', { method: 'POST', body: JSON.stringify({ enabled }) }); setReceiving(r.enabled); setMembers((list) => list.map((m) => m.isYou ? { ...m, canReceive: r.enabled } : m)); } catch { /* keep previous state */ } finally { setReceiveBusy(false); } }}/><span><strong>Let my circles send me stock</strong><small>Members of circles you’re in can send xStocks to your verified wallet on X Layer. Turn off anytime.</small></span></label>}
+        {active.joined && (members.length ? <div className="db-member-grid">{members.map((member) => <article key={member.memberRef}><ProfileAvatar imageUrl={member.avatarUrl} seed={member.avatar} size={48}/><div><strong>{member.displayName}{member.isYou ? ' (you)' : ''}</strong><small>{member.handle || (member.role === 'owner' ? 'Circle creator' : 'Member')}</small><p>{member.verifiedTickers.map((ticker) => <span key={ticker}>{ticker} ✓</span>)}</p>{!member.isYou && (member.canReceive ? <button className="db-text-link db-member-send" onClick={() => setSendTo(member)}><Gift size={14}/> Send stock</button> : <small className="db-member-send-off">Not receiving stock</small>)}</div></article>)}</div> : <div className="db-empty"><Users size={28}/><h3>You’re the first one here.</h3><p>Share the circle with another holder to meet them here.</p></div>)}
+        {sendTo && <SendStock slug={active.slug} memberRef={sendTo.memberRef} memberName={sendTo.displayName} onClose={() => setSendTo(null)}/>}</section>
     </>}
   </>;
 }

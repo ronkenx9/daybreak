@@ -232,13 +232,15 @@ export async function listCircleMembers(userId: string, slug: string) {
   const [circle] = await db.select().from(circles).where(and(eq(circles.slug, slug), eq(circles.status, 'active'))).limit(1);
   if (!circle) return { ok: false as const, reason: 'missing' as const };
   if (!(await isCircleMember(userId, slug))) return { ok: false as const, reason: 'membership' as const };
-  const rows = await db.select({ userId: circleMemberships.userId, role: circleMemberships.role, joinedAt: circleMemberships.joinedAt, displayName: profiles.displayName, handle: profiles.handle, avatar: profiles.avatar, avatarUrl: profiles.avatarUrl })
+  const rows = await db.select({ memberRef: circleMemberships.id, userId: circleMemberships.userId, role: circleMemberships.role, joinedAt: circleMemberships.joinedAt, displayName: profiles.displayName, handle: profiles.handle, avatar: profiles.avatar, avatarUrl: profiles.avatarUrl })
     .from(circleMemberships).innerJoin(profiles, eq(profiles.userId, circleMemberships.userId))
     .where(and(eq(circleMemberships.circleId, circle.id), eq(circleMemberships.status, 'active'))).orderBy(circleMemberships.joinedAt).limit(100);
   const ids = rows.map((row) => row.userId);
   const badges = ids.length ? await db.select({ userId: holdingEligibilities.userId, ticker: holdingEligibilities.ticker }).from(holdingEligibilities).where(and(inArray(holdingEligibilities.userId, ids), sql`${holdingEligibilities.expiresAt} > now()`)) : [];
   const required = Array.isArray(circle.tickers) ? circle.tickers : [];
-  const members = rows.map((row) => ({ ...row, verifiedTickers: [...new Set(badges.filter((b) => b.userId === row.userId && (!required.length || required.includes(b.ticker))).map((b) => b.ticker))] }))
+  const receivers = ids.length ? await db.select({ userId: linkedWallets.userId }).from(linkedWallets).where(and(inArray(linkedWallets.userId, ids), eq(linkedWallets.namespace, 'eip155'), eq(linkedWallets.visibility, 'circles'))) : [];
+  const canReceive = new Set(receivers.map((r) => r.userId));
+  const members = rows.map((row) => ({ ...row, isYou: row.userId === userId, canReceive: canReceive.has(row.userId), verifiedTickers: [...new Set(badges.filter((b) => b.userId === row.userId && (!required.length || required.includes(b.ticker))).map((b) => b.ticker))] }))
     .filter((row) => circleGateEligible(circle.gateMode, required, row.verifiedTickers))
     .map(({ userId: _userId, ...row }) => row);
   return { ok: true as const, members };
@@ -407,7 +409,7 @@ export async function importLocal(
 
 // ---- Social: shared discoveries in circles, saves, moderation ----
 
-async function isCircleMember(userId: string, slug: string): Promise<boolean> {
+export async function isCircleMember(userId: string, slug: string): Promise<boolean> {
   const db = getDb();
   const [c] = await db.select({ id: circles.id, gateMode: circles.gateMode, tickers: circles.tickers }).from(circles).where(eq(circles.slug, slug)).limit(1);
   if (!c) return false;

@@ -1744,3 +1744,7 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 @media(prefers-reduced-motion:reduce){.db-message-typing i{animation:none}}
 
 .db-network-row{margin-top:-6px;margin-bottom:14px}.db-network-row button{font-size:12px}
+
+.db-receive-toggle{display:flex;gap:12px;align-items:flex-start;margin:14px 0 18px;padding:14px 16px;border:1px solid var(--db-line);border-radius:16px;background:#f7f9ff;cursor:pointer}.db-receive-toggle input{width:18px;height:18px;margin-top:2px;accent-color:var(--db-blue);flex:none}.db-receive-toggle strong,.db-receive-toggle small{display:block}.db-receive-toggle strong{font-size:13px}.db-receive-toggle small{font-size:11px;color:var(--db-muted);margin-top:3px;line-height:1.5}.db-member-send{margin-top:8px;font-size:12px;gap:6px}.db-member-send-off{display:block;margin-top:8px;font-size:11px;color:var(--db-muted)}
+
+.db-xlayer-conviction{margin:6px 0 26px;padding:22px;border:1px solid var(--db-line);border-radius:22px;background:linear-gradient(180deg,#f5f7ff,#fff)}.db-xlayer-conviction>.db-small-note{display:flex;gap:6px;align-items:center;margin:4px 0 12px}.db-xlayer-conviction .db-holding-main strong{display:flex;gap:6px;align-items:center}

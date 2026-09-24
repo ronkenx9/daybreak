@@ -28,7 +28,7 @@ export interface AccountState {
   logout: () => void;
   linkWallet: () => void;
   payCreationTransfer: (transaction: {to:string;value:string;data:string}) => Promise<string>;
-  sendXLayerTransaction: (transaction: {to:string;data:string}) => Promise<string>; // vault calls and xStock approvals on X Layer only
+  sendXLayerTransaction: (transaction: {to:string;data:string}) => Promise<string>; // vault calls, xStock approvals and xStock transfers on X Layer only
   signXLayerPermit: (permit: {token:string;name:string;amount:string;nonce:string;deadline:string}) => Promise<string>; // EIP-2612 permit for the vault, 0x signature
   payDaycPin: (amountRaw: string) => Promise<{ hash: string; from: string }>; // DAYC -> treasury, user signs
   payEconomyUsdc: (amountRaw: string) => Promise<{ hash: string; from: string }>;
@@ -89,12 +89,13 @@ function AccountBridge({ children }: { children: ReactNode }) {
       logout: () => logout(),
       linkWallet: () => linkWallet(),
       sendXLayerTransaction: async ({to,data}) => {
-        // Only the Daybreak vault, or approve(vault, amount) on a verified xStock. Never native value.
+        // Only the Daybreak vault, approve(vault, amount) or transfer(to, amount) on a verified xStock. Never native value.
         const vault=XLAYER_VAULT_ADDRESS;
         const target=to.toLowerCase();
         const vaultCall=!!vault&&target===vault&&/^0x(ced2b692|a38a08b6|c5e38a7c|38d07436)[0-9a-f]*$/i.test(data);
         const approval=!!vault&&XLAYER_STOCKS.some(s=>s.token===target)&&new RegExp(`^0x095ea7b3000000000000000000000000${vault.slice(2)}[0-9a-f]{64}$`,'i').test(data);
-        if(!vaultCall&&!approval)throw new Error('Invalid X Layer transaction');
+        const transfer=XLAYER_STOCKS.some(s=>s.token===target)&&/^0xa9059cbb000000000000000000000000[0-9a-f]{40}[0-9a-f]{64}$/i.test(data);
+        if(!vaultCall&&!approval&&!transfer)throw new Error('Invalid X Layer transaction');
         const signer=wallets.find(w=>w.address.toLowerCase()===wallet?.toLowerCase());
         if(!signer)throw new Error('Your Daybreak wallet is still loading. Try again shortly.');
         await signer.switchChain(xLayer.id);
