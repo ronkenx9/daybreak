@@ -67,7 +67,7 @@ export default function Landing() {
 
           <div className="db-hero-copy" data-reveal>
             <span className="db-micro db-micro-light" style={{ '--i': 0 } as React.CSSProperties}>
-              {t('landing.tokenized', 'Stocks on Base and Solana')}
+              {t('landing.tokenized', 'Stocks on chain')}
             </span>
             <h1>
               <Lines lines={[t('landing.hero1', 'Your world.'), t('landing.hero2', 'Your stocks.')]} from={1} />

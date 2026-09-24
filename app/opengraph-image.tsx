@@ -13,7 +13,7 @@ export default function OpenGraphImage() {
         daybreak
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', maxWidth: 900 }}>
-        <div style={{ fontSize: 24, letterSpacing: 3, textTransform: 'uppercase', color: '#65697a', marginBottom: 22 }}>Stocks on Base · Circles · Pairing intelligence</div>
+        <div style={{ fontSize: 24, letterSpacing: 3, textTransform: 'uppercase', color: '#65697a', marginBottom: 22 }}>Stocks on chain · Circles · Pairing intelligence</div>
         <div style={{ display: 'flex', flexDirection: 'column', fontSize: 82, lineHeight: 0.96, letterSpacing: -5, fontWeight: 800 }}>
           <span>Tokenized stocks</span>
           <span>find their people.</span>

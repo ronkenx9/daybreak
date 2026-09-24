@@ -54,7 +54,24 @@ const SOLANA_USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 export function tradeInstrumentsForTicker(ticker: string): TradeInstrument[] {
   const company = companyForSymbol(ticker);
   if (!company) return [];
-  return instrumentsForCompany(company.id).flatMap((instrument): TradeInstrument[] => {
+  // X Layer first: it is the default instrument on a stock page.
+  const xlayer = XLAYER_STOCKS.filter((stock) => stock.companyId === company.id).map((stock): TradeInstrument => ({
+    instrumentId: `eip155:196:${stock.token}`,
+    companyId: company.id,
+    ticker: company.symbol,
+    symbol: stock.symbol,
+    identity: stock.token,
+    decimals: XLAYER_STOCK_DECIMALS,
+    issuer: 'xstocks',
+    issuerLabel: 'Backed Finance',
+    network: 'eip155:196',
+    networkLabel: 'X Layer',
+    productLabel: 'xStocks tracker certificate',
+    funding: { symbol: 'USDC', identity: XLAYER_STABLECOINS.USDC, decimals: 6 },
+    quoteProvider: 'none',
+    explorerUrl: xlayerExplorerUrl(stock.token),
+  }));
+  return xlayer.concat(instrumentsForCompany(company.id).flatMap((instrument): TradeInstrument[] => {
     if (instrument.issuer === 'prestocks') return [];
     const base = instrument.namespace === 'eip155:8453';
     return [{
@@ -73,22 +90,7 @@ export function tradeInstrumentsForTicker(ticker: string): TradeInstrument[] {
       quoteProvider: base ? 'bankr' : 'jupiter',
       explorerUrl: base ? `https://basescan.org/token/${instrument.identity}` : `https://solscan.io/token/${instrument.identity}`,
     }];
-  }).concat(XLAYER_STOCKS.filter((stock) => stock.companyId === company.id).map((stock): TradeInstrument => ({
-    instrumentId: `eip155:196:${stock.token}`,
-    companyId: company.id,
-    ticker: company.symbol,
-    symbol: stock.symbol,
-    identity: stock.token,
-    decimals: XLAYER_STOCK_DECIMALS,
-    issuer: 'xstocks',
-    issuerLabel: 'Backed Finance',
-    network: 'eip155:196',
-    networkLabel: 'X Layer',
-    productLabel: 'xStocks tracker certificate',
-    funding: { symbol: 'USDC', identity: XLAYER_STABLECOINS.USDC, decimals: 6 },
-    quoteProvider: 'none',
-    explorerUrl: xlayerExplorerUrl(stock.token),
-  })));
+  }));
 }
 
 export function decimalToRaw(value: string, decimals: number): string | null {

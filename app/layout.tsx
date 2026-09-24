@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   authors: [{ name: 'Daybreak', url: 'https://www.daybreakcircles.lol' }],
   creator: 'Daybreak',
   publisher: 'Daybreak',
-  keywords: ['tokenized stocks', 'stocks on Base', 'xStocks on Solana', 'stock instrument comparison', 'holder circles', 'onchain communities'],
+  keywords: ['tokenized stocks', 'stocks on chain', 'xStocks on X Layer', 'stocks on Base', 'xStocks on Solana', 'stock instrument comparison', 'holder circles', 'onchain communities'],
   alternates: { canonical: '/' },
   openGraph: {
     type: 'website',

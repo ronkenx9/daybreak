@@ -12,7 +12,7 @@ const [page, layout, story, stories, locale, css] = await Promise.all([
 ]);
 
 assert.match(page, /<LandingInstrumentStory \/>/, 'landing must render the new product story');
-assert.match(page, /Stocks on Base and Solana/, 'hero must describe both supported networks');
+assert.match(page, /Stocks on chain/, 'hero must describe on-chain stocks across supported networks');
 assert.match(page, /Start with the company\./, 'landing must lead with company identity');
 assert.match(page, /Ownership proof, not balances/, 'privacy boundary must be visible');
 assert.doesNotMatch(page, /Every stock,[\s\S]{0,80}a token on Base/, 'obsolete Base-only claim must be removed');
@@ -34,7 +34,7 @@ assert.ok(story.indexOf('Review the quote') < story.indexOf('Verify and join'));
 assert.match(stories, /Your holdings, with context\./, 'down-page marketing must reflect the private briefing');
 assert.match(stories, /Ownership opens the room\./, 'down-page marketing must explain holder access');
 
-for (const phrase of ['Acciones en Base y Solana', 'Actions sur Base et Solana', 'Ações na Base e Solana', 'Base 与 Solana 上的股票']) {
+for (const phrase of ['Acciones on-chain', 'Actions on-chain', 'Ações on-chain', '链上股票']) {
   assert.ok(locale.includes(phrase), `localized cross-network story missing: ${phrase}`);
 }
 assert.match(css, /\.db-instrument-story-layout\{display:grid/, 'desktop instrument layout missing');
