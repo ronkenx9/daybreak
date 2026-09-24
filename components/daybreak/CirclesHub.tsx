@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, Gift, LockKeyhole, Pin, Plus, RefreshCw, ShieldCheck, Users } from 'lucide-react';
 import SendStock from './SendStock';
+import SendStockLauncher from './SendStockLauncher';
+import ReceiveStockToggle from './ReceiveStockToggle';
 import { useAccount } from 'wagmi';
 import { authedFetch } from '@/lib/account/api-client';
 import { TOKENS } from '@/lib/base/tokens';
@@ -32,8 +34,7 @@ export default function CirclesHub() {
   const [activeSlug, setActiveSlug] = useState('');
   const [members, setMembers] = useState<Member[]>([]);
   const [sendTo, setSendTo] = useState<Member | null>(null);
-  const [receiving, setReceiving] = useState<boolean | null>(null);
-  const [receiveBusy, setReceiveBusy] = useState(false);
+  const [launcher, setLauncher] = useState(false);
   const [loading, setLoading] = useState(false);
   const [working, setWorking] = useState(false);
   const [notice, setNotice] = useState('');
@@ -66,7 +67,6 @@ export default function CirclesHub() {
     setMembers([]);
     if (!active?.joined) return;
     authedFetch<{ members: Member[] }>(`/api/circles/members?slug=${encodeURIComponent(active.slug)}`).then((result) => setMembers(result.members)).catch(() => setMembers([]));
-    authedFetch<{ enabled: boolean }>('/api/me/receive').then((r) => setReceiving(r.enabled)).catch(() => setReceiving(null));
   }, [active?.slug, active?.joined]);
 
   // Concept 3 — "happening now": the liveliest circles by real membership, so the
@@ -176,15 +176,16 @@ export default function CirclesHub() {
     {notice && <p className="db-circle-notice" role="status">{notice}</p>}
     {loading ? <div className="db-empty"><p>Loading circles…</p></div> : <div className="db-group-grid">{visible.map((circle, index) => <button key={circle.slug} className={`db-group-card group-${index % 3} ${active?.slug === circle.slug ? 'selected' : ''}`} onClick={() => setActiveSlug(circle.slug)} aria-pressed={active?.slug === circle.slug}><Avatar seed={index % 6} size={64}/><span className={circle.pinned ? 'db-card-pinned' : undefined}>{circle.pinned ? <><Pin size={11}/> Pinned</> : circle.kind === 'stock' ? (circle.eligible ? 'Verified holding' : circle.tickers.some(isPreStockSymbol) ? 'Pre-IPO circle' : 'Stock circle') : circle.owned ? 'Created by you' : 'Community'}</span><h3>{circle.name}</h3><p>{circle.description}</p><div>{circle.tickers.map((ticker) => <span key={ticker}>{ticker}</span>)}<span>{circle.memberCount} {circle.memberCount === 1 ? 'member' : 'members'}</span></div></button>)}</div>}
     {active && <>
-      <div className="db-section-heading db-disc-heading"><div><span className="db-eyebrow">{active.name}</span><h2>{active.joined ? 'Inside the circle.' : active.eligible ? 'You have access.' : 'A holding is required.'}</h2></div><div className="db-circle-head-actions">{(active.joined || active.owned) && <button className="db-button db-pin-button" disabled={working} onClick={() => void pinWithCredits()} title="Pin this Circle for 48 hours using $0.25 Daybreak Credits"><Pin size={15}/> Pin · $0.25 credits</button>}{isPinSinkConfigured && (active.joined || active.owned) && <button className="db-button db-pin-button" disabled={working} onClick={() => void pin()} title={`Pin this circle for 48 hours with ${DAYC_PIN_PRICE.toLocaleString()} DAYC`}><Pin size={15}/> {DAYC_PIN_PRICE.toLocaleString()} DAYC</button>}<button className="db-button db-blue-button" disabled={working || active.owned || (!active.joined && !active.eligible)} onClick={toggleJoin}>{active.owned ? <Check size={17}/> : active.joined ? <Check size={17}/> : active.eligible ? <Plus size={17}/> : <LockKeyhole size={17}/>} {active.owned ? 'Circle owner' : active.joined ? 'Leave circle' : active.eligible ? 'Join circle' : 'Locked'}</button></div></div>
+      <div className="db-section-heading db-disc-heading"><div><span className="db-eyebrow">{active.name}</span><h2>{active.joined ? 'Inside the circle.' : active.eligible ? 'You have access.' : 'A holding is required.'}</h2></div><div className="db-circle-head-actions">{active.joined && <button className="db-button db-blue-button" onClick={() => setLauncher(true)}><Gift size={15}/> Send stock</button>}{(active.joined || active.owned) && <button className="db-button db-pin-button" disabled={working} onClick={() => void pinWithCredits()} title="Pin this Circle for 48 hours using $0.25 Daybreak Credits"><Pin size={15}/> Pin · $0.25 credits</button>}{isPinSinkConfigured && (active.joined || active.owned) && <button className="db-button db-pin-button" disabled={working} onClick={() => void pin()} title={`Pin this circle for 48 hours with ${DAYC_PIN_PRICE.toLocaleString()} DAYC`}><Pin size={15}/> {DAYC_PIN_PRICE.toLocaleString()} DAYC</button>}<button className="db-button db-blue-button" disabled={working || active.owned || (!active.joined && !active.eligible)} onClick={toggleJoin}>{active.owned ? <Check size={17}/> : active.joined ? <Check size={17}/> : active.eligible ? <Plus size={17}/> : <LockKeyhole size={17}/>} {active.owned ? 'Circle owner' : active.joined ? 'Leave circle' : active.eligible ? 'Join circle' : 'Locked'}</button></div></div>
       <CircleDiscoveries slug={active.slug} isMember={active.joined} onJoin={toggleJoin} tickers={active.tickers}/>
       {active.tokenAddress && <p className="db-circle-token"><strong>Live community token</strong><code>{active.tokenAddress.slice(0, 8)}…{active.tokenAddress.slice(-6)}</code><a href={`https://basescan.org/token/${active.tokenAddress}`} target="_blank" rel="noreferrer">View on BaseScan ↗</a></p>}
       {active.tickers.length > 0 && <CircleNews key={active.slug} slug={active.slug} isMember={active.joined} title={`${active.name} · latest stories`} initialStoryUrl={active.slug === requestedContext.circle ? requestedContext.story : undefined}/>}
       <CircleEconomy key={active.slug} slug={active.slug} canFund={active.joined || active.owned}/>
       <section className="db-circle-members"><div className="db-board-header"><div><span className="db-eyebrow">People</span><h2>{active.joined ? `${members.length} in this circle.` : 'Join to meet members.'}</h2><p>Joining is consent to show your Daybreak name, profile photo and verified stock badges inside this circle. Balances stay private, and your wallet is shared only if you turn on receiving stock.</p></div><ShieldCheck size={22}/></div>
-        {active.joined && receiving !== null && <label className="db-receive-toggle"><input type="checkbox" checked={receiving} disabled={receiveBusy} onChange={async (e) => { const enabled = e.target.checked; setReceiveBusy(true); try { const r = await authedFetch<{ enabled: boolean }>('/api/me/receive', { method: 'POST', body: JSON.stringify({ enabled }) }); setReceiving(r.enabled); setMembers((list) => list.map((m) => m.isYou ? { ...m, canReceive: r.enabled } : m)); } catch { /* keep previous state */ } finally { setReceiveBusy(false); } }}/><span><strong>Let my circles send me stock</strong><small>Members of circles you’re in can send xStocks to your verified wallet on X Layer. Turn off anytime.</small></span></label>}
+        {active.joined && <ReceiveStockToggle onChange={(enabled) => setMembers((list) => list.map((m) => m.isYou ? { ...m, canReceive: enabled } : m))}/>}
         {active.joined && (members.length ? <div className="db-member-grid">{members.map((member) => <article key={member.memberRef}><ProfileAvatar imageUrl={member.avatarUrl} seed={member.avatar} size={48}/><div><strong>{member.displayName}{member.isYou ? ' (you)' : ''}</strong><small>{member.handle || (member.role === 'owner' ? 'Circle creator' : 'Member')}</small><p>{member.verifiedTickers.map((ticker) => <span key={ticker}>{ticker} ✓</span>)}</p>{!member.isYou && (member.canReceive ? <button className="db-text-link db-member-send" onClick={() => setSendTo(member)}><Gift size={14}/> Send stock</button> : <small className="db-member-send-off">Not receiving stock</small>)}</div></article>)}</div> : <div className="db-empty"><Users size={28}/><h3>You’re the first one here.</h3><p>Share the circle with another holder to meet them here.</p></div>)}
-        {sendTo && <SendStock slug={active.slug} memberRef={sendTo.memberRef} memberName={sendTo.displayName} onClose={() => setSendTo(null)}/>}</section>
+        {sendTo && <SendStock slug={active.slug} memberRef={sendTo.memberRef} memberName={sendTo.displayName} onClose={() => setSendTo(null)}/>}
+        {launcher && <SendStockLauncher slug={active.slug} onClose={() => setLauncher(false)}/>}</section>
     </>}
   </>;
 }
