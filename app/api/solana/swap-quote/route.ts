@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   if (!(usdc > 0) || usdc > 100_000) return Response.json({ error: 'Enter an amount between 0 and 100,000 USDC' }, { status: 400 });
   const quote = await fetchUsdcToXstockQuote(ticker, usdc);
   if (!quote) return Response.json({ error: 'No Solana route available right now' }, { status: 502 });
-  const instrument = tradeInstrumentsForTicker(ticker).find((item) => item.issuer === 'xstocks');
+  const instrument = tradeInstrumentsForTicker(ticker).find((item) => item.issuer === 'xstocks' && item.network === 'solana:mainnet');
   if (!instrument) return Response.json({ error: 'Instrument metadata is unavailable' }, { status: 502 });
   if (quote.inputMint !== instrument.funding.identity || quote.outputMint !== instrument.identity || quote.ticker !== instrument.ticker || quote.outputDecimals !== instrument.decimals || !/^\d+$/.test(quote.inputAmountRaw) || !/^\d+$/.test(quote.outputAmountRaw) || !/^\d+$/.test(quote.minimumOutputAmountRaw)) {
     return Response.json({ error: 'Jupiter returned a quote for a different asset' }, { status: 502 });

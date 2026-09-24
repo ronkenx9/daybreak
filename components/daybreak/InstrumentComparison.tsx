@@ -5,6 +5,7 @@ import { ArrowRight, ArrowUpRight, Check, LoaderCircle, ShieldCheck, WalletCards
 import { buyUrl, type StockToken } from '@/lib/base/tokens';
 import { tradeInstrumentsForTicker, type TradeInstrument, type TradeQuote } from '@/lib/trading/model';
 import { useAccountState } from './AccountProvider';
+import XLayerStockPanel from './XLayerStockPanel';
 
 const shortIdentity = (value: string) => `${value.slice(0, 7)}…${value.slice(-6)}`;
 const percent = (value: number | null) => value == null ? 'Unavailable' : `${(value * 100).toFixed(value < .001 ? 3 : 2)}%`;
@@ -24,7 +25,8 @@ export default function InstrumentComparison({ token }: { token: StockToken }) {
   }, [instruments, selectedId, suggested?.instrumentId]);
   const selected = instruments.find((item) => item.instrumentId === selectedId) ?? suggested;
   if (!selected) return null;
-  const walletReady = selected.network === 'eip155:8453' ? Boolean(account.user?.wallet) : Boolean(account.solanaWallet);
+  // Base and X Layer are both EVM: the same linked 0x wallet works on either.
+  const walletReady = selected.network === 'solana:mainnet' ? Boolean(account.solanaWallet) : Boolean(account.user?.wallet);
 
   const choose = (instrument: TradeInstrument) => { selectionTouched.current = true; setSelectedId(instrument.instrumentId); setQuote(null); setError(''); };
   const requestQuote = async () => {
@@ -48,7 +50,7 @@ export default function InstrumentComparison({ token }: { token: StockToken }) {
     <div className="db-section-heading"><div><span className="db-eyebrow">Choose the exact asset</span><h3 id={`instrument-review-${token.ticker}`}>Compare instruments</h3></div><span className="db-small-note">Same company · different products</span></div>
     <div className="db-instrument-grid" role="radiogroup" aria-label={`${token.name} instruments`}>{instruments.map((instrument) => {
       const active = instrument.instrumentId === selected.instrumentId;
-      const compatible = instrument.network === 'eip155:8453' ? Boolean(account.user?.wallet) : Boolean(account.solanaWallet);
+      const compatible = instrument.network === 'solana:mainnet' ? Boolean(account.solanaWallet) : Boolean(account.user?.wallet);
       return <button key={instrument.instrumentId} type="button" role="radio" aria-checked={active} disabled={loading} className={`db-instrument-card${active ? ' selected' : ''}`} onClick={() => choose(instrument)}>
         <span className="db-instrument-check">{active ? <Check size={13}/> : instrument.networkLabel.slice(0, 1)}</span>
         <span className="db-instrument-network">{instrument.networkLabel} · {instrument.issuerLabel}</span>
@@ -58,14 +60,14 @@ export default function InstrumentComparison({ token }: { token: StockToken }) {
         <code title={instrument.identity}>{shortIdentity(instrument.identity)}</code>
       </button>;
     })}</div>
-    <div className="db-quote-builder">
+    {selected.quoteProvider === 'none' ? <XLayerStockPanel instrument={selected}/> : <div className="db-quote-builder">
       <div className="db-quote-selection"><div><span>Selected instrument</span><strong>{selected.symbol} · {selected.networkLabel}</strong><small>{selected.issuerLabel} · exact identity verified in Daybreak’s registry</small></div><a href={selected.explorerUrl} target="_blank" rel="noreferrer">View contract <ArrowUpRight size={13}/></a></div>
       <label className="db-trade-amount"><span>You pay on {selected.networkLabel}</span><span><input disabled={loading} inputMode="decimal" value={amount} onChange={(event) => { setAmount(event.target.value.replace(/[^0-9.]/g, '').slice(0, 8)); setQuote(null); setError(''); }} aria-label="Amount in USDC"/><b>USDC</b></span></label>
       <button className="db-button db-blue-button db-trade-quote" disabled={loading || !amount} onClick={requestQuote}>{loading ? <><LoaderCircle className="db-spin" size={17}/> Checking {selected.quoteProvider}</> : <>Review {selected.quoteProvider === 'bankr' ? 'Bankr' : 'Jupiter'} quote <ArrowRight size={17}/></>}</button>
       {!walletReady && <p className="db-quote-wallet-note"><WalletCards size={15}/> You can inspect a quote now. A linked {selected.networkLabel} wallet will be required before any future in-app signing.</p>}
       {error && <p className="db-trade-error" role="alert">{error}</p>}
       {quote && <QuoteReview quote={quote} token={token}/>}
-    </div>
+    </div>}
     <p className="db-small-note">Daybreak selects only by exact registered contract or mint. It does not treat same-company instruments as interchangeable, bridge funds automatically, or infer available balance.</p>
   </section>;
 }

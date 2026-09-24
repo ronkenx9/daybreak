@@ -57,8 +57,27 @@ curl -sS -X POST 'https://www.daybreakcircles.lol/api/okx/tools' -H 'content-typ
 
 The production URLs work once this branch is deployed. Override the RPC with `XLAYER_RPC_URL` if the public node rate-limits.
 
+## Conviction vault (contracts/)
+
+`DaybreakConvictionVault` lets anyone open a public thesis on a supported xStock, and lets backers lock real xStocks behind it until it expires. Backers then withdraw exactly what they locked. There is no payout, no settlement and no admin.
+
+- **One signature plus one transaction.** xStocks on X Layer implement EIP-2612 (domain: the token name, version `1`, chain 196; verified on-chain). `backWithPermit` therefore replaces the separate approval, and it still succeeds if the permit was front-run.
+- **Rebasing-safe.** Deposits of the rebasing xStock are wrapped into the issuer's ERC-4626 wrapper, so corporate-action rebases accrue to the backer.
+- **Tests.** They run on an X Layer mainnet fork against the real NVDAx and wNVDAx: `cd contracts && npm ci && NODE_USE_ENV_PROXY=1 npm test` (the proxy flag is only needed behind an HTTPS proxy).
+- **Deploy.** Run `XLAYER_DEPLOYER_KEY=… npm run deploy:xlayer`. It uses about 2.6M gas, roughly 0.00005 OKB at 0.02 gwei, but keep about 0.005 OKB in the wallet for the fee cap. The script writes `contracts/deployments/xlayer.json`. Set `NEXT_PUBLIC_XLAYER_VAULT_ADDRESS` to the deployed address.
+- **Issuer risk.** The wrappers are upgradeable proxies owned by the issuer. The vault cannot move funds, but the issuer can change the wrapper.
+
+## In the app
+
+X Layer is another network on each stock, not a separate section:
+
+- **Stock page, "Compare instruments":** an X Layer card sits next to Base and Solana. Selecting it shows your X Layer balance, the OKB needed for fees, and that stock's theses. From there you can open a thesis, back one with a permit, or withdraw after expiry, with pending and confirmed states and explorer links.
+- **You, "xStocks":** Solana and X Layer holdings of the same product merge into one position per company, with the per-chain split shown as detail.
+- **APIs:** `/api/xlayer/theses[?backer=]`, `/api/xlayer/permit?symbol=&owner=`, `/api/xlayer/tx?hash=`.
+- **Wallet guard:** `sendXLayerTransaction` only sends to the vault (open, back, back with permit, withdraw) or approves the vault on a verified xStock. `signXLayerPermit` only signs permits whose spender is the vault.
+
 ## Not yet built
 
-- Trading xStocks on X Layer (OKX DEX aggregator quotes and swaps).
-- A Daybreak contract deployed on X Layer. Build a Market requires Daybreak's own contract addresses, not only the issuer's.
-- App UI for X Layer holdings.
+- In-app swaps into xStocks on X Layer. OKX DEX aggregator quotes need OKX API keys.
+- Gas sponsorship: users need a little OKB on X Layer.
+- X Layer holdings do not yet count toward Circle eligibility, which is Base and Solana only.

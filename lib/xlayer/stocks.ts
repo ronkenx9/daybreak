@@ -27,6 +27,7 @@ export interface XLayerHolding {
 export interface XLayerSnapshot<T> {
   chainId: number; blockNumber: string; observedAt: number;
   status: 'complete' | 'partial'; failed: string[]; items: T[];
+  gasBalanceOkb?: string | null; // holdings only: native OKB for gas, null if unreadable
 }
 
 function fmt(value: bigint): string { return formatUnits(value, XLAYER_STOCK_DECIMALS); }
@@ -73,7 +74,10 @@ export async function readXLayerHoldings(wallet: `0x${string}`): Promise<XLayerS
     { address: s.token, abi: xstockAbi, functionName: 'multiplier' } as const,
     { address: s.wrapper, abi: wrapperAbi, functionName: 'balanceOf', args: [wallet] } as const,
   ]);
-  const res = await xlayerClient.multicall({ contracts: first, blockNumber, allowFailure: true });
+  const [res, gas] = await Promise.all([
+    xlayerClient.multicall({ contracts: first, blockNumber, allowFailure: true }),
+    xlayerClient.getBalance({ address: wallet, blockNumber }).catch(() => null),
+  ]);
   const failed: string[] = [];
   const rows: { s: XLayerStock; bal: bigint; wbal: bigint; mult: bigint }[] = [];
   XLAYER_STOCKS.forEach((s, i) => {
@@ -101,5 +105,5 @@ export async function readXLayerHoldings(wallet: `0x${string}`): Promise<XLayerS
       shares: fmt(((r.bal + wrappedAsTokens) * ONE) / r.mult),
     };
   });
-  return { chainId: XLAYER_CHAIN_ID, blockNumber: blockNumber.toString(), observedAt: Date.now(), status: failed.length ? 'partial' : 'complete', failed, items };
+  return { chainId: XLAYER_CHAIN_ID, blockNumber: blockNumber.toString(), observedAt: Date.now(), status: failed.length ? 'partial' : 'complete', failed, items, gasBalanceOkb: gas === null ? null : formatUnits(gas, 18) };
 }

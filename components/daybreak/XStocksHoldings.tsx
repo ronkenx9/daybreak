@@ -5,10 +5,20 @@ import { useAccountState } from './AccountProvider';
 
 interface SolHolding { ticker: string; company: string; xSymbol: string; mint: string; decimals: number; rawAmount: string; quantity: string }
 interface Snap { address: string; chain: string; slot: number; holdings: SolHolding[] }
+interface XLayerHolding { ticker: string; symbol: string; name: string; shares: string }
+interface XLayerSnap { items: XLayerHolding[] }
+interface Row { ticker: string; company: string; quantity: string; chains: { label: string; amount: string }[] }
 
-export default function SolanaHoldings() {
+const num = (v: string) => parseFloat(v.replace(/,/g, ''));
+const fmtQty = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 6 });
+
+// xStocks are one product issued on several chains. Show one position per company, with
+// the chain split as detail. Coinbase stock tokens on Base are a different product and
+// stay in their own list.
+export default function XStocksHoldings() {
   const account = useAccountState();
   const address = account.solanaWallet || undefined;
+  const evm = account.user?.wallet || undefined;
   const q = useQuery({
     queryKey: ['sol-holdings', address],
     enabled: !!address,
@@ -19,7 +29,28 @@ export default function SolanaHoldings() {
     },
     staleTime: 20_000, refetchInterval: 60_000, retry: 1,
   });
-  const rows = q.data?.holdings ?? [];
+  const x = useQuery({
+    queryKey: ['xlayer-holdings', evm],
+    enabled: !!evm,
+    queryFn: async ({ signal }) => {
+      const r = await fetch(`/api/xlayer/holdings?address=${evm}`, { signal, cache: 'no-store' });
+      if (!r.ok) throw new Error('unavailable');
+      return r.json() as Promise<XLayerSnap>;
+    },
+    staleTime: 20_000, refetchInterval: 60_000, retry: 1,
+  });
+  const byTicker = new Map<string, Row>();
+  const add = (ticker: string, company: string, label: string, amount: number) => {
+    const row = byTicker.get(ticker) ?? { ticker, company, quantity: '0', chains: [] };
+    row.quantity = String(num(row.quantity) + amount);
+    row.chains.push({ label, amount: fmtQty(amount) });
+    byTicker.set(ticker, row);
+  };
+  for (const h of q.data?.holdings ?? []) add(h.ticker, h.company, 'Solana', num(h.quantity));
+  for (const h of x.data?.items ?? []) add(h.ticker, h.name, 'X Layer', num(h.shares));
+  const rows = [...byTicker.values()].map((r) => ({ ...r, quantity: fmtQty(num(r.quantity)) }));
+  const pending = (!!address && q.isPending) || (!!evm && x.isPending);
+  const failed = [address && q.isError ? 'Solana' : null, evm && x.isError ? 'X Layer' : null].filter(Boolean);
   const tickers = rows.map((h) => h.ticker);
   const prices = useQuery({
     queryKey: ['equity-prices', tickers.join(',')],
@@ -41,21 +72,21 @@ export default function SolanaHoldings() {
   for (const h of rows) { const p = priceOf(h.ticker); if (p?.priceUsd != null) { total += parseFloat(h.quantity.replace(/,/g, '')) * p.priceUsd; priced++; } }
 
   return (
-    <section className="db-portfolio" aria-label="Solana xStocks holdings">
-      <div className="db-section-heading"><h2>Tokenized stocks on Solana</h2><span className="db-small-note">xStocks · Token-2022{marketNote ? ` · ${marketNote}` : ''}</span></div>
-      {!address ? <p className="db-small-note">Your Solana wallet is loading…</p>
-        : q.isPending ? <p className="db-small-note">Reading balances on Solana…</p>
-        : q.isError ? <p className="db-small-note">Solana balances are unavailable right now.</p>
-        : rows.length === 0 ? <p className="db-small-note">No xStocks found in your Solana wallet yet.</p>
+    <section className="db-portfolio" aria-label="xStocks holdings">
+      <div className="db-section-heading"><h2>xStocks</h2><span className="db-small-note">Solana · X Layer{marketNote ? ` · ${marketNote}` : ''}</span></div>
+      {failed.length > 0 && <p role="status" className="db-data-notice">{failed.join(' and ')} balances are unavailable right now. They have not been reported as zero.</p>}
+      {!address && !evm ? <p className="db-small-note">Your wallets are loading…</p>
+        : pending && rows.length === 0 ? <p className="db-small-note">Reading balances on Solana and X Layer…</p>
+        : rows.length === 0 ? (failed.length ? null : <p className="db-small-note">No xStocks found in your wallets yet.</p>)
         : <>
           {priced > 0 && <div className="db-portfolio-value"><span>Reference value</span><h2 className="db-shine">{usd(total)}</h2></div>}
           <div className="db-holdings-list">{rows.map((h) => {
             const p = priceOf(h.ticker);
             const value = p?.priceUsd != null ? parseFloat(h.quantity.replace(/,/g, '')) * p.priceUsd : null;
             return (
-              <div className="db-holding-row" key={h.mint}>
+              <div className="db-holding-row" key={h.ticker}>
                 <StockIcon ticker={h.ticker} size={44} />
-                <div className="db-holding-main"><strong>{h.company}</strong><small>{h.quantity} {h.xSymbol}</small></div>
+                <div className="db-holding-main"><strong>{h.company}</strong><small>{h.quantity} shares · {h.chains.map((c) => `${c.label} ${c.amount}`).join(' · ')}</small></div>
                 <div className="db-holding-val"><strong className="db-shine">{value != null ? usd(value) : h.quantity}</strong><small>{value != null ? priceLabel : 'shares'}</small></div>
               </div>
             );

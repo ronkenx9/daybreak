@@ -1,7 +1,9 @@
 import { companyForSymbol, instrumentsForCompany } from '@/lib/assets/companies';
+import { XLAYER_STABLECOINS, XLAYER_STOCKS, XLAYER_STOCK_DECIMALS, xlayerExplorerUrl } from '@/lib/xlayer/tokens';
 
-export type TradeNetwork = 'eip155:8453' | 'solana:mainnet';
-export type QuoteProvider = 'bankr' | 'jupiter';
+export type TradeNetwork = 'eip155:8453' | 'solana:mainnet' | 'eip155:196';
+// 'none': no in-app quote yet (xStocks on X Layer are held and backed via the conviction vault).
+export type QuoteProvider = 'bankr' | 'jupiter' | 'none';
 export type ExecutionCapability = 'external_handoff' | 'quote_only';
 
 export interface TradeInstrument {
@@ -71,7 +73,22 @@ export function tradeInstrumentsForTicker(ticker: string): TradeInstrument[] {
       quoteProvider: base ? 'bankr' : 'jupiter',
       explorerUrl: base ? `https://basescan.org/token/${instrument.identity}` : `https://solscan.io/token/${instrument.identity}`,
     }];
-  });
+  }).concat(XLAYER_STOCKS.filter((stock) => stock.companyId === company.id).map((stock): TradeInstrument => ({
+    instrumentId: `eip155:196:${stock.token}`,
+    companyId: company.id,
+    ticker: company.symbol,
+    symbol: stock.symbol,
+    identity: stock.token,
+    decimals: XLAYER_STOCK_DECIMALS,
+    issuer: 'xstocks',
+    issuerLabel: 'Backed Finance',
+    network: 'eip155:196',
+    networkLabel: 'X Layer',
+    productLabel: 'xStocks tracker certificate',
+    funding: { symbol: 'USDC', identity: XLAYER_STABLECOINS.USDC, decimals: 6 },
+    quoteProvider: 'none',
+    explorerUrl: xlayerExplorerUrl(stock.token),
+  })));
 }
 
 export function decimalToRaw(value: string, decimals: number): string | null {

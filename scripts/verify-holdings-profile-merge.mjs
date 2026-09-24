@@ -8,7 +8,7 @@ const assertions = [
   [app.includes("page==='profile'&&<><section className=\"db-holdings-summary"), 'Portfolio summary is not part of You'],
   [app.includes('page===\'profile\'&&<div className="db-profile-grid db-profile-merged"'), 'Identity settings are not part of You'],
   [app.includes('<Portfolio snapshot={snapshot}'), 'Base portfolio is missing from You'],
-  [app.includes('<SolanaHoldings/>') && app.includes('<PreStocksHoldings/>'), 'Cross-network holdings are missing from You'],
+  [app.includes('<XStocksHoldings/>') && app.includes('<PreStocksHoldings/>'), 'Cross-network holdings are missing from You'],
   [!app.includes('<ConnectButton'), 'A duplicate Connect wallet control remains in DaybreakApp'],
   [route.includes("redirect('/app/profile')"), 'Legacy holdings route does not redirect to You'],
 ];

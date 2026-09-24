@@ -5,6 +5,9 @@ import { useWallets as useSolanaWallets, useSignTransaction as useSignSolanaTx, 
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { PRIVY_APP_ID, isAuthConfigured } from '@/lib/account/config';
 import { DAYBREAK_TOKEN, DAYC_TREASURY, isPinSinkConfigured } from '@/lib/base/daybreak-token';
+import { base, xLayer } from 'viem/chains';
+import { XLAYER_STOCKS } from '@/lib/xlayer/tokens';
+import { XLAYER_VAULT_ADDRESS } from '@/lib/xlayer/vault';
 
 export type LoginMethod = 'google' | 'apple' | 'passkey' | 'wallet';
 
@@ -25,6 +28,8 @@ export interface AccountState {
   logout: () => void;
   linkWallet: () => void;
   payCreationTransfer: (transaction: {to:string;value:string;data:string}) => Promise<string>;
+  sendXLayerTransaction: (transaction: {to:string;data:string}) => Promise<string>; // vault calls and xStock approvals on X Layer only
+  signXLayerPermit: (permit: {token:string;name:string;amount:string;nonce:string;deadline:string}) => Promise<string>; // EIP-2612 permit for the vault, 0x signature
   payDaycPin: (amountRaw: string) => Promise<{ hash: string; from: string }>; // DAYC -> treasury, user signs
   payEconomyUsdc: (amountRaw: string) => Promise<{ hash: string; from: string }>;
   solanaWallet: string | null; // first linked Solana wallet (StonkFun launches)
@@ -38,6 +43,8 @@ export interface AccountState {
 const ANON: AccountState = {
   configured: false, ready: true, authenticated: false, user: null, solanaWallet: null,
   login() {}, logout() {}, linkWallet() {}, payCreationTransfer: async () => { throw new Error("Sign in first"); },
+  sendXLayerTransaction: async () => { throw new Error("Sign in first"); },
+  signXLayerPermit: async () => { throw new Error("Sign in first"); },
   payDaycPin: async () => { throw new Error("Sign in first"); },
   payEconomyUsdc: async () => { throw new Error("Sign in first"); },
   ensureSolanaWallet: async () => { throw new Error("Sign in first"); },
@@ -81,6 +88,37 @@ function AccountBridge({ children }: { children: ReactNode }) {
       login: (method) => login(method ? ({ loginMethods: [method] } as never) : undefined),
       logout: () => logout(),
       linkWallet: () => linkWallet(),
+      sendXLayerTransaction: async ({to,data}) => {
+        // Only the Daybreak vault, or approve(vault, amount) on a verified xStock. Never native value.
+        const vault=XLAYER_VAULT_ADDRESS;
+        const target=to.toLowerCase();
+        const vaultCall=!!vault&&target===vault&&/^0x(ced2b692|a38a08b6|c5e38a7c|38d07436)[0-9a-f]*$/i.test(data);
+        const approval=!!vault&&XLAYER_STOCKS.some(s=>s.token===target)&&new RegExp(`^0x095ea7b3000000000000000000000000${vault.slice(2)}[0-9a-f]{64}$`,'i').test(data);
+        if(!vaultCall&&!approval)throw new Error('Invalid X Layer transaction');
+        const signer=wallets.find(w=>w.address.toLowerCase()===wallet?.toLowerCase());
+        if(!signer)throw new Error('Your Daybreak wallet is still loading. Try again shortly.');
+        await signer.switchChain(xLayer.id);
+        const provider=await signer.getEthereumProvider();
+        const hash=await provider.request({method:'eth_sendTransaction',params:[{from:signer.address,to,data,value:'0x0',chainId:`0x${xLayer.id.toString(16)}`}]});
+        if(typeof hash!=='string'||!/^0x[a-f0-9]{64}$/i.test(hash))throw new Error('Wallet did not return a transaction');
+        return hash;
+      },
+      signXLayerPermit: async ({token,name,amount,nonce,deadline}) => {
+        // Permits are only ever signed for the Daybreak vault as spender, on a verified xStock.
+        const vault=XLAYER_VAULT_ADDRESS;
+        if(!vault||!XLAYER_STOCKS.some(s=>s.token===token.toLowerCase())||![amount,nonce,deadline].every(v=>/^\d+$/.test(v)))throw new Error('Invalid permit');
+        const signer=wallets.find(w=>w.address.toLowerCase()===wallet?.toLowerCase());
+        if(!signer)throw new Error('Your Daybreak wallet is still loading. Try again shortly.');
+        await signer.switchChain(xLayer.id);
+        const provider=await signer.getEthereumProvider();
+        const typed={domain:{name,version:'1',chainId:xLayer.id,verifyingContract:token},primaryType:'Permit',
+          types:{EIP712Domain:[{name:'name',type:'string'},{name:'version',type:'string'},{name:'chainId',type:'uint256'},{name:'verifyingContract',type:'address'}],
+            Permit:[{name:'owner',type:'address'},{name:'spender',type:'address'},{name:'value',type:'uint256'},{name:'nonce',type:'uint256'},{name:'deadline',type:'uint256'}]},
+          message:{owner:signer.address,spender:vault,value:amount,nonce,deadline}};
+        const signature=await provider.request({method:'eth_signTypedData_v4',params:[signer.address,JSON.stringify(typed)]});
+        if(typeof signature!=='string'||!/^0x[a-f0-9]{130}$/i.test(signature))throw new Error('Wallet did not return a signature');
+        return signature;
+      },
       payCreationTransfer: async ({to,value,data}) => {
         const val=BigInt(value||'0');
         if (val>0n) {
@@ -178,6 +216,9 @@ export default function AccountProvider({ children }: { children: ReactNode }) {
         // External wallets link through the existing wallet login (EVM); Solana
         // coverage here is embedded wallets, which is all launches need.
         loginMethods: ['google', 'apple', 'passkey', 'wallet'],
+        // Base stays the default; X Layer is added for the xStocks conviction vault.
+        defaultChain: base,
+        supportedChains: [base, xLayer],
       }}
     >
       <AccountBridge>{children}</AccountBridge>

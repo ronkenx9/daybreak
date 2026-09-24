@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       return Response.json({ error: 'Bankr returned a quote for a different asset' }, { status: 502 });
     }
 
-    const instrument = tradeInstrumentsForTicker(token.ticker).find((item) => item.issuer === 'coinbase');
+    const instrument = tradeInstrumentsForTicker(token.ticker).find((item) => item.issuer === 'coinbase' && item.network === 'eip155:8453');
     if (!instrument) return Response.json({ error: 'Instrument metadata is unavailable' }, { status: 502 });
     const outputRaw = /^\d+$/.test(text(quote.to.amount)) ? text(quote.to.amount) : null;
     const minimumRaw = /^\d+$/.test(text(quote.minBuyAmount)) ? text(quote.minBuyAmount) : null;
