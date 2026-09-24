@@ -1,0 +1,27 @@
+{
+  "name": "@daybreak/imessage-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env.local --import tsx src/index.ts",
+    "start": "node dist/src/index.js",
+    "build": "tsc -p tsconfig.json && node -e \"console.log('imessage agent build passed')\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --import tsx test/*.test.ts && node -e \"console.log('imessage agent tests passed')\"",
+    "smoke:spectrum": "node --env-file-if-exists=.env.local --import tsx scripts/smoke-spectrum.ts",
+    "smoke:daybreak": "node --env-file-if-exists=.env.local --import tsx scripts/smoke-daybreak.ts"
+  },
+  "dependencies": {
+    "@spectrum-ts/core": "12.2.0",
+    "@spectrum-ts/imessage": "12.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "tsx": "^4.20.6",
+    "typescript": "^5.7.3"
+  }
+}
