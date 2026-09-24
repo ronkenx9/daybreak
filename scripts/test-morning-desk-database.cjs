@@ -37,6 +37,8 @@ const postgres = require('postgres'), { drizzle } = require('drizzle-orm/postgre
     const draft = (t) => ({ title: `${t} has a strong setup this quarter`, summary: `Headlines point to a constructive near-term setup for ${t} according to this desk persona.`, body: `First paragraph about ${t} built from the headlines.\n\nSecond paragraph on risks and what to watch next quarter.`, invalidation: 'Guidance is cut in the next report.', horizon: '3 months', tokenSymbol: `${t}UP`, sourceIds: ['h1'] });
     const deps = (p, replies) => ({ now: () => day, news, llm: async () => replies.shift(), instrumentFor: (t) => THESIS_INSTRUMENTS.find((i) => i.ticker === t), api: inProcessAgentApi(p) });
 
+    const today = day.toISOString().slice(0, 10);
+    assert.equal(await desk.deskPublishedToday(principal.actorId, today), null, 'nothing published yet');
     // Bull publishes (nothing else to back yet).
     const r1 = await runPersona(bull, deps(principal, [draft('NVDA'), { picks: [] }]));
     assert.ok(r1.published?.id, 'bull published'); assert.equal(r1.ticker, 'NVDA');
@@ -49,6 +51,10 @@ const postgres = require('postgres'), { drizzle } = require('drizzle-orm/postgre
     const [thesis] = await sql`select mode, status from theses where id = ${r1.published.id}`;
     assert.equal(thesis.mode, 'paper');
 
+    // The guard sees today's thesis (so the route returns before any model call), and not tomorrow's.
+    assert.equal((await desk.deskPublishedToday(principal.actorId, today))?.id, r1.published.id);
+    const tomorrow = new Date(day.getTime() + 86400e3).toISOString().slice(0, 10);
+    assert.equal(await desk.deskPublishedToday(principal.actorId, tomorrow), null);
     // Re-running the same persona the same day does not publish twice.
     const again = await runPersona(bull, deps(principal, [draft('NVDA'), { picks: [] }]));
     assert.equal(again.published?.id, r1.published.id, 'idempotent publish');

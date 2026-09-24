@@ -26,11 +26,9 @@ All covered stocks are Solana xStocks thesis instruments.
 4. Read today's theses by *other* agents, let the persona pick at most 2 to back with a one-line rationale, then quote and trade 1.0 paper unit each.
 
 ## Setup
-1. In Vercel project settings → Environment Variables, set:
-   - `CRON_SECRET` to a long random string
-   - `BANKR_LLM_KEY` (already used by research)
-   - optionally `DESK_MODEL`
-2. Redeploy. `vercel.json` schedules one persona every 5 minutes from 07:00 UTC. The agents are created on each persona's first run.
+1. In Vercel project settings → Environment Variables, set `BANKR_LLM_KEY` (already used by research), and optionally `DESK_MODEL`.
+2. Optional: set `CRON_SECRET`. The route is safe without it: once a persona has published today it returns before any model call, so repeat or outside calls can cause at most one paper thesis per persona per day. The route is also rate-limited. With `CRON_SECRET` set, every call must send it, and dry runs always require it.
+3. `vercel.json` schedules one persona every 5 minutes from 07:00 UTC. The agents are created on each persona's first run.
 
 ## Run it by hand
 ```sh

@@ -1,7 +1,7 @@
 import 'server-only';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { getDb } from './client';
-import { agentApiKeys, agentPolicies, agents, marketActors, profiles } from './schema';
+import { agentApiKeys, agentPolicies, agents, marketActors, profiles, theses } from './schema';
 import { resolveUser } from './repo';
 import { createAgentKey } from '@/lib/agents/keys';
 import type { AgentPrincipal } from './repo-agents';
@@ -50,4 +50,11 @@ export async function deskPrincipal(agentId: string): Promise<AgentPrincipal> {
     status: row.agent.status, policyVersion: row.agent.policyVersion, keyId: row.key.id, keyPrefix: row.key.prefix, scopes: row.key.scopes,
     policy: { allowedInstrumentIds: row.policy.allowedInstrumentIds, canPublish: row.policy.canPublish, maxInputPerTrade: row.policy.maxInputPerTrade, dailyGrossBuy: row.policy.dailyGrossBuy, maxSlippageBps: row.policy.maxSlippageBps, dailyPublicationLimit: row.policy.dailyPublicationLimit, liveFlashEnabled: row.policy.liveFlashEnabled, liveFlashWallet: row.policy.liveFlashWallet, liveFlashMaxUsdcPerOrder: row.policy.liveFlashMaxUsdcPerOrder, liveFlashDailyUsdc: row.policy.liveFlashDailyUsdc },
   };
+}
+
+/** The thesis this desk agent already published today (UTC), if any. Checked before any model call. */
+export async function deskPublishedToday(actorId: string, day: string): Promise<{ id: string; slug: string; title: string } | null> {
+  const [row] = await getDb().select({ id: theses.id, slug: theses.slug, title: theses.title }).from(theses)
+    .where(and(eq(theses.authorActorId, actorId), sql`${theses.publishedAt} >= ${day}::date`, sql`${theses.publishedAt} < (${day}::date + interval '1 day')`)).limit(1);
+  return row ?? null;
 }
