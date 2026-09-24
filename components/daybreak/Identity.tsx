@@ -56,4 +56,4 @@ const BADGE={
  meme:{label:'Community meme',sub:'Speculative'},
  company:{label:'Company',sub:''},
 } as const;
-export function TypeBadge({kind}:{kind:keyof typeof BADGE}){const b=BADGE[kind];return <span className={`db-type-badge is-${kind}`} title={`${b.label}${b.sub?` · ${b.sub}`:''}`}><span className="db-type-dot" aria-hidden="true"/>{b.label}{b.sub&&<small>· {b.sub}</small>}</span>}
+export function TypeBadge({kind,sub}:{kind:keyof typeof BADGE;sub?:string}){const b=BADGE[kind];const detail=sub??b.sub;return <span className={`db-type-badge is-${kind}`} title={`${b.label}${detail?` · ${detail}`:''}`}><span className="db-type-dot" aria-hidden="true"/>{b.label}{detail&&<small>· {detail}</small>}</span>}
