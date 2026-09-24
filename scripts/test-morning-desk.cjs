@@ -12,7 +12,7 @@ const path = require('node:path');
   const bull = DESK_PERSONAS.find((p) => p.id === 'bull');
   const today = new Date('2026-09-25T07:00:00Z');
   const headlines = (t) => [1, 2, 3].map((i) => ({ id: `h${i}`, title: `${t} headline ${i}`, url: `https://news.example.com/${t}/${i}`, source: 'Example', seenAt: `2026-09-25T0${i}:00:00Z` }));
-  const draft = { title: 'NVIDIA demand keeps outrunning supply', summary: 'Hyperscaler capex headlines point to another strong quarter for data-center GPUs.', body: 'Paragraph one about demand from the headlines.\n\nParagraph two about supply and what the headlines imply for the next quarter, citing h1 and h2.', invalidation: 'Two hyperscalers cut capex guidance.', horizon: '3 months', tokenSymbol: 'nvgo!', sourceIds: ['h2'] };
+  const draft = { title: 'NVIDIA demand keeps outrunning supply', summary: 'Hyperscaler capex headlines point to another strong quarter for data-center GPUs.', body: 'Paragraph one about demand from the headlines (h1, h4).\n\nParagraph two about supply and what the headlines imply for the next quarter (h2).', invalidation: 'Two hyperscalers cut capex guidance.', horizon: '3 months', tokenSymbol: 'nvgo!', sourceIds: ['h2'] };
 
   // All personas cover real Solana thesis instruments, with no overlap.
   const all = DESK_PERSONAS.flatMap((p) => p.tickers);
@@ -25,6 +25,9 @@ const path = require('node:path');
   const normalized = normalizeAgentPaperThesis(input);
   assert.equal(normalized.instrumentId, inst.id);
   assert.equal(input.tokenSymbol, 'NVGO');
+  assert.ok(!/\(h\d/.test(input.body), 'headline ids are stripped: ' + input.body);
+  assert.match(input.body, /from the headlines\./);
+  assert.equal(buildThesisInput({ ...draft, tokenSymbol: 'NVDA' }, 'NVDA', inst, headlines('NVDA'), 'bull').tokenSymbol, 'NVDABULL', 'symbol never equals the ticker');
   assert.deepEqual(input.sources, ['https://news.example.com/NVDA/2'], 'cites only the headlines the model used');
   assert.equal(buildThesisInput({ ...draft, summary: 'too short' }, 'NVDA', inst, headlines('NVDA')), null, 'invalid output is rejected');
 

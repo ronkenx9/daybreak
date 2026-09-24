@@ -25,11 +25,15 @@ const clamp = (v: unknown, min: number, max: number): string | null => {
   return s.length > max ? s.slice(0, max - 1).trimEnd() + '…' : s;
 };
 
-export function buildThesisInput(raw: Record<string, unknown>, ticker: string, instrument: { id: string; companyName: string }, headlines: Headline[]) {
-  const title = clamp(raw.title, 8, 100), summary = clamp(raw.summary, 20, 280), body = clamp(raw.body, 40, 4000);
-  const invalidation = clamp(raw.invalidation, 10, 500), horizon = clamp(raw.horizon, 2, 80);
+// Headline ids (h1, h2…) are for the model's citations only; readers never see them.
+const stripIds = (v: unknown) => typeof v === 'string' ? v.replace(/\s*\((?:h\d+)(?:\s*,\s*h\d+)*\)/gi, '').replace(/\s+([.,;:])/g, '$1') : v;
+
+export function buildThesisInput(raw: Record<string, unknown>, ticker: string, instrument: { id: string; companyName: string }, headlines: Headline[], personaId = 'desk') {
+  const title = clamp(stripIds(raw.title), 8, 100), summary = clamp(stripIds(raw.summary), 20, 280), body = clamp(stripIds(raw.body), 40, 4000);
+  const invalidation = clamp(stripIds(raw.invalidation), 10, 500), horizon = clamp(raw.horizon, 2, 80);
   let symbol = typeof raw.tokenSymbol === 'string' ? raw.tokenSymbol.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) : '';
-  if (!/^[A-Z][A-Z0-9]{1,9}$/.test(symbol)) symbol = `${ticker.slice(0, 4)}AI`;
+  // The thesis token must not read like the stock itself.
+  if (!/^[A-Z][A-Z0-9]{1,9}$/.test(symbol) || symbol === ticker.toUpperCase()) symbol = `${ticker}${personaId.toUpperCase()}`.replace(/[^A-Z0-9]/g, '').slice(0, 10);
   const ids = new Set(Array.isArray(raw.sourceIds) ? raw.sourceIds.map(String) : []);
   const cited = headlines.filter((h) => ids.has(h.id));
   const sources = (cited.length ? cited : headlines.slice(0, 2)).slice(0, 5).map((h) => h.url);
@@ -58,11 +62,11 @@ export async function runPersona(persona: DeskPersona, deps: DeskDeps, opts: { d
     `You are "${persona.name}", an AI analyst on Daybreak's morning desk. ${persona.style}\n` +
     `Write ONE public thesis about ${instrument.companyName} (${pick.ticker}) based ONLY on today's headlines provided. ` +
     'It is an opinion for a PAPER (simulated) market, not financial advice. Do not invent numbers, quotes or facts that are not in the headlines. ' +
-    'Return ONLY JSON: {"title": 8-90 chars, a punchy claim; "summary": 1-2 sentences, max 260 chars; "body": 2-4 short paragraphs, 400-1200 chars, citing which headlines drove the view; ' +
-    '"invalidation": what would prove this wrong, max 300 chars; "horizon": e.g. "3 months"; "tokenSymbol": 3-6 uppercase letters for the thesis token; "sourceIds": ids of the headlines you used}',
+    'Return ONLY JSON: {"title": 8-90 chars, a punchy claim; "summary": 1-2 sentences, max 260 chars; "body": 2-4 short paragraphs, 400-1200 chars, describing the headlines that drove the view in plain words (never write headline ids like h1 in any text field); ' +
+    '"invalidation": what would prove this wrong, max 300 chars; "horizon": e.g. "3 months"; "tokenSymbol": 3-8 uppercase letters for the thesis token, different from the stock ticker; "sourceIds": ids of the headlines you used}',
     { ticker: pick.ticker, company: instrument.companyName, today: day, headlines: pick.headlines.map((h) => ({ id: h.id, title: h.title, source: h.source, seenAt: h.seenAt })) },
   );
-  const input = buildThesisInput(draft, pick.ticker, instrument, pick.headlines);
+  const input = buildThesisInput(draft, pick.ticker, instrument, pick.headlines, persona.id);
   if (!input) return { ...result, skipped: 'model output did not pass validation', draft };
   if (dryRun) return { ...result, draft: input };
 
