@@ -89,6 +89,36 @@ describe('DaybreakConvictionVault (X Layer mainnet fork)', () => {
     expect(await wnvda.balanceOf(await vault.getAddress())).to.equal(0n);
   });
 
+  it('backs in one transaction with a real NVDAx permit, and survives a replayed permit', async () => {
+    const { vault, alice, nvda } = await setup();
+    await vault.openThesis(wNVDAx, true, DAY, 'permit flow');
+    const amount = ethers.parseEther('1');
+    const vaultAddress = await vault.getAddress();
+    const token = await ethers.getContractAt(['function nonces(address) view returns (uint256)', 'function name() view returns (string)', 'function allowance(address,address) view returns (uint256)'], NVDAx);
+    const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600) + 10n * BigInt(DAY);
+    const sig = ethers.Signature.from(await alice.signTypedData(
+      { name: await token.name(), version: '1', chainId: 196, verifyingContract: NVDAx },
+      { Permit: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }, { name: 'value', type: 'uint256' }, { name: 'nonce', type: 'uint256' }, { name: 'deadline', type: 'uint256' }] },
+      { owner: alice.address, spender: vaultAddress, value: amount, nonce: await token.nonces(alice.address), deadline },
+    ));
+    const before = await nvda.balanceOf(alice.address);
+    // A front-runner submits the permit first; backing must still succeed.
+    await (await ethers.getContractAt(['function permit(address,address,uint256,uint256,uint8,bytes32,bytes32)'], NVDAx)).permit(alice.address, vaultAddress, amount, deadline, sig.v, sig.r, sig.s);
+    await vault.connect(alice).backWithPermit(0, amount, deadline, sig.v, sig.r, sig.s);
+    expect(await nvda.balanceOf(alice.address)).to.equal(before - amount);
+    expect(await vault.lockedStock(0)).to.be.closeTo(amount, 2n);
+    // Clean single-transaction path with a fresh permit.
+    const sig2 = ethers.Signature.from(await alice.signTypedData(
+      { name: await token.name(), version: '1', chainId: 196, verifyingContract: NVDAx },
+      { Permit: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }, { name: 'value', type: 'uint256' }, { name: 'nonce', type: 'uint256' }, { name: 'deadline', type: 'uint256' }] },
+      { owner: alice.address, spender: vaultAddress, value: amount, nonce: await token.nonces(alice.address), deadline },
+    ));
+    await vault.connect(alice).backWithPermit(0, amount, deadline, sig2.v, sig2.r, sig2.s);
+    expect(await vault.lockedStock(0)).to.be.closeTo(amount * 2n, 4n);
+    expect((await vault.getThesis(0)).backers).to.equal(1);
+    expect(await token.allowance(alice.address, vaultAddress)).to.equal(0n);
+  });
+
   it('rejects zero amounts, unknown theses and missing approvals', async () => {
     const { vault, alice } = await setup();
     await vault.openThesis(wNVDAx, false, DAY, 'bear case');

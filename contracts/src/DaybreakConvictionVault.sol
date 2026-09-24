@@ -8,6 +8,10 @@ interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
 }
 
+interface IERC20Permit {
+    function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
+}
+
 interface IERC4626 is IERC20 {
     function asset() external view returns (address);
     function deposit(uint256 assets, address receiver) external returns (uint256 shares);
@@ -99,6 +103,20 @@ contract DaybreakConvictionVault {
 
     /// @notice Lock xStock (e.g. NVDAx) behind a thesis. Approve this vault for `amount` first.
     function back(uint256 thesisId, uint256 amount) external nonReentrant returns (uint256 shares) {
+        return _backStock(thesisId, amount);
+    }
+
+    /// @notice One-transaction backing: an EIP-2612 permit signature replaces the approval.
+    /// @dev If the permit was already used (e.g. front-run), proceeds when the allowance is in place.
+    function backWithPermit(uint256 thesisId, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
+        external nonReentrant returns (uint256 shares)
+    {
+        address stock = stockOf[_thesis(thesisId).wrapper];
+        try IERC20Permit(stock).permit(msg.sender, address(this), amount, deadline, v, r, s) {} catch {}
+        return _backStock(thesisId, amount);
+    }
+
+    function _backStock(uint256 thesisId, uint256 amount) private returns (uint256 shares) {
         Thesis storage t = _open(thesisId);
         if (amount == 0) revert ZeroAmount();
         IERC4626 wrapper = IERC4626(t.wrapper);
