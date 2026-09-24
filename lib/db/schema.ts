@@ -775,3 +775,20 @@ export const webhookEvents = pgTable('webhook_events', {
   payload: jsonb('payload').notNull(),
   receivedAt: timestamp('received_at',{withTimezone:true}).notNull().defaultNow(),
 });
+
+// Private invite queue for the managed iMessage agent. Phone numbers are kept
+// server-side and never included in public application payloads.
+export const imessageWaitlist = pgTable('imessage_waitlist', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  phoneE164: text('phone_e164').notNull().unique(),
+  status: text('status').notNull().default('waiting'), // waiting | invited | active | opted_out
+  source: text('source').notNull().default('web'),
+  consentAt: timestamp('consent_at', { withTimezone: true }).notNull(),
+  invitedAt: timestamp('invited_at', { withTimezone: true }),
+  activatedAt: timestamp('activated_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  statusCreated: index('imessage_waitlist_status_created_idx').on(t.status, t.createdAt),
+  validStatus: check('imessage_waitlist_status_check', sql`${t.status} in ('waiting', 'invited', 'active', 'opted_out')`),
+}));
