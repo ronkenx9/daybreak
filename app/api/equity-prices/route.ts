@@ -33,5 +33,7 @@ export async function GET(req: Request) {
     }
   }
   const market = usMarketSession();
-  return Response.json({ prices: out, pyth: isPythConfigured, market }, { headers: { 'Cache-Control': 'private, max-age=20', 'Access-Control-Allow-Origin': '*' } });
+  // Complete answers are shared across visitors at the CDN; partial ones are never cached.
+  const complete = Object.values(out).every((p) => p.priceUsd != null);
+  return Response.json({ prices: out, pyth: isPythConfigured, market }, { headers: { 'Cache-Control': complete ? 'public, s-maxage=20, stale-while-revalidate=120' : 'no-store', 'Access-Control-Allow-Origin': '*' } });
 }

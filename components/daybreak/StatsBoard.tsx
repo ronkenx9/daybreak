@@ -34,7 +34,7 @@ export default function StatsBoard({ address }: { address?: string }) {
     <div className="db-stat-grid">
       {TILES.map((t) => (
         <div className="db-stat-tile" key={t.key}>
-          <strong className="db-shine">{(() => { const v = d?.[t.key]; return q.isPending || v == null || typeof v !== 'number' ? '—' : v.toLocaleString('en-US'); })()}</strong>
+          <strong className="db-shine">{(() => { const v = d?.[t.key]; return q.isPending ? '…' : v == null || typeof v !== 'number' ? '—' : v.toLocaleString('en-US'); })()}</strong>
           <span>{t.label}</span>
           <small>{t.hint}</small>
         </div>
@@ -52,7 +52,7 @@ export default function StatsBoard({ address }: { address?: string }) {
       ['pendingResearchCents', 'Research in progress', 'Brief credits reserved until delivery or return'],
       ['servicesDeliveredCents', 'Services delivered', 'Gross credits spent on pins and research briefs'],
       ['creditsAwardedCents', 'Research credits awarded', 'Cumulative funded awards'],
-    ] as const).map(([key, label, hint]) => <div className="db-stat-tile" key={key}><strong className="db-shine">{economy.data?.configured && typeof economy.data[key] === 'number' ? `$${(economy.data[key] / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</strong><span>{label}</span><small>{hint}</small></div>)}</div>
+    ] as const).map(([key, label, hint]) => <div className="db-stat-tile" key={key}><strong className="db-shine">{economy.isPending ? '…' : economy.data?.configured && typeof economy.data[key] === 'number' ? `$${(economy.data[key] / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</strong><span>{label}</span><small>{hint}</small></div>)}</div>
     {economy.isError && <p className="db-small-note">Credit activity is temporarily unavailable.</p>}
 
     <div className="db-section-heading db-dayc-heading"><div><span className="db-eyebrow">Daybreak token · live on Base</span><h2>Own a piece of Daybreak.</h2></div></div>

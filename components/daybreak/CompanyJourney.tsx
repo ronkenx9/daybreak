@@ -43,7 +43,21 @@ export default function CompanyJourney({ token, price, saved, onToggleSave, onDi
       setShareStatus('Could not share. Copy the address from your browser.');
     }
   };
-  const priceLabel = price?.state === 'paused' ? 'Oracle paused' : price?.priceUsd == null ? 'Price unavailable' : price.priceUsd.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  // The underlying equity reference has its own fast endpoint; the Base oracle price is the fallback.
+  const equity = useQuery({
+    queryKey: ['equity-price', token.ticker],
+    queryFn: async ({ signal }) => {
+      const response = await fetch(`/api/equity-prices?tickers=${encodeURIComponent(token.ticker)}`, { signal });
+      if (!response.ok) throw new Error('Price unavailable');
+      return ((await response.json()) as { prices: Record<string, { priceUsd: number | null; asOf: number | null } | undefined> }).prices[token.ticker] ?? null;
+    },
+    staleTime: 20_000, refetchInterval: 60_000, retry: 2,
+  });
+  const refUsd = equity.data?.priceUsd ?? (price?.state !== 'paused' ? price?.priceUsd ?? null : null);
+  const refAt = equity.data?.priceUsd != null ? equity.data.asOf : price?.updatedAt ?? null;
+  const priceLabel = refUsd != null ? refUsd.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+    : equity.isPending && price === undefined ? 'Loading price…'
+    : price?.state === 'paused' ? 'Oracle paused' : 'Price unavailable';
 
   return <section className="db-company-journey" aria-label={`${token.name} at a glance`}>
     <div className="db-company-journey-head">
@@ -54,7 +68,7 @@ export default function CompanyJourney({ token, price, saved, onToggleSave, onDi
       </div>
     </div>
     {shareStatus && <p className="db-small-note" role="status">{shareStatus}</p>}
-    <div className="db-company-journey-price"><span>Underlying equity reference</span><strong>{priceLabel}</strong><small>{price?.updatedAt ? `Updated ${new Date(price.updatedAt).toLocaleString()} · ` : ''}This is not a token trade quote.</small></div>
+    <div className="db-company-journey-price"><span>Underlying equity reference</span><strong>{priceLabel}</strong><small>{refAt ? `Updated ${new Date(refAt).toLocaleString()} · ` : ''}This is not a token trade quote.</small></div>
 
     <div className="db-company-journey-section-head"><div><span className="db-eyebrow">Public ideas</span><h3>What do people believe?</h3></div><Link href={`/app/conviction?stock=${encodeURIComponent(token.ticker)}`} className="db-text-link">All {token.ticker} theses <ArrowRight size={15}/></Link></div>
     {companyId && theses.isPending ? <p className="db-company-journey-state" role="status">Finding public theses…</p> : theses.isError ? <div className="db-company-journey-state" role="status">Theses are unavailable right now. <Link href="/app/conviction">Explore conviction</Link></div> : !companyId ? <p className="db-company-journey-state">No supported thesis market is available for this stock yet.</p> : theses.data?.length ? <div className="db-company-journey-theses">{theses.data.map(thesis => <article key={thesis.id} className="db-company-journey-thesis">
