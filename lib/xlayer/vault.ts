@@ -5,6 +5,15 @@
 export const XLAYER_VAULT_MAINNET = '0x55318f36f5b482e9f2b1429f2ca7fd7c5bbf97fc';
 export const XLAYER_VAULT_ADDRESS = (process.env.NEXT_PUBLIC_XLAYER_VAULT_ADDRESS || XLAYER_VAULT_MAINNET).toLowerCase() as `0x${string}` | '';
 export const XLAYER_VAULT_MAX_STATEMENT_BYTES = 256;
+
+// A Daybreak thesis and its vault entry are linked by the vault's uri: the thesis's public URL.
+export const THESIS_URL_BASE = 'https://www.daybreakcircles.lol/theses/';
+export const thesisUri = (slug: string) => `${THESIS_URL_BASE}${slug}`;
+export function slugFromUri(uri: string): string | null {
+  if (!uri.startsWith(THESIS_URL_BASE)) return null;
+  const slug = uri.slice(THESIS_URL_BASE.length);
+  return /^[a-z0-9-]{1,200}$/i.test(slug) ? slug : null;
+}
 export const XLAYER_VAULT_DURATIONS = [{ label: '7 days', seconds: 7 * 86400 }, { label: '30 days', seconds: 30 * 86400 }, { label: '90 days', seconds: 90 * 86400 }] as const;
 
 export const vaultAbi = [
@@ -27,6 +36,6 @@ export const erc20ApproveAbi = [
 
 export interface VaultThesis {
   id: number; creator: string; wrapper: string; ticker: string | null; symbol: string | null;
-  bullish: boolean; statement: string; createdAt: number; expiresAt: number; expired: boolean;
+  bullish: boolean; statement: string; thesisSlug: string | null; createdAt: number; expiresAt: number; expired: boolean;
   backers: number; lockedStock: string; yourShares: string | null; yourStock: string | null;
 }

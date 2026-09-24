@@ -2,13 +2,13 @@ import 'server-only';
 import { formatUnits } from 'viem';
 import { xlayerClient } from './client';
 import { XLAYER_STOCKS, XLAYER_STOCK_DECIMALS } from './tokens';
-import { XLAYER_VAULT_ADDRESS, vaultAbi, type VaultThesis } from './vault';
+import { XLAYER_VAULT_ADDRESS, slugFromUri, vaultAbi, type VaultThesis } from './vault';
 
 const wrapperAbi = [{ type: 'function', name: 'convertToAssets', stateMutability: 'view', inputs: [{ name: 'shares', type: 'uint256' }], outputs: [{ type: 'uint256' }] }] as const;
 const BY_WRAPPER = new Map(XLAYER_STOCKS.map((s) => [s.wrapper, s]));
 
 /** Newest theses first. `backer` adds that wallet's locked position to each thesis. */
-export async function readVaultTheses(backer: `0x${string}` | null, limit = 50): Promise<{ vault: string; blockNumber: string; theses: VaultThesis[] }> {
+export async function readVaultTheses(backer: `0x${string}` | null, limit = 200): Promise<{ vault: string; blockNumber: string; theses: VaultThesis[] }> {
   if (!XLAYER_VAULT_ADDRESS) throw new Error('Vault not configured');
   const address = XLAYER_VAULT_ADDRESS as `0x${string}`;
   const blockNumber = await xlayerClient.getBlockNumber();
@@ -35,7 +35,7 @@ export async function readVaultTheses(backer: `0x${string}` | null, limit = 50):
     const stock = BY_WRAPPER.get(t.wrapper.toLowerCase() as `0x${string}`);
     return {
       id: Number(id), creator: t.creator, wrapper: t.wrapper.toLowerCase(), ticker: stock?.ticker ?? null, symbol: stock?.symbol ?? null,
-      bullish: t.bullish, statement: t.uri, createdAt: Number(t.createdAt), expiresAt: Number(t.expiresAt), expired: now >= Number(t.expiresAt),
+      bullish: t.bullish, statement: t.uri, thesisSlug: slugFromUri(t.uri), createdAt: Number(t.createdAt), expiresAt: Number(t.expiresAt), expired: now >= Number(t.expiresAt),
       backers: Number(t.backers), lockedStock: formatUnits(locked, XLAYER_STOCK_DECIMALS),
       yourShares: shares === null ? null : formatUnits(shares, XLAYER_STOCK_DECIMALS),
       yourStock: shares === null ? null : formatUnits(stockFor.get(id) ?? 0n, XLAYER_STOCK_DECIMALS),

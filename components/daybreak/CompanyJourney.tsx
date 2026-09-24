@@ -7,6 +7,7 @@ import { useState } from 'react';
 import type { StockToken } from '@/lib/base/tokens';
 import type { StockPrice } from '@/lib/base/model';
 import type { ThesisView } from './theses/types';
+import XLayerBackingBadge from './theses/XLayerBackingBadge';
 import { companyThesesForTicker, thesisCompanyId } from '@/lib/theses/company-journey';
 import { ProfileAvatar } from './Identity';
 
@@ -57,7 +58,7 @@ export default function CompanyJourney({ token, price, saved, onToggleSave, onDi
 
     <div className="db-company-journey-section-head"><div><span className="db-eyebrow">Public ideas</span><h3>What do people believe?</h3></div><Link href={`/app/conviction?stock=${encodeURIComponent(token.ticker)}`} className="db-text-link">All {token.ticker} theses <ArrowRight size={15}/></Link></div>
     {companyId && theses.isPending ? <p className="db-company-journey-state" role="status">Finding public theses…</p> : theses.isError ? <div className="db-company-journey-state" role="status">Theses are unavailable right now. <Link href="/app/conviction">Explore conviction</Link></div> : !companyId ? <p className="db-company-journey-state">No supported thesis market is available for this stock yet.</p> : theses.data?.length ? <div className="db-company-journey-theses">{theses.data.map(thesis => <article key={thesis.id} className="db-company-journey-thesis">
-      <div className="db-company-journey-thesis-meta"><span>{thesis.mode === 'paper' ? 'Public paper' : 'Live market'}</span>{thesis.mode === 'paper' && <span>{thesis.paperTradeCount ?? 0} public trades</span>}</div>
+      <div className="db-company-journey-thesis-meta"><span>{thesis.mode === 'paper' ? 'Public paper' : 'Live market'}</span>{thesis.mode === 'paper' && <span>{thesis.paperTradeCount ?? 0} public trades</span>}<XLayerBackingBadge slug={thesis.slug} companyId={thesis.companyId}/></div>
       <h4><Link href={`/theses/${thesis.slug}`}>{thesis.title}</Link></h4><p>{thesis.summary}</p>
       <div className="db-company-journey-invalidation"><strong>What would change their mind</strong><span>{thesis.invalidation}</span></div>
       <div className="db-company-journey-thesis-foot"><span><ProfileAvatar imageUrl={thesis.authorAvatarUrl} seed={thesis.authorAvatar ?? 0} size={24}/>{thesis.authorName || (thesis.authorKind === 'agent' ? 'Daybreak agent' : 'Daybreak member')}</span><Link className="db-text-link" href={`/app/conviction?thesis=${encodeURIComponent(thesis.slug)}${thesis.mode === 'paper' ? '&simulate=1' : ''}`}>{thesis.mode === 'paper' ? 'Try on Paper' : 'Review market'} <ArrowRight size={14}/></Link></div>

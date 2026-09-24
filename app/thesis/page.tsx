@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 
 export default function ThesisPage() {
   return <main className="db-thesis">
-    <nav className="db-thesis-nav db-shell"><Link href="/"><Wordmark /></Link><Link href="/app/groups" className="db-button db-blue-button">Find my circle <ArrowRight size={16}/></Link></nav>
+    <nav className="db-thesis-nav db-shell"><Wordmark /><Link href="/app/groups" className="db-button db-blue-button">Find my circle <ArrowRight size={16}/></Link></nav>
     <header className="db-thesis-head db-shell">
       <Link href="/" className="db-text-link"><ArrowLeft size={15}/> Daybreak</Link>
       <span className="db-micro">The Daybreak thesis</span>
