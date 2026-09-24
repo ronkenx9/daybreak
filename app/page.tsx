@@ -55,6 +55,7 @@ export default function Landing() {
             <div className="db-site-links">
               <a href="#discover">The experience</a>
               <a href="#circles">Find your people</a>
+              <Link href="/imessage">iMessage beta</Link>
               <Link href="/references">Our direction</Link>
               <Link href="/stats">Stats</Link>
             </div>
@@ -242,6 +243,7 @@ export default function Landing() {
             <Link href="/app/holdings">Your holdings</Link>
             <Link href="/stats">By the numbers</Link>
             <Link href="/app/profile">Make it yours</Link>
+            <Link href="/imessage">iMessage beta</Link>
           </nav>
           <nav aria-label="Learn" className="db-dawn-col">
             <h3>Learn</h3>

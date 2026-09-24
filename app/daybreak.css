@@ -1677,3 +1677,68 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-activity-head{display:flex;align-items:end;justify-content:space-between;gap:20px;padding:22px 0 28px;border-bottom:1px solid var(--db-line)}.db-activity-head h2{margin-top:9px;font:550 clamp(28px,3.7vw,43px)/1.1 var(--db-display);letter-spacing:-.045em}.db-activity-head p{margin-top:9px;color:var(--db-muted);font-size:12px;line-height:1.6}.db-activity-head .db-button{flex:none}.db-activity-followed{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0}.db-activity-followed a{display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 7px;border:1px solid var(--db-line);border-radius:999px;background:var(--db-white,#fff);font-size:11px;font-weight:600}.db-activity-followed a:hover{color:var(--db-blue);border-color:#a8b8ff}.db-activity-list{display:grid;gap:9px;margin:21px 0 26px}.db-activity-item{display:grid;grid-template-columns:44px minmax(0,1fr) 20px;align-items:center;gap:15px;padding:17px 18px;border:1px solid var(--db-line);border-radius:17px;background:var(--db-white,#fff)}.db-activity-item:hover{border-color:#a8b8ff;transform:translateY(-1px)}.db-activity-item-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:var(--db-bg);color:var(--db-blue)}.db-activity-item h3{margin:5px 0;font-size:15px;line-height:1.3}.db-activity-item p{color:var(--db-muted);font-size:11px;line-height:1.45}.db-activity-item>svg{color:var(--db-blue)}.db-activity-state{margin:22px 0;padding:28px;border:1px solid var(--db-line);border-radius:18px;background:var(--db-bg);color:var(--db-muted);font-size:12px}.db-activity-state h3{color:var(--db-ink);font-size:17px}.db-activity-state p{margin:7px 0 14px}.db-activity-state .db-text-link{font-size:11px}
 .db-app[data-theme="dark"] .db-company-journey-actions .db-button[aria-pressed=true],.db-app[data-theme="dark"] .db-interest-intro-options button[aria-pressed=true]{background:#253153;border-color:#5d6dc0;color:#c9d1ff}.db-app[data-theme="dark"] .db-company-journey-thesis,.db-app[data-theme="dark"] .db-activity-item,.db-app[data-theme="dark"] .db-activity-followed a{background:#121829;border-color:#283049}.db-app[data-theme="dark"] .db-company-journey-state,.db-app[data-theme="dark"] .db-company-journey-price,.db-app[data-theme="dark"] .db-interest-intro-options button,.db-app[data-theme="dark"] .db-activity-state{background:#171f35;border-color:#283049}
 @media(max-width:700px){.db-company-journey-head,.db-activity-head{align-items:stretch;flex-direction:column}.db-company-journey-actions .db-button{flex:1;justify-content:center}.db-company-journey-price>small{margin-left:0;width:100%}.db-company-journey-theses{grid-template-columns:1fr}.db-company-journey-section-head{align-items:start;flex-direction:column}.db-company-journey-thesis{padding:17px}.db-activity-head .db-button{align-self:flex-start}.db-activity-item{grid-template-columns:36px minmax(0,1fr) 17px;gap:10px;padding:14px}.db-activity-item-icon{width:36px;height:36px}.db-interest-intro-options{max-height:46dvh}.db-interest-intro-options button{min-height:57px}}
+
+/* iMessage beta waitlist */
+.db-imessage-page{min-height:100dvh;background:#f1f4fb;color:var(--db-ink);font-family:var(--db-ui);padding:0 24px;overflow:hidden}
+.db-imessage-shell{width:min(1240px,100%);min-height:100dvh;margin:0 auto;display:flex;flex-direction:column}
+.db-imessage-nav{height:88px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #dfe5f1}
+.db-imessage-nav>a:last-child{color:var(--db-muted);font-size:13px;font-weight:600;transition:color .18s}
+.db-imessage-nav>a:last-child:hover{color:var(--db-blue)}
+.db-imessage-layout{display:grid;grid-template-columns:minmax(0,.9fr) minmax(490px,1.1fr);gap:clamp(48px,7vw,96px);align-items:center;flex:1;padding:64px 0 54px}
+.db-imessage-copy{max-width:560px}
+.db-imessage-copy h1{font:500 clamp(45px,5vw,70px)/1.03 var(--db-display);letter-spacing:-.055em;text-wrap:balance;margin:22px 0 24px}
+.db-imessage-lede{max-width:510px;color:var(--db-muted);font-size:17px;line-height:1.65}
+.db-imessage-form{margin-top:34px}
+.db-imessage-form>label:first-child{display:block;margin-bottom:9px;font-size:12px;font-weight:650;color:var(--db-ink)}
+.db-imessage-field{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:7px;border:1px solid #d9e0ee;border-radius:18px;background:#fff;transition:border-color .18s,box-shadow .18s}
+.db-imessage-field:focus-within{border-color:#8f9cff;box-shadow:0 0 0 3px #0210ef12}
+.db-imessage-field input{min-width:0;height:52px;padding:0 13px;border:0;outline:0;background:transparent;color:var(--db-ink);font:550 17px var(--db-ui)}
+.db-imessage-field input::placeholder{color:#9aa4b8;font-weight:450}
+.db-imessage-field button{min-width:145px;height:52px;padding:0 20px;border:0;border-radius:12px;background:var(--db-blue);color:#fff;font:650 13px var(--db-ui);transition:background .18s,transform .16s,opacity .18s}
+.db-imessage-field button:hover:not(:disabled){background:var(--db-blue-dark)}
+.db-imessage-field button:active:not(:disabled){transform:scale(.98)}
+.db-imessage-field button:disabled{opacity:.42;cursor:not-allowed}
+.db-imessage-field-note{display:block;margin-top:8px;color:var(--db-muted);font-size:10px;line-height:1.5}
+.db-imessage-honeypot{position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
+.db-imessage-consent{display:grid!important;grid-template-columns:18px minmax(0,1fr);align-items:start;gap:10px;margin-top:16px!important;color:var(--db-muted)!important;font-size:10px!important;font-weight:450!important;line-height:1.55}
+.db-imessage-consent input{width:16px;height:16px;margin:0;accent-color:var(--db-blue)}
+.db-imessage-error{min-height:17px;margin-top:9px;color:#a7343d;font-size:11px;line-height:1.5}
+.db-imessage-steps{list-style:none;margin:35px 0 0;padding:26px 0 0;border-top:1px solid #dfe5f1;display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.db-imessage-steps li{display:grid;grid-template-columns:auto 1fr;align-items:start;gap:9px}
+.db-imessage-steps li>span{font:650 9px/1 var(--db-mono);color:var(--db-blue);padding-top:3px}
+.db-imessage-steps strong,.db-imessage-steps p{display:block}
+.db-imessage-steps strong{font-size:11px;margin-bottom:5px}
+.db-imessage-steps p{color:var(--db-muted);font-size:9px;line-height:1.5}
+.db-imessage-success{margin-top:34px;display:grid;grid-template-columns:48px minmax(0,1fr);gap:18px;padding:24px;border:1px solid #cfd8f1;border-radius:20px;background:#fff}
+.db-imessage-success-mark{width:48px;height:48px;display:grid;place-items:center;border-radius:14px;background:#e9edff;color:var(--db-blue)}
+.db-imessage-success h2{font:550 22px/1.18 var(--db-display);letter-spacing:-.035em;margin:7px 0 8px}
+.db-imessage-success p{color:var(--db-muted);font-size:12px;line-height:1.6}
+.db-imessage-art{position:relative;min-height:640px;border-radius:32px;background:var(--db-blue);color:#fff;overflow:hidden;isolation:isolate;padding:27px}
+.db-imessage-art:before{content:"";position:absolute;inset:18px;border:1px solid #ffffff24;border-radius:22px;pointer-events:none}
+.db-imessage-art-top{position:relative;z-index:5;display:flex;align-items:center;justify-content:space-between;padding:0 3px}
+.db-imessage-beta{font:650 9px var(--db-mono);letter-spacing:.08em;text-transform:uppercase;color:#fff;padding:7px 10px;border:1px solid #ffffff3d;border-radius:999px}
+.db-imessage-chat{position:relative;z-index:5;width:min(410px,82%);margin:39px 0 0 auto;padding:16px;border-radius:26px;background:#f7f8fc;color:var(--db-ink);box-shadow:0 20px 50px #00023b2e;transform:rotate(1.2deg)}
+.db-imessage-contact{display:flex;align-items:center;gap:10px;padding:2px 2px 13px;border-bottom:1px solid #e2e6ef}
+.db-imessage-contact>span{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:var(--db-blue);color:#fff}
+.db-imessage-contact strong,.db-imessage-contact small{display:block}
+.db-imessage-contact strong{font-size:12px}.db-imessage-contact small{margin-top:2px;color:var(--db-muted);font-size:9px}
+.db-message{width:max-content;max-width:87%;margin-top:13px;padding:10px 12px;border-radius:15px;font-size:11px;line-height:1.45}
+.db-message.is-user{margin-left:auto;background:var(--db-blue);color:#fff;border-bottom-right-radius:5px}
+.db-message.is-user.is-short{margin-left:auto}
+.db-message.is-daybreak{background:#fff;border:1px solid #e3e7f0;border-bottom-left-radius:5px;padding:13px}
+.db-message-stock{display:flex;align-items:center;gap:10px;padding-bottom:10px;border-bottom:1px solid #e7ebf3}
+.db-message-stock strong,.db-message-stock small{display:block}.db-message-stock strong{font-size:11px}.db-message-stock small{margin-top:2px;color:var(--db-muted);font-size:8px}
+.db-message.is-daybreak>p{margin:10px 0;color:#4f5b75;font-size:10px;line-height:1.5}
+.db-message-link{display:block;color:var(--db-blue);font-size:9px;font-weight:650}
+.db-message-typing{display:flex;align-items:center;gap:3px;width:max-content;margin-top:12px;padding:9px 11px;border-radius:14px;border-bottom-left-radius:5px;background:#e5e8ef}
+.db-message-typing i{width:5px;height:5px;border-radius:50%;background:#7d879a;animation:db-message-dot 1.25s ease-in-out infinite}.db-message-typing i:nth-child(2){animation-delay:.14s}.db-message-typing i:nth-child(3){animation-delay:.28s}
+@keyframes db-message-dot{0%,60%,100%{opacity:.35;transform:translateY(0)}30%{opacity:1;transform:translateY(-2px)}}
+.db-imessage-crew{position:absolute;z-index:3;left:-76px;bottom:-49px;width:490px;transform:rotate(-2deg)}
+.db-imessage-crew>div{flex-basis:42%}
+.db-imessage-orbit{position:absolute;z-index:4;display:block;filter:drop-shadow(0 10px 12px #00034c42)}
+.db-imessage-orbit.is-aapl{left:40px;top:142px;transform:rotate(-9deg)}
+.db-imessage-orbit.is-tsla{right:33px;bottom:38px;transform:rotate(8deg)}
+.db-imessage-footer{min-height:68px;display:flex;align-items:center;justify-content:space-between;gap:24px;border-top:1px solid #dfe5f1;color:var(--db-muted);font-size:10px}
+@media(max-width:980px){.db-imessage-layout{grid-template-columns:1fr;gap:50px;padding-top:48px}.db-imessage-copy{max-width:680px;margin:0 auto}.db-imessage-art{width:min(680px,100%);min-height:610px;margin:0 auto}.db-imessage-chat{width:min(410px,76%)}.db-imessage-crew{width:500px}}
+@media(max-width:620px){.db-imessage-page{padding:0 17px}.db-imessage-nav{height:72px}.db-imessage-nav .db-wordmark{font-size:24px}.db-imessage-layout{padding:43px 0 34px;gap:38px}.db-imessage-copy h1{font-size:42px;line-height:1.04;margin:18px 0}.db-imessage-lede{font-size:15px}.db-imessage-field{grid-template-columns:1fr;padding:6px}.db-imessage-field button{width:100%}.db-imessage-steps{grid-template-columns:1fr;gap:14px}.db-imessage-steps li{grid-template-columns:27px 1fr}.db-imessage-art{min-height:570px;border-radius:24px;padding:21px}.db-imessage-art:before{inset:12px;border-radius:17px}.db-imessage-chat{width:92%;margin-top:34px}.db-imessage-crew{left:-92px;bottom:-20px;width:410px}.db-imessage-orbit.is-aapl{left:25px;top:130px}.db-imessage-orbit.is-tsla{right:21px;bottom:26px}.db-imessage-footer{align-items:flex-start;flex-direction:column;justify-content:center;padding:18px 0}.db-imessage-success{grid-template-columns:1fr}.db-imessage-success-mark{width:42px;height:42px}}
+@media(prefers-reduced-motion:reduce){.db-message-typing i{animation:none}}

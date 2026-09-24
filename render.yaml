@@ -1,0 +1,20 @@
+services:
+  - type: worker
+    name: daybreak-imessage
+    runtime: docker
+    dockerfilePath: ./services/daybreak-imessage/Dockerfile
+    dockerContext: ./services/daybreak-imessage
+    rootDir: services/daybreak-imessage
+    autoDeploy: true
+    maxShutdownDelaySeconds: 30
+    envVars:
+      - key: SPECTRUM_PROJECT_ID
+        sync: false
+      - key: SPECTRUM_PROJECT_SECRET
+        sync: false
+      - key: DAYBREAK_API_BASE
+        value: https://www.daybreakcircles.lol
+      - key: DAYBREAK_APP_BASE
+        value: https://www.daybreakcircles.lol
+      - key: HEALTH_PORT
+        value: "8787"
