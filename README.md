@@ -6,9 +6,9 @@
 
 Discover companies, follow your interests, and give your watchlist a little personality.
 
-**Built on Base · Next.js · TypeScript · Privy · Postgres**
+**Tokenized stocks on X Layer, Base and Solana · Next.js · TypeScript · Privy · Postgres**
 
-[Get started](#get-started) · [Product](#the-product) · [Architecture](#architecture) · [Roadmap](#where-were-going)
+[Get started](#get-started) · [Product](#the-product) · [X Layer](#x-layer-conviction-vault) · [Architecture](#architecture) · [Roadmap](#where-were-going)
 
 <img src="public/assets/characters/midnight.png" width="180" alt="Midnight Daybreak character" /><img src="public/assets/characters/cloud.png" width="180" alt="Cloud Daybreak character" /><img src="public/assets/characters/electric.png" width="180" alt="Electric Daybreak character" />
 
@@ -20,7 +20,7 @@ Proposed economic design: [DAYC, service credits, creator incentives and treasur
 
 Your interests are bigger than a ticker symbol. Gaming, AI, the brands you use every day: they connect companies, culture, and people.
 
-Daybreak is building a discovery layer around those connections. Explore companies and their tokenized stocks on Base, read the stories behind them, save what catches your eye, and make the experience yours. The longer-term home for all of this is your **circle**: people with shared interests exchanging watchlists, memes, and discoveries.
+Daybreak is building a discovery layer around those connections. Explore companies and their tokenized stocks across X Layer, Base and Solana, read the stories behind them, back your conviction with real stock, save what catches your eye, and make the experience yours. The longer-term home for all of this is your **circle**: people with shared interests exchanging watchlists, memes, and discoveries.
 
 Electric blue, liquid glass, and plush stock-pin characters give Daybreak its identity. The interface is playful; the financial data stays explicit about its source, coverage, and limitations.
 
@@ -35,15 +35,17 @@ Electric blue, liquid glass, and plush stock-pin characters give Daybreak its id
 
 ## What works today
 
-- **Company discovery:** a reviewed registry of 13 tokenized stocks on Base, with company details and source links. This is a curated catalog, not every asset on Base.
-- **Read-only holdings:** connect a supported wallet to inspect balances and oracle-based reference values. Partial reads and missing prices remain visible.
+- **Multi-chain company discovery:** each company page compares its exact instruments side by side: xStocks on **X Layer** (20 verified contracts) and **Solana** (10 mints), and Coinbase stock tokens on **Base** (13). These are curated registries verified by contract or mint, not every asset on each chain. Same-company products are never treated as interchangeable.
+- **Conviction with real stock on X Layer:** open a public thesis on an xStock and back it by locking real xStocks in the [Daybreak Conviction Vault](#x-layer-conviction-vault). Backing takes one permit signature and one transaction, and the stock unlocks in full when the thesis ends.
+- **Read-only holdings:** connect a supported wallet to inspect balances. xStocks on X Layer and Solana merge into one position per company, shown in underlying shares. Base stock tokens show oracle-based reference values. Partial reads and missing prices remain visible.
 - **Company news:** attributed GDELT headlines link to their original publishers, with loading, retry, and failure states.
-- **External purchase links:** exact-token Base links hand off to Uniswap. Daybreak does not submit trades.
+- **External purchase links:** exact-token Base links hand off to Uniswap. Daybreak does not submit swaps.
 - **Flash limit orders for Solana xStocks:** from a live thesis, a signed-in person can quote a USDC-to-stock-token limit order, approve narrowly scoped wallet setup, sign the order, submit it through Definitive Flash, and see recent status. This buys the paired stock token; the thesis-token trade remains a separate Meteora action.
 - **Personal profiles:** six plush character looks, editable profiles, and saved companies.
 - **Account foundation:** Google, Apple, passkey, and wallet login through Privy; server-verified identity and Postgres-backed profiles, bookmarks, and circle membership when configured.
 - **Related token discovery:** a separate Dexscreener-backed experimental lookup. Meme tokens are clearly distinguished from company stock.
-- **Stock liquidity:** live Aerodrome Slipstream pool context and connected-wallet LP discovery for AAPL, NVDA, GOOGL, and META. Daybreak prepares a Bankr LP prompt; Bankr owns the final wallet review and confirmation.
+- **Agents via OKX AI:** a public tool endpoint lets agents discover stock tokens (including X Layer instruments), read X Layer holdings and supply, and search conviction theses. Scoped Daybreak agent keys unlock paper trading and Flash order preparation.
+- **Stock liquidity (Base):** live Aerodrome Slipstream pool context and connected-wallet LP discovery for AAPL, NVDA, GOOGL, and META. Daybreak prepares a Bankr LP prompt; Bankr owns the final wallet review and confirmation.
 
 **Status:** active development. Anonymous discovery works without account credentials. The account data layer has local database validation; a complete hosted Privy-to-Postgres sign-in flow still needs deployment verification. Shared feeds and public watchlists are upcoming, and example community profiles are labeled.
 
@@ -61,7 +63,18 @@ npm run dev
 
 Open [localhost:3000](http://localhost:3000). The app is at `/app`; your profile is at `/app/profile`.
 
-You can start with an empty `.env.local`. Discovery uses a public Base RPC, news needs no API key, and personal saves stay on the device until the account backend is configured.
+You can start with an empty `.env.local`. Discovery uses public Base, Solana and X Layer RPCs, news needs no API key, and personal saves stay on the device until the account backend is configured.
+
+### X Layer conviction vault
+
+`DaybreakConvictionVault` is live on X Layer mainnet (chain 196) at [`0x55318F36f5B482e9F2b1429f2Ca7fD7c5BBf97fc`](https://www.oklink.com/xlayer/address/0x55318F36f5B482e9F2b1429f2Ca7fD7c5BBf97fc) and supports 20 xStocks.
+
+- Anyone can open a public thesis on a supported xStock. Backers lock that real stock until the thesis expires, then withdraw exactly what they locked. There is no payout and no admin.
+- xStocks on X Layer implement EIP-2612, so `backWithPermit` replaces the separate approval.
+- Deposits are wrapped into the issuer's ERC-4626 wrapper, so rebases from corporate actions never break accounting.
+- In the app, choose the **X Layer** card under a company's *Compare instruments*.
+
+The app uses the deployed vault by default; `NEXT_PUBLIC_XLAYER_VAULT_ADDRESS` only overrides it. Contracts, fork tests and the deploy script are in [`contracts/`](contracts/). The verified token table and integration notes are in [docs/xlayer/README.md](docs/xlayer/README.md).
 
 ### Definitive Flash stock orders
 
@@ -85,6 +98,7 @@ Create a Daybreak integrator key in [Definitive's Flash dashboard](https://flash
 | `PRIVY_APP_SECRET` | Verifies access tokens on the server | Server only |
 | `DATABASE_URL` | Account database connection | Server only |
 | `BASE_RPC_URL` | Optional dedicated Base RPC | Server only |
+| `XLAYER_RPC_URL` | Optional dedicated X Layer RPC | Server only |
 
 4. Apply the committed migrations, then verify every Daybreak table and its RLS protection:
 
@@ -109,10 +123,13 @@ Next.js / React interface
   ├─ Privy identity + wallet connection
   └─ React Query
        └─ Next.js API routes
+            ├─ X Layer RPC → xStocks holdings, supply and the conviction vault
+            ├─ Solana RPC → xStocks holdings; Definitive Flash → stock limit orders
             ├─ Base RPC → balances and oracle references
             ├─ GDELT → company headline links
             ├─ Dexscreener → related token discovery
             ├─ Aerodrome + GeckoTerminal → stock LP positions and pool activity
+            ├─ OKX AI tool endpoint → agent discovery and scoped actions
             └─ Verified Privy identity → Drizzle → Postgres
 ```
 
@@ -120,7 +137,11 @@ Next.js / React interface
 | --- | --- |
 | `app/` | Pages, styles, and API routes |
 | `components/daybreak/` | Product interface, identity, account state, and artwork sections |
-| `lib/base/` | Token registry, chain reads, valuation, and market integrations |
+| `lib/xlayer/` | X Layer xStocks registry, holdings, supply and vault reads |
+| `lib/solana/` | Solana xStocks and PreStocks registries and holdings |
+| `lib/base/` | Base token registry, chain reads, valuation, and market integrations |
+| `lib/okx/` | OKX AI tool catalog |
+| `contracts/` | DaybreakConvictionVault, X Layer mainnet-fork tests and deploy script |
 | `lib/account/` | Authentication verification and API client |
 | `lib/db/` | Schema, database connection, and account operations |
 | `drizzle/` | Versioned database migrations |
@@ -130,7 +151,7 @@ Next.js / React interface
 
 ### Data integrity
 
-Holdings valuation uses raw ERC-20 quantities and total-return oracle answers with bigint arithmetic. Scaled share quantities are shown separately. Reads validate token/feed metadata and oracle pause state at a consistent block. Missing prices produce a priced subtotal and coverage information, never an invented complete total.
+Every stock token is identified by its exact contract or mint, per chain. On X Layer, rebasing xStock balances are converted to underlying shares through the on-chain multiplier, and wrapped balances through the ERC-4626 wrapper. Base holdings valuation uses raw ERC-20 quantities and total-return oracle answers with bigint arithmetic. Scaled share quantities are shown separately. Reads validate token/feed metadata and oracle pause state at a consistent block. Missing prices produce a priced subtotal and coverage information, never an invented complete total.
 
 Oracle values are reference values, not executable quotes. External purchase links do not establish available liquidity or eligibility. News providers can rate-limit or time out. Current caches and request limits are process-local; production deployment needs appropriate shared infrastructure.
 
