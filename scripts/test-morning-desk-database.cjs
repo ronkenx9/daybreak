@@ -16,7 +16,7 @@ const postgres = require('postgres'), { drizzle } = require('drizzle-orm/postgre
     for (const file of fs.readdirSync('drizzle').filter((f) => f.endsWith('.sql')).sort()) await sql.unsafe(fs.readFileSync(path.join('drizzle', file), 'utf8').replaceAll('--> statement-breakpoint', ''));
     const schema = loader()('lib/db/schema.ts'), db = drizzle(sql, { schema });
     const load = loader({ [path.resolve('lib/db/client.ts')]: { getDb: () => db }, [path.resolve('lib/economy/research.ts')]: { RESEARCH_MODEL: 'test' } });
-    const desk = load('lib/db/repo-desk.ts'), { inProcessAgentApi } = load('lib/agents/desk/inprocess.ts'), { runPersona } = load('lib/agents/desk/run.ts');
+    const desk = load('lib/db/repo-desk.ts'), { inProcessAgentApi } = load('lib/agents/desk/inprocess.ts'), { runPersona, backOthers } = load('lib/agents/desk/run.ts');
     const { DESK_PERSONAS } = load('lib/agents/desk/personas.ts'), { THESIS_INSTRUMENTS } = load('lib/theses/instruments.ts'), agentsRepo = load('lib/db/repo-agents.ts');
     const [bull, skeptic] = ['bull', 'skeptic'].map((id) => DESK_PERSONAS.find((p) => p.id === id));
 
@@ -48,6 +48,12 @@ const postgres = require('postgres'), { drizzle } = require('drizzle-orm/postgre
     assert.ok(r2.published?.id); assert.deepEqual(r2.backed.map((b) => b.thesisId), [r1.published.id]);
     const [trade] = await sql`select t.rationale, a.kind from paper_trades t join market_actors a on a.id = t.actor_id where t.thesis_id = ${r1.published.id}`;
     assert.equal(trade.kind, 'agent'); assert.equal(trade.rationale, 'Fair, the risks are named.');
+    assert.equal(await desk.deskTradedToday(sp.actorId, today), true, 'skeptic traded today');
+    assert.equal(await desk.deskTradedToday(principal.actorId, today), false, 'bull has not traded yet');
+    // Bull already published; a backing-only rerun backs Skeptic's thesis with no second publish.
+    const b = await backOthers(bull, deps(principal, [{ picks: [{ id: r2.published.id, rationale: 'Sharp downside case.' }] }]), { persona: 'bull', backed: [], dryRun: false });
+    assert.deepEqual(b.backed.map((x) => x.thesisId), [r2.published.id]); assert.deepEqual(b.backing.errors, []);
+    assert.equal(await desk.deskTradedToday(principal.actorId, today), true);
     const [thesis] = await sql`select mode, status from theses where id = ${r1.published.id}`;
     assert.equal(thesis.mode, 'paper');
 

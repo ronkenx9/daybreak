@@ -16,6 +16,8 @@ export interface DeskDeps {
 export interface DeskResult {
   persona: string; ticker?: string; published?: { id: string; slug: string; title: string } | null;
   backed: Array<{ thesisId: string; title: string }>; skipped?: string; dryRun: boolean; draft?: Record<string, unknown>;
+  /** Why backing did or didn't happen: fresh candidates seen, picks made, and any failure. */
+  backing?: { considered: number; picks: number; errors: string[] };
 }
 
 const clamp = (v: unknown, min: number, max: number): string | null => {
@@ -76,30 +78,46 @@ export async function runPersona(persona: DeskPersona, deps: DeskDeps, opts: { d
   result.published = published.status < 300 && thesis?.id ? { id: String(thesis.id), slug: String(thesis.slug), title: String(thesis.title) } : null;
   if (!result.published) return { ...result, skipped: `publish failed (${published.status}): ${JSON.stringify(published.body).slice(0, 200)}` };
 
-  // 4. Back other agents' fresh ideas that fit this persona.
+  await backOthers(persona, deps, result);
+  return result;
+}
+
+/** Back up to two of today's theses by OTHER agents. Also run on its own when this persona already
+ * published today but has not traded yet, so a failed backing step can be retried. */
+export async function backOthers(persona: DeskPersona, deps: DeskDeps, result: DeskResult): Promise<DeskResult> {
+  const day = deps.now().toISOString().slice(0, 10);
+  const diag = result.backing = { considered: 0, picks: 0, errors: [] as string[] };
+  const fail = (step: string, r: { status: number; body: Record<string, unknown> }) => diag.errors.push(`${step} ${r.status}: ${String(r.body.error ?? JSON.stringify(r.body)).slice(0, 160)}`);
   const me = await deps.api('/api/v1/agents/me', {});
   const myId = (me.body.agent as { publicId?: string } | undefined)?.publicId;
+  if (!myId) { fail('me', me); return result; }
   const feed = await deps.api('/api/v1/agents/theses?mode=paper&cursor=0', {});
+  if (feed.status >= 300) { fail('feed', feed); return result; }
   const items = (feed.body.items as Array<Record<string, unknown>> | undefined) ?? [];
   // publishedAt is a string over HTTP and a Date in-process; compare calendar days either way.
   const dayOf = (v: unknown) => { const d = v instanceof Date ? v : new Date(String(v ?? '')); return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10); };
   const fresh = items.filter((t) => t.authorKind === 'agent' && t.authorPublicId !== myId && dayOf(t.publishedAt) === day).slice(0, 8);
+  diag.considered = fresh.length;
   if (!fresh.length) return result;
-  const choice = await deps.llm(
-    `You are "${persona.name}". ${persona.style} You back ${persona.backs}. From these fresh theses by other agents, pick at most 2 you would genuinely back, with a one-sentence reason in your voice (max 200 chars). ` +
-    'Return ONLY JSON: {"picks":[{"id": "...", "rationale": "..."}]}. Picking none is fine.',
-    { theses: fresh.map((t) => ({ id: t.id, title: t.title, summary: t.summary })) }, 500,
-  ).catch(() => ({ picks: [] }));
-  const picks = Array.isArray(choice.picks) ? choice.picks as Array<{ id?: unknown; rationale?: unknown }> : [];
-  for (const p of picks.slice(0, 2)) {
-    const target = fresh.find((t) => t.id === p.id);
-    if (!target) continue;
+  let choice: Record<string, unknown>;
+  try {
+    choice = await deps.llm(
+      `You are "${persona.name}". ${persona.style} You back ${persona.backs}. From these fresh theses by other agents, pick at most 2 you would genuinely back, with a one-sentence reason in your voice (max 200 chars). ` +
+      'Return ONLY JSON: {"picks":[{"id": "...", "rationale": "..."}]}. Picking none is fine.',
+      { theses: fresh.map((t) => ({ id: t.id, title: t.title, summary: t.summary })) }, 1500,
+    );
+  } catch (error) { diag.errors.push(`picks: ${error instanceof Error ? error.message : 'model failed'}`); return result; }
+  const picks = (Array.isArray(choice.picks) ? choice.picks as Array<{ id?: unknown; rationale?: unknown }> : []).filter((p) => fresh.some((t) => t.id === p.id)).slice(0, 2);
+  diag.picks = picks.length;
+  for (const p of picks) {
+    const target = fresh.find((t) => t.id === p.id)!;
     const quote = await deps.api('/api/v1/agents/paper/quotes', { method: 'POST', body: { thesisId: target.id, direction: 'buy', amount: '1.0', maxSlippageBps: 300 } });
     const quoteId = (quote.body.quote as { quoteId?: string } | undefined)?.quoteId;
-    if (quote.status >= 300 || !quoteId) continue;
+    if (quote.status >= 300 || !quoteId) { fail('quote', quote); continue; }
     const rationale = clamp(p.rationale, 3, 280) ?? `${persona.name} backs this idea.`;
     const trade = await deps.api('/api/v1/agents/paper/trades', { method: 'POST', body: { quoteId, rationale }, idempotencyKey: `desk-t-${day}-${persona.id}-${String(target.id).slice(0, 8)}` });
     if (trade.status < 300) result.backed.push({ thesisId: String(target.id), title: String(target.title) });
+    else fail('trade', trade);
   }
   return result;
 }

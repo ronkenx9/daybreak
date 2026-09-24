@@ -5,7 +5,8 @@ const path = require('node:path');
 
 (async () => {
   const load = loader({ [path.resolve('lib/economy/research.ts')]: { RESEARCH_MODEL: 'test-model' } });
-  const { runPersona, buildThesisInput } = load('lib/agents/desk/run.ts');
+  const { runPersona, buildThesisInput, backOthers } = load('lib/agents/desk/run.ts');
+  const { parseJsonReply } = load('lib/agents/desk/llm.ts');
   const { DESK_PERSONAS } = load('lib/agents/desk/personas.ts');
   const { normalizeAgentPaperThesis, requireIdempotencyKey } = load('lib/agents/validation.ts');
   const { THESIS_INSTRUMENTS } = load('lib/theses/instruments.ts');
@@ -81,5 +82,20 @@ const path = require('node:path');
   // No news: skipped without calling the model.
   const quiet = makeDeps([]); quiet.deps.news = async () => [];
   assert.match((await runPersona(bull, quiet.deps)).skipped, /no fresh headlines/);
+  assert.deepEqual(r.backing, { considered: 1, picks: 1, errors: [] }, 'diagnostics count fresh candidates and picks');
+
+  // Backing-only rerun: a failed picks call and a failed quote are reported, never swallowed.
+  const flaky = makeDeps([]); flaky.deps.llm = async () => { throw new Error('model returned no valid JSON'); };
+  const f = await backOthers(bull, flaky.deps, { persona: 'bull', backed: [], dryRun: false });
+  assert.deepEqual(f.backing, { considered: 1, picks: 0, errors: ['picks: model returned no valid JSON'] });
+  const noQuote = makeDeps([{ picks: [{ id: '22222222-2222-4222-8222-222222222222', rationale: 'ok' }, { id: 'not-in-feed' }] }]);
+  const api = noQuote.deps.api; noQuote.deps.api = async (p, init) => p === '/api/v1/agents/paper/quotes' ? { status: 429, body: { error: 'daily limit reached' } } : api(p, init);
+  const q = await backOthers(bull, noQuote.deps, { persona: 'bull', backed: [], dryRun: false });
+  assert.deepEqual(q.backing, { considered: 1, picks: 1, errors: ['quote 429: daily limit reached'] }, 'unknown ids are not counted as picks');
+  assert.equal(q.backed.length, 0);
+
+  // JSON replies: fenced or chatty replies parse; empty or cut-off replies do not.
+  assert.deepEqual(parseJsonReply('Sure!\n```json\n{"a":1}\n```'), { a: 1 });
+  assert.equal(parseJsonReply(''), null); assert.equal(parseJsonReply('{"title": "cut off'), null); assert.equal(parseJsonReply(undefined), null);
   console.log('morning desk tests passed');
 })().catch((e) => { console.error(e); process.exit(1); });

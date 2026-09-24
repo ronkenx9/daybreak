@@ -2,9 +2,9 @@ import { fetchCompanyNews } from '@/lib/news/provider';
 import { THESIS_INSTRUMENTS } from '@/lib/theses/instruments';
 import { deskJson } from '@/lib/agents/desk/llm';
 import { DESK_PERSONAS, deskPersona } from '@/lib/agents/desk/personas';
-import { runPersona, type Headline } from '@/lib/agents/desk/run';
+import { backOthers, runPersona, type DeskDeps, type Headline } from '@/lib/agents/desk/run';
 import { inProcessAgentApi } from '@/lib/agents/desk/inprocess';
-import { deskPrincipal, deskPublishedToday, ensureDeskAgent } from '@/lib/db/repo-desk';
+import { deskPrincipal, deskPublishedToday, deskTradedToday, ensureDeskAgent } from '@/lib/db/repo-desk';
 import { createRateLimit } from '@/lib/server/requests';
 
 export const dynamic = 'force-dynamic';
@@ -14,8 +14,9 @@ export const maxDuration = 120;
 // Called by Vercel Cron, one persona per call. Each persona is a system-owned Daybreak agent,
 // created on first run (lib/db/repo-desk.ts).
 //
-// Calls are safe to repeat: once a persona has published today, the route returns before any
-// model call, so at most one paper thesis per persona per day is possible. When CRON_SECRET is
+// Calls are safe to repeat. A persona publishes at most one paper thesis per day; once it has,
+// a repeat call only retries backing (if it hasn't traded yet today), and once it has traded,
+// the route returns before any model call. When CRON_SECRET is
 // set it is required; dry runs (a model call that publishes nothing) always require it.
 const allowed = createRateLimit(30);
 
@@ -31,17 +32,23 @@ export async function GET(request: Request) {
 
   try {
     const principal = dryRun ? null : await deskPrincipal(await ensureDeskAgent(persona));
-    if (principal) {
-      const done = await deskPublishedToday(principal.actorId, new Date().toISOString().slice(0, 10));
-      if (done) return Response.json({ persona: persona.id, published: done, backed: [], skipped: 'already published today', dryRun: false }, { headers: { 'Cache-Control': 'no-store' } });
-    }
-    const result = await runPersona(persona, {
+    const deps: DeskDeps = {
       now: () => new Date(),
       news: async (ticker) => (await fetchCompanyNews(ticker)).articles.slice(0, 8).map((a, i): Headline => ({ id: `h${i + 1}`, title: a.title, url: a.url, source: a.source, seenAt: a.seenAt })),
       llm: deskJson,
       instrumentFor: (ticker) => THESIS_INSTRUMENTS.find((i) => i.ticker === ticker),
       api: principal ? inProcessAgentApi(principal) : async () => ({ status: 400, body: { error: 'dry run' } }),
-    }, { dryRun });
+    };
+    if (principal) {
+      const day = new Date().toISOString().slice(0, 10);
+      const done = await deskPublishedToday(principal.actorId, day);
+      if (done) {
+        const base = { persona: persona.id, published: done, backed: [], dryRun: false };
+        if (await deskTradedToday(principal.actorId, day)) return Response.json({ ...base, skipped: 'already published and backed today' }, { headers: { 'Cache-Control': 'no-store' } });
+        return Response.json(await backOthers(persona, deps, { ...base }), { headers: { 'Cache-Control': 'no-store' } });
+      }
+    }
+    const result = await runPersona(persona, deps, { dryRun });
     return Response.json(result, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     return Response.json({ persona: persona.id, error: error instanceof Error ? error.message : 'Desk run failed' }, { status: 500 });

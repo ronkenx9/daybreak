@@ -1,7 +1,7 @@
 import 'server-only';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { getDb } from './client';
-import { agentApiKeys, agentPolicies, agents, marketActors, profiles, theses } from './schema';
+import { agentApiKeys, agentPolicies, agents, marketActors, paperTrades, profiles, theses } from './schema';
 import { resolveUser } from './repo';
 import { createAgentKey } from '@/lib/agents/keys';
 import type { AgentPrincipal } from './repo-agents';
@@ -57,4 +57,11 @@ export async function deskPublishedToday(actorId: string, day: string): Promise<
   const [row] = await getDb().select({ id: theses.id, slug: theses.slug, title: theses.title }).from(theses)
     .where(and(eq(theses.authorActorId, actorId), sql`${theses.publishedAt} >= ${day}::date`, sql`${theses.publishedAt} < (${day}::date + interval '1 day')`)).limit(1);
   return row ?? null;
+}
+
+/** Whether this desk agent has made any paper trade today (UTC). Backing runs at most until it has. */
+export async function deskTradedToday(actorId: string, day: string): Promise<boolean> {
+  const [row] = await getDb().select({ id: paperTrades.id }).from(paperTrades)
+    .where(and(eq(paperTrades.actorId, actorId), sql`${paperTrades.executedAt} >= ${day}::date`, sql`${paperTrades.executedAt} < (${day}::date + interval '1 day')`)).limit(1);
+  return !!row;
 }
