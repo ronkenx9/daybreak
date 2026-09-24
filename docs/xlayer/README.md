@@ -59,6 +59,8 @@ The production URLs work once this branch is deployed. Override the RPC with `XL
 
 ## Conviction vault (contracts/)
 
+**Live on X Layer mainnet:** [`0x55318F36f5B482e9F2b1429f2Ca7fD7c5BBf97fc`](https://www.oklink.com/xlayer/address/0x55318F36f5B482e9F2b1429f2Ca7fD7c5BBf97fc), deployed in block 71490884 ([tx](https://www.oklink.com/xlayer/tx/0xa526e1d709a5f599c30171c781c16c7e46b6274a86b18cb4c7718ed569c17cf6)). Its record is in `contracts/deployments/xlayer.json`. Verified on-chain: 20 supported wrappers, and each wrapper's `stockOf` returns the matching xStock.
+
 `DaybreakConvictionVault` lets anyone open a public thesis on a supported xStock, and lets backers lock real xStocks behind it until it expires. Backers then withdraw exactly what they locked. There is no payout, no settlement and no admin.
 
 - **One signature plus one transaction.** xStocks on X Layer implement EIP-2612 (domain: the token name, version `1`, chain 196; verified on-chain). `backWithPermit` therefore replaces the separate approval, and it still succeeds if the permit was front-run.
