@@ -9,7 +9,7 @@ interface Quote { symbol: string; company: string; mint: string; image: string; 
 const usd = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // PreStocks (pre-IPO, Token-2022) balances held in the account's Solana wallet,
-// valued with the live PreStocks token price. Mirrors SolanaHoldings for xStocks.
+// valued with the live PreStocks token price. Mirrors XStocksHoldings.
 export default function PreStocksHoldings() {
   const account = useAccountState();
   const address = account.solanaWallet || undefined;
