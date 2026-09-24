@@ -39,7 +39,7 @@ POST /api/okx/tools
    └── find_theses
 ```
 
-The worker uses the lean Spectrum 12.2.0 packages, `@spectrum-ts/core` and `@spectrum-ts/imessage`, with `imessage.config()`. It filters outbound echoes with Spectrum's universal `message.direction`, accepts text content, marks handled messages read where supported, and uses `space.responding()` while replying. A short debounce combines normal text bursts into one turn. Daybreak tool names and the API path are fixed in code; message text cannot choose an endpoint or supply authorization headers.
+The worker uses the lean Spectrum 12.2.0 packages, `@spectrum-ts/core` and `@spectrum-ts/imessage`, with `imessage.config()`. It filters outbound echoes with Spectrum's universal `message.direction`, accepts text content, marks handled messages read where supported, and uses `space.responding()` while replying. A short debounce combines normal text bursts into one turn. A bounded 24-hour in-memory message-ID cache suppresses duplicate cloud deliveries while the worker is running and releases failed sends for retry. Daybreak tool names and the API path are fixed in code; message text cannot choose an endpoint or supply authorization headers.
 
 ## Configuration
 

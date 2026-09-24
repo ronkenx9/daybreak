@@ -4,6 +4,7 @@ import { MessageBatcher } from './batcher.js';
 import { loadConfig } from './config.js';
 import { DaybreakConversation } from './conversation.js';
 import { DaybreakClient } from './daybreak-client.js';
+import { MessageDeduper } from './dedupe.js';
 import { startHealthServer } from './health.js';
 
 const config = loadConfig();
@@ -25,18 +26,25 @@ const conversation = new DaybreakConversation(
   undefined,
   config.maxReplyChars,
 );
+const deduper = new MessageDeduper();
 
-const batcher = new MessageBatcher<{ space: Space; message: Message }>(
+const batcher = new MessageBatcher<{ space: Space; message: Message; id: string }>(
   config.debounceMs,
   async (spaceId, items) => {
     const latest = items.at(-1)?.value;
     if (!latest) return;
     const text = items.map((item) => item.text.trim()).filter(Boolean).join('\n');
-    const response = await conversation.respond(text, spaceId);
-    await latest.space.responding(async () => {
-      await latest.message.read().catch(() => undefined);
-      await latest.message.reply(response);
-    });
+    try {
+      const response = await conversation.respond(text, spaceId);
+      await latest.space.responding(async () => {
+        await latest.message.read().catch(() => undefined);
+        await latest.message.reply(response);
+      });
+      for (const item of items) deduper.complete(item.value.id);
+    } catch (error) {
+      for (const item of items) deduper.release(item.value.id);
+      throw error;
+    }
   },
 );
 
@@ -60,11 +68,17 @@ try {
   for await (const [space, message] of app.messages) {
     if (stopping) break;
     if (message.platform !== 'imessage' || message.direction === 'outbound') continue;
+    if (!deduper.begin(message.id)) continue;
     if (message.content.type !== 'text') {
-      await message.reply('I can read text messages right now. Send “help” for Daybreak examples.').catch(() => undefined);
+      try {
+        await message.reply('I can read text messages right now. Send “help” for Daybreak examples.');
+        deduper.complete(message.id);
+      } catch {
+        deduper.release(message.id);
+      }
       continue;
     }
-    batcher.enqueue(space.id, { value: { space, message }, text: message.content.text });
+    batcher.enqueue(space.id, { value: { space, message, id: message.id }, text: message.content.text });
   }
 } catch (error) {
   console.error('[daybreak-imessage] Spectrum stream stopped', error instanceof Error ? error.message : 'unknown error');
