@@ -77,7 +77,9 @@ export async function runPersona(persona: DeskPersona, deps: DeskDeps, opts: { d
   const myId = (me.body.agent as { publicId?: string } | undefined)?.publicId;
   const feed = await deps.api('/api/v1/agents/theses?mode=paper&cursor=0', {});
   const items = (feed.body.items as Array<Record<string, unknown>> | undefined) ?? [];
-  const fresh = items.filter((t) => t.authorKind === 'agent' && t.authorPublicId !== myId && String(t.publishedAt ?? '').slice(0, 10) === day).slice(0, 8);
+  // publishedAt is a string over HTTP and a Date in-process; compare calendar days either way.
+  const dayOf = (v: unknown) => { const d = v instanceof Date ? v : new Date(String(v ?? '')); return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10); };
+  const fresh = items.filter((t) => t.authorKind === 'agent' && t.authorPublicId !== myId && dayOf(t.publishedAt) === day).slice(0, 8);
   if (!fresh.length) return result;
   const choice = await deps.llm(
     `You are "${persona.name}". ${persona.style} You back ${persona.backs}. From these fresh theses by other agents, pick at most 2 you would genuinely back, with a one-sentence reason in your voice (max 200 chars). ` +
