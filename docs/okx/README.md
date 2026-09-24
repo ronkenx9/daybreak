@@ -14,7 +14,7 @@ curl -sS -X POST 'https://www.daybreakcircles.lol/api/okx/tools' \
   --data '{"tool":"discover_stock_tokens","arguments":{"query":"NVDA","limit":5}}'
 ```
 
-Public tools are `discover_stock_tokens`, `get_stock_market_data`, `get_company_context`, `find_theses`, `get_thesis`, and `get_thesis_activity`. Responses include schema version, request ID, fetch time and coverage. Equity prices are labeled as underlying equity references; they are not executable token quotes. News results contain linked headlines, not full articles. Public Circle metadata never grants holder-only Circle content.
+Public tools are `discover_stock_tokens`, `get_stock_market_data`, `get_company_context`, `list_xlayer_stock_tokens`, `get_xlayer_stock_holdings`, `find_theses`, `get_thesis`, and `get_thesis_activity`. The two X Layer tools read xStocks on X Layer mainnet directly; see [../xlayer/README.md](../xlayer/README.md). Responses include schema version, request ID, fetch time and coverage. Equity prices are labeled as underlying equity references; they are not executable token quotes. News results contain linked headlines, not full articles. Public Circle metadata never grants holder-only Circle content.
 
 Connected tools require a scoped Daybreak agent key in the **Authorization header**, not in arguments or chat. This is the existing Daybreak agent identity; the service never accepts a claimed OKX user ID as authority. The tool endpoint delegates paper publication, quotes, trades and operation lookup to the existing agent routes, preserving scope, limits, quote expiry and idempotency. `prepare_flash_order` calls the existing owner-enabled Flash quote route, which still requires a separate live key and wallet review. The endpoint cannot submit a signed order.
 

@@ -7,6 +7,9 @@ import { AgentApiError, agentErrorResponse } from '@/lib/agents/errors';
 import { normalizeAgentPaperThesis, requireIdempotencyKey } from '@/lib/agents/validation';
 import { requireThesisInstrument } from '@/lib/theses/instruments';
 import { createRateLimit } from '@/lib/server/requests';
+import { isAddress } from 'viem';
+import { readXLayerHoldings, readXLayerSupply } from '@/lib/xlayer/stocks';
+import { XLAYER_STOCKS, XLAYER_STOCKS_VERIFIED_AT, xlayerStockFor } from '@/lib/xlayer/tokens';
 import { GET as equityPrices } from '@/app/api/equity-prices/route';
 import { GET as companyNews } from '@/app/api/news/route';
 import { GET as preStockNews } from '@/app/api/prestocks/news/route';
@@ -62,6 +65,21 @@ export async function POST(request: Request) {
     if (CONNECTED.has(tool)) await requireAgent(request, tool === 'publish_paper_thesis' ? 'paper:publish' : ['quote_paper_trade','execute_paper_trade'].includes(tool) ? 'paper:trade' : 'read');
 
     if (tool === 'discover_stock_tokens') return result(requestId, { items: discoverStockTokens(optionalString(input,'query'), limitArg(input.limit)) });
+    if (tool === 'list_xlayer_stock_tokens') {
+      const query = optionalString(input,'query',20);
+      const stocks = (query ? [xlayerStockFor(query)].filter((stock) => !!stock) : XLAYER_STOCKS).slice(0, limitArg(input.limit, 25));
+      if (!stocks.length) throw new AgentApiError('NOT_FOUND','Not an xStock on X Layer',404);
+      const snapshot = await readXLayerSupply(stocks).catch(() => null);
+      if (!snapshot) return result(requestId, { chainId: 196, verifiedAt: XLAYER_STOCKS_VERIFIED_AT, items: stocks }, 'unavailable');
+      return result(requestId, { ...snapshot, verifiedAt: XLAYER_STOCKS_VERIFIED_AT, note: 'Supply is read on-chain; it is not a price or an executable quote.' }, snapshot.status);
+    }
+    if (tool === 'get_xlayer_stock_holdings') {
+      const address = stringArg(input,'address',42);
+      if (!isAddress(address)) throw new AgentApiError('INVALID_INPUT','address must be a 0x EVM address');
+      const snapshot = await readXLayerHoldings(address).catch(() => null);
+      if (!snapshot) throw new AgentApiError('TEMPORARILY_UNAVAILABLE','X Layer holdings are unavailable; balances have not been reported as zero',503,true);
+      return result(requestId, snapshot, snapshot.status);
+    }
     if (tool === 'get_stock_market_data') {
       const symbol = stringArg(input,'symbol',20).toUpperCase();
       const company = companyForSymbol(symbol);

@@ -1,4 +1,5 @@
 import { COMPANIES, COMPANY_INSTRUMENTS } from '@/lib/assets/companies';
+import { XLAYER_NAMESPACE, XLAYER_STOCKS, XLAYER_STOCK_DECIMALS, xlayerExplorerUrl } from '@/lib/xlayer/tokens';
 
 export const OKX_PUBLIC_TOOLS = [
   { name: 'discover_stock_tokens', description: 'Find canonical Daybreak company and stock-token identities.', arguments: 'query?: company name, ticker or token symbol; limit?: 1..25' },
@@ -6,6 +7,8 @@ export const OKX_PUBLIC_TOOLS = [
   { name: 'get_company_context', description: 'Read sourced headlines and public Circle metadata for a company.', arguments: 'symbol: company ticker; limit?: 1..10 headlines' },
   { name: 'find_theses', description: 'Search public Daybreak conviction markets across paper and live modes.', arguments: 'query?: search text; mode?: paper|live; actor?: human|agent; limit?: 1..25; cursor?: nextCursor from prior response' },
   { name: 'get_thesis', description: 'Read one public conviction thesis.', arguments: 'id: public thesis UUID or slug' },
+  { name: 'list_xlayer_stock_tokens', description: 'List verified xStocks tokenized stocks on X Layer with contract addresses and a live on-chain supply snapshot.', arguments: 'query?: ticker or xStocks symbol, e.g. TSLA or TSLAx; limit?: 1..25' },
+  { name: 'get_xlayer_stock_holdings', description: 'Read a wallet’s xStocks holdings on X Layer, including ERC-4626 wrapped balances, converted to underlying shares.', arguments: 'address: 0x EVM wallet address' },
   { name: 'get_thesis_activity', description: 'Read bounded public paper market activity.', arguments: 'id: public paper thesis UUID or slug; tradesCursor?, positionsCursor?, balancesCursor?: pagination cursors' },
 ] as const;
 
@@ -26,7 +29,13 @@ export function discoverStockTokens(query: string, limit: number) {
   return companies.map((company) => ({
     ...company,
     url: 'https://www.daybreakcircles.lol/app',
-    instruments: COMPANY_INSTRUMENTS.filter((instrument) => instrument.companyId === company.id).map(({ companyId: _companyId, ...instrument }) => instrument),
+    instruments: [
+      ...COMPANY_INSTRUMENTS.filter((instrument) => instrument.companyId === company.id).map(({ companyId: _companyId, ...instrument }) => instrument),
+      ...XLAYER_STOCKS.filter((stock) => stock.companyId === company.id).map((stock) => ({
+        namespace: XLAYER_NAMESPACE, identity: stock.token, symbol: stock.symbol, decimals: XLAYER_STOCK_DECIMALS,
+        issuer: 'xstocks' as const, isin: stock.isin, wrapper: stock.wrapper, externalUrl: xlayerExplorerUrl(stock.token),
+      })),
+    ],
   }));
 }
 
