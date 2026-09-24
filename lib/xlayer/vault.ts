@@ -1,7 +1,9 @@
 // DaybreakConvictionVault on X Layer (contracts/src/DaybreakConvictionVault.sol).
-// Client-safe: address and ABI only. Set NEXT_PUBLIC_XLAYER_VAULT_ADDRESS after deploying
-// (contracts/deployments/xlayer.json records the deployment).
-export const XLAYER_VAULT_ADDRESS = (process.env.NEXT_PUBLIC_XLAYER_VAULT_ADDRESS || '').toLowerCase() as `0x${string}` | '';
+// Client-safe: address and ABI only. Defaults to the mainnet deployment recorded in
+// contracts/deployments/xlayer.json (block 71490884); NEXT_PUBLIC_XLAYER_VAULT_ADDRESS overrides
+// it, e.g. to point a local fork at a test deployment.
+export const XLAYER_VAULT_MAINNET = '0x55318f36f5b482e9f2b1429f2ca7fd7c5bbf97fc';
+export const XLAYER_VAULT_ADDRESS = (process.env.NEXT_PUBLIC_XLAYER_VAULT_ADDRESS || XLAYER_VAULT_MAINNET).toLowerCase() as `0x${string}` | '';
 export const XLAYER_VAULT_MAX_STATEMENT_BYTES = 256;
 export const XLAYER_VAULT_DURATIONS = [{ label: '7 days', seconds: 7 * 86400 }, { label: '30 days', seconds: 30 * 86400 }, { label: '90 days', seconds: 90 * 86400 }] as const;
 
