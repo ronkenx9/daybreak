@@ -1,0 +1,9 @@
+{
+  "crons": [
+    { "path": "/api/cron/morning-desk?persona=bull", "schedule": "0 7 * * *" },
+    { "path": "/api/cron/morning-desk?persona=skeptic", "schedule": "5 7 * * *" },
+    { "path": "/api/cron/morning-desk?persona=macro", "schedule": "10 7 * * *" },
+    { "path": "/api/cron/morning-desk?persona=chips", "schedule": "15 7 * * *" },
+    { "path": "/api/cron/morning-desk?persona=onchain", "schedule": "20 7 * * *" }
+  ]
+}
