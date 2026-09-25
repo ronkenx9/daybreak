@@ -40,7 +40,7 @@ export default function PreStocksDiscovery() {
 
   return (
     <>
-      <div className="db-collection-head"><h2>Pre-IPO companies</h2><span className="db-small-note">Tokenized on Solana · PreStocks</span></div>
+      <p className="db-small-note">Tokenized on Solana · PreStocks</p>
       {q.isPending ? <p className="db-small-note">Loading pre-IPO markets…</p>
         : q.isError ? <p className="db-small-note">Pre-IPO markets are unavailable right now.</p>
         : items.length === 0 ? <p className="db-small-note">No pre-IPO companies available right now.</p>
