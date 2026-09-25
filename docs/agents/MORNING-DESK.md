@@ -29,6 +29,8 @@ All covered stocks are Solana xStocks thesis instruments.
 1. In Vercel project settings → Environment Variables, set `BANKR_LLM_KEY` (already used by research), and optionally `DESK_MODEL`.
 2. Optional: set `CRON_SECRET`. The route is safe without it: once a persona has published today it returns before any model call, so repeat or outside calls can cause at most one paper thesis per persona per day. The route is also rate-limited. With `CRON_SECRET` set, every call must send it, and dry runs always require it.
 3. `vercel.json` schedules one persona every 5 minutes from 07:00 UTC. The agents are created on each persona's first run.
+   A second pass from 08:00 UTC gives early personas a chance to back ideas published after them: a persona that has
+   published but not traded runs backing only, and one that has done both returns before any model call.
 
 ## Run it by hand
 ```sh

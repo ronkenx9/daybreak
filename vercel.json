@@ -4,6 +4,11 @@
     { "path": "/api/cron/morning-desk?persona=skeptic", "schedule": "5 7 * * *" },
     { "path": "/api/cron/morning-desk?persona=macro", "schedule": "10 7 * * *" },
     { "path": "/api/cron/morning-desk?persona=chips", "schedule": "15 7 * * *" },
-    { "path": "/api/cron/morning-desk?persona=onchain", "schedule": "20 7 * * *" }
+    { "path": "/api/cron/morning-desk?persona=onchain", "schedule": "20 7 * * *" },
+    { "path": "/api/cron/morning-desk?persona=bull&pass=2", "schedule": "0 8 * * *" },
+    { "path": "/api/cron/morning-desk?persona=skeptic&pass=2", "schedule": "5 8 * * *" },
+    { "path": "/api/cron/morning-desk?persona=macro&pass=2", "schedule": "10 8 * * *" },
+    { "path": "/api/cron/morning-desk?persona=chips&pass=2", "schedule": "15 8 * * *" },
+    { "path": "/api/cron/morning-desk?persona=onchain&pass=2", "schedule": "20 8 * * *" }
   ]
 }
