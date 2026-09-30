@@ -25,20 +25,28 @@ export interface CompanyInstrument {
   newsQuery?: string;
 }
 
-const COMPANY_IDS: Record<string, string> = {
+const COMPANY_ID_OVERRIDES: Record<string, string> = {
   AAPL: 'apple', AMZN: 'amazon', GOOGL: 'alphabet', NVDA: 'nvidia',
-  TSLA: 'tesla', META: 'meta', MSFT: 'microsoft', COIN: 'coinbase',
-  CRCL: 'circle', INTC: 'intel', MSTR: 'microstrategy', SNDK: 'sandisk',
+  TSLA: 'tesla', META: 'meta', MSFT: 'microsoft', MSTR: 'microstrategy', SNDK: 'sandisk',
   SPCX: 'spacex',
 };
 
+const companyIdForTicker = (ticker: string) => COMPANY_ID_OVERRIDES[ticker] ?? ticker.toLowerCase();
+
 const PUBLIC_COMPANIES: Company[] = TOKENS.filter((token) => token.ticker !== 'SPCX').map((token) => ({
-  id: COMPANY_IDS[token.ticker],
+  id: companyIdForTicker(token.ticker),
   symbol: token.ticker,
   name: token.name,
   classification: 'public',
   newsProvider: 'finnhub',
 }));
+
+// These companies remain valid Solana xStocks even though their Coinbase B20
+// contracts have no issued Base supply and therefore do not belong in TOKENS.
+const SOLANA_ONLY_PUBLIC_COMPANIES: Company[] = [
+  { id: 'coinbase', symbol: 'COIN', name: 'Coinbase', classification: 'public', newsProvider: 'finnhub' },
+  { id: 'intel', symbol: 'INTC', name: 'Intel', classification: 'public', newsProvider: 'finnhub' },
+];
 
 const PRIVATE_COMPANIES: Company[] = [
   { id: 'anduril', symbol: 'ANDURIL', name: 'Anduril', classification: 'private', newsProvider: 'prestocks' },
@@ -51,7 +59,7 @@ const PRIVATE_COMPANIES: Company[] = [
   { id: 'spacex', symbol: 'SPACEX', name: 'SpaceX', classification: 'private', newsProvider: 'prestocks' },
 ];
 
-export const COMPANIES: Company[] = [...PUBLIC_COMPANIES, ...PRIVATE_COMPANIES];
+export const COMPANIES: Company[] = [...PUBLIC_COMPANIES, ...SOLANA_ONLY_PUBLIC_COMPANIES, ...PRIVATE_COMPANIES];
 
 export const SOLANA_XSTOCK_INSTRUMENTS: CompanyInstrument[] = [
   { companyId: 'apple', namespace: 'solana:mainnet', identity: 'XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp', symbol: 'AAPLx', decimals: 8, issuer: 'xstocks', isin: 'CH1436219187' },
@@ -79,7 +87,7 @@ export const PRESTOCK_INSTRUMENTS: CompanyInstrument[] = [
 
 export const COMPANY_INSTRUMENTS: CompanyInstrument[] = [
   ...TOKENS.map((token) => ({
-    companyId: COMPANY_IDS[token.ticker], namespace: 'eip155:8453' as const,
+    companyId: companyIdForTicker(token.ticker), namespace: 'eip155:8453' as const,
     identity: token.token.toLowerCase(), symbol: token.onchainSymbol,
     decimals: token.decimals, issuer: 'coinbase' as const,
   })),
@@ -89,7 +97,8 @@ export const COMPANY_INSTRUMENTS: CompanyInstrument[] = [
 
 export const COMPANY_BY_ID: Record<string, Company> = Object.fromEntries(COMPANIES.map((company) => [company.id, company]));
 const COMPANY_BY_SYMBOL: Record<string, Company> = Object.fromEntries([
-  ...TOKENS.map((token) => [token.ticker, COMPANY_BY_ID[COMPANY_IDS[token.ticker]]]),
+  ...TOKENS.map((token) => [token.ticker, COMPANY_BY_ID[companyIdForTicker(token.ticker)]]),
+  ...SOLANA_XSTOCK_INSTRUMENTS.map((instrument) => [instrument.symbol.replace(/x$/, ''), COMPANY_BY_ID[instrument.companyId]]),
   ...PRESTOCK_INSTRUMENTS.map((instrument) => [instrument.symbol, COMPANY_BY_ID[instrument.companyId]]),
 ]);
 

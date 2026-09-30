@@ -27,7 +27,7 @@ export default function StockCards({ tokens, prices, pricesLoaded, pricesError, 
       {tokens.map((token) => {
         const p = prices[token.ticker];
         const priceText = !pricesLoaded ? '—' : p && p.priceUsd != null && p.state !== 'paused' ? fmtUsd(p.priceUsd) : 'N/A';
-        const basis = !pricesLoaded ? 'Loading' : p?.state === 'paused' ? 'Oracle paused' : p?.priceUsd == null ? 'Unavailable' : pricesError ? 'Previous ref' : p?.isStale ? 'Aged ref' : 'Base oracle ref';
+        const basis = !pricesLoaded ? 'Loading' : p?.state === 'paused' ? 'Reference paused' : p?.priceUsd == null ? 'Unavailable' : pricesError ? 'Previous ref' : p?.isStale ? 'Aged ref' : token.feed ? 'Oracle · Base' : 'Coinbase NAV';
         const isSaved = saved.includes(token.ticker);
         return (
           <article key={token.ticker} className="db-meme-card db-stock-card">
@@ -43,7 +43,7 @@ export default function StockCards({ tokens, prices, pricesLoaded, pricesError, 
               <div className="db-meme-card-spark"><span>24h</span><Sparkline token={token.token} /></div>
               <div className="db-meme-card-stats db-stock-card-stats">
                 <div><b>{networksForTicker(token.ticker).map((n) => STOCK_NETWORK_LABEL[n]).join(' · ')}</b><span>ON CHAIN</span></div>
-                <div><b>{basis}</b><span>PRICE BASIS</span></div>
+                <div><b>{token.tradeable ? basis : 'Minted · pool pending'}</b><span>{token.tradeable ? 'PRICE BASIS' : 'MARKET STATUS'}</span></div>
               </div>
             </div>
             </button>

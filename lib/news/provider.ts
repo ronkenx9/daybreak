@@ -1,5 +1,6 @@
 import 'server-only';
 import { saveSnapshot, loadSnapshot } from './cache';
+import { TOKENS } from '@/lib/base/tokens';
 
 // Finnhub company-news is keyed by real ticker symbol and returns headline, url,
 // source, image and timestamp already scoped to the company, so there's no need
@@ -8,17 +9,15 @@ import { saveSnapshot, loadSnapshot } from './cache';
 // COMPANY_QUERIES stays exported as the supported-symbol allowlist (the values
 // are unused now but kept so /api/news's `Object.hasOwn` guard keeps working).
 export const COMPANY_QUERIES: Record<string, string> = {
-  AAPL: 'Apple', AMZN: 'Amazon', GOOGL: 'Alphabet', NVDA: 'Nvidia', TSLA: 'Tesla',
-  META: 'Meta', MSFT: 'Microsoft', COIN: 'Coinbase', CRCL: 'Circle', INTC: 'Intel',
-  MSTR: 'MicroStrategy', SNDK: 'Sandisk', SPCX: 'SpaceX', SONY: 'Sony', NFLX: 'Netflix', SBUX: 'Starbucks',
+  ...Object.fromEntries(TOKENS.map((token) => [token.ticker, token.name])),
+  COIN: 'Coinbase', CRCL: 'Circle', INTC: 'Intel', SONY: 'Sony', SBUX: 'Starbucks',
 };
 
 // Ticker → Finnhub symbol. Identity for listed names; SpaceX is private so it has
 // no company-news feed and is simply skipped.
-const FINNHUB_SYMBOL: Record<string, string> = {
-  AAPL: 'AAPL', AMZN: 'AMZN', GOOGL: 'GOOGL', NVDA: 'NVDA', TSLA: 'TSLA', META: 'META',
-  MSFT: 'MSFT', COIN: 'COIN', CRCL: 'CRCL', INTC: 'INTC', MSTR: 'MSTR', SNDK: 'SNDK',
-};
+const FINNHUB_SYMBOL: Record<string, string> = Object.fromEntries(
+  Object.keys(COMPANY_QUERIES).filter((ticker) => ticker !== 'SPCX').map((ticker) => [ticker, ticker]),
+);
 
 export interface Article { title: string; url: string; source: string; seenAt: string; image: string }
 export interface FeedItem extends Article { ticker: string }
