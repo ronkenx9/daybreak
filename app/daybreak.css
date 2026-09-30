@@ -136,7 +136,7 @@ html{scroll-behavior:smooth}body{font-family:-apple-system,BlinkMacSystemFont,'S
 
 /* Reference pass 02: character identity, open sky and quiet choreography. */
 .db-character{display:inline-block;flex-shrink:0;background-image:url('/assets/daybreak-avatars.png');background-size:300% 300%;background-color:#eaf2ff;border-radius:50%;border:2px solid #ffffffd9;box-shadow:0 4px 16px #16346817;vertical-align:middle}
-.db-token{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:#fff;border:1px solid #ffffffc9;border-radius:30%;box-shadow:0 5px 20px #09224f0c}.db-token img{object-fit:contain}.db-token-NVDA{background:#d7f7b5}.db-token-NFLX{background:#ffe5e5}.db-token-SBUX{background:#daf1e4}.db-token-AMZN{background:#fff1d8}
+.db-token{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:#fff;border:1px solid #ffffffc9;border-radius:30%;box-shadow:0 5px 20px #09224f0c}.db-token img{object-fit:contain}.db-token[data-logo-tone="dark"]{background:#141b30;border-color:#27314e}.db-token[data-logo-fit="wide"] img{width:72%;height:48%}.db-token-NVDA{background:#d7f7b5}.db-token-NFLX{background:#ffe5e5}.db-token-SBUX{background:#daf1e4}.db-token-AMZN{background:#fff1d8}
 
 
 .db-company-card{background:#ffffffbb;border:1px solid #fff;box-shadow:0 8px 24px #4a7b9c09;transition:transform .4s cubic-bezier(.2,.8,.2,1),box-shadow .4s,background .3s}.db-company-card:nth-child(2n){background:#ffffff7d}.db-company-card:hover{transform:translateY(-7px);background:#fff;box-shadow:0 20px 36px #3c6e9d16}.db-company-open h3{font-weight:550}.db-group-card,.db-preferences,.db-holdings-hero,.db-leaderboard,.db-circle-callout{background:#ffffffb5;border:1px solid #fff;backdrop-filter:blur(16px)}.db-search{background:#ffffffb9}.db-app-title .db-eyebrow{letter-spacing:1.3px}.db-card-bottom{border-top-color:#d8e5f0}.db-app-nav a{transition:background .25s,transform .25s}.db-app-nav a:active,.db-icon-button:active,.db-button:active{transform:scale(.95)}
@@ -1469,6 +1469,8 @@ html[data-reduce-motion="true"] .db-ticker-viewport{overflow-x:auto;-webkit-mask
 .db-app[data-theme="dark"] .db-stock-card-art{background:radial-gradient(circle at 50% 32%,#1b2340 0,#121829 100%)}
 .db-stock-card-art>.db-token{width:100%!important;height:100%!important;border:0;border-radius:0;box-shadow:none}
 .db-stock-card-art>.db-token img{width:64%!important;height:64%!important;object-fit:contain;filter:drop-shadow(0 14px 22px #07152d1f)}
+.db-stock-card-art>.db-token[data-logo-fit="wide"] img{width:76%!important;height:50%!important}
+.db-stock-card-art>.db-token[data-logo-tone="dark"]{background:radial-gradient(circle at 50% 32%,#202b4b 0,#11172a 100%)}
 .db-stock-card-art>.db-token .db-token-mono{font-size:clamp(42px,5vw,74px)!important}
 .db-prestock-logo-lg{width:100%;height:100%;border-radius:0;object-fit:cover;background:#fff;box-shadow:none}
 .db-stock-card .db-meme-card-fav{color:#31405f;background:#ffffffcc}

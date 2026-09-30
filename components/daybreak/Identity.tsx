@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import {useEffect,useRef} from 'react';
+import {stockLogoFor} from '@/lib/assets/stock-logos';
 export function BrandMark({size=30}:{size?:number}){return <svg className="db-brand-mark" width={size} height={size} viewBox="0 0 64 64" aria-hidden="true"><path className="db-brand-mark-primary" d="M14 4h26c6.627 0 12 5.373 12 12v2L18 52h-4C7.373 52 2 46.627 2 40V16C2 9.373 7.373 4 14 4Z"/><path className="db-brand-mark-secondary" d="M60 18v30c0 6.627-5.373 12-12 12H18l42-42Z"/></svg>}
 export function Wordmark({light=false}:{light?:boolean}){return <Link href="/" aria-label="Daybreak home" className={`db-wordmark ${light?'is-light':''}`}><BrandMark/><span>daybreak</span></Link>}
 export const HEADWEAR=[
@@ -41,11 +42,7 @@ export function CharacterCrew({className=''}:{className?:string}){
  },[]);
  return <div ref={crew} className={`db-character-crew ${className}`} aria-hidden="true">{[0,1,2].map(seed=><div key={seed}><Avatar seed={seed} size={360}/></div>)}</div>
 }
-// Only these tickers ship a logo SVG. For every other tokenized name we draw a
-// two-letter monogram — deciding up front avoids the broken-image flash you get
-// from an SSR <img> that 404s before React can attach an onError handler.
-const LOGO_TICKERS=new Set(['AAPL','AMZN','NFLX','NVDA','SBUX','SONY','GOOGL','TSLA','META','MSFT','COIN','INTC','SPCX','CRCL','MSTR']);
-export function StockIcon({ticker,size=44}:{ticker:string;size?:number}){const hasLogo=LOGO_TICKERS.has(ticker);return <span className={`db-token db-token-${ticker}`} style={{width:size,height:size}}>{hasLogo?<img src={`/assets/stock/${ticker}.svg`} alt={`${ticker} logo`} width={size*.54} height={size*.54}/>:<span className="db-token-mono" style={{fontSize:size*.34}}>{ticker.slice(0,2)}</span>}</span>}
+export function StockIcon({ticker,size=44}:{ticker:string;size?:number}){const symbol=ticker.toUpperCase();const logo=stockLogoFor(symbol);return <span className={`db-token db-token-${symbol}`} data-logo-tone={logo?.tone} data-logo-fit={logo?.fit} style={{width:size,height:size}}>{logo?<img src={logo.src} alt={`${symbol} company logo`} width={size*.54} height={size*.54}/>:<span className="db-token-mono" style={{fontSize:size*.34}}>{symbol.slice(0,2)}</span>}</span>}
 export function AvatarStack(){return <span className="db-avatar-stack" aria-label="Illustrated community avatars">{[0,1,2,3].map(i=><Avatar key={i} seed={i} size={36}/>)}</span>}
 // Product-boundary badge: makes a tokenized stock, a community token, a meme and
 // a plain company visually distinct at a glance (see product boundaries §3).
