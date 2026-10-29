@@ -265,7 +265,7 @@ function drawSoldier(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
 function render(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
  const t=s.time,heat=s.heat,active=s.phase!=='idle'&&s.phase!=='drag';
  ctx.imageSmoothingEnabled=false;
- ctx.fillStyle='#08070a';ctx.fillRect(0,0,LW,LH);
+ ctx.fillStyle='#000000';ctx.fillRect(0,0,LW,LH);
  const glowA=lerp(0.05,0.2,heat)+(active?0.08+s.fill*0.22:0);
  ctx.save();ctx.translate((CAP.x0+CAP.x1)/2,CAP.cy+4);ctx.scale(1,0.42);
  const glow=ctx.createRadialGradient(0,0,4,0,0,140);glow.addColorStop(0,`rgba(255,30,50,${glowA})`);glow.addColorStop(1,'rgba(255,30,50,0)');ctx.fillStyle=glow;ctx.fillRect(-LW,-LH*3,LW*2,LH*6);ctx.restore();
@@ -379,7 +379,7 @@ export default function ZombieCapsuleUpload({upload=simulateUpload,onComplete,ac
    const dt=Math.min(0.05,(now-last)/1000);last=now;const s=scene.current;
    step(s,dt);render(lctx,s,sprites);
    const k=canvas.width/LW,shake=reduced?0:Math.round(s.shake);
-   ctx.imageSmoothingEnabled=false;ctx.fillStyle='#08070a';ctx.fillRect(0,0,canvas.width,canvas.height);
+   ctx.imageSmoothingEnabled=false;ctx.fillStyle='#000000';ctx.fillRect(0,0,canvas.width,canvas.height);
    ctx.drawImage(low,shake?Math.round((Math.random()-0.5)*shake*2)*k:0,shake?Math.round((Math.random()-0.5)*shake*2)*k:0,canvas.width,canvas.height);
    for(const e of s.events.splice(0))audio.play(e);
    if(s.finished){s.finished=false;setPhase('done');setStatus(`Upload complete. ${s.kills} zombies down.`);if(current.current)onCompleteRef.current?.(current.current)}
