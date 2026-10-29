@@ -13,7 +13,8 @@ import {
  * rises inside, and a soldier steps into the doorway and opens fire. Only hits
  * spill blood, and the blood piling up in the capsule is the progress bar: the
  * soldier shoots faster when the blood lags the real upload, and the blood is
- * never allowed to get ahead of it.
+ * never allowed to get ahead of it. Once the upload finishes the horde stops
+ * respawning and the last kill lands exactly on 100%, then the hatch shuts.
  * Everything is drawn on a low-res canvas and scaled up with nearest-neighbour.
  */
 export type UploadFn=(file:File,onProgress:(loaded:number)=>void,signal:AbortSignal)=>Promise<void>;
@@ -26,7 +27,7 @@ type Bullet={x0:number;y0:number;x1:number;y1:number;t:number;target:Zombie};
 type Scene={
  phase:Phase;time:number;phaseT:number;
  pool:number;fill:number;fillV:number;target:number;pct:number;loaded:number;total:number;
- shown:number;lastN:number;pop:number;heat:number;hatch:number;
+ shown:number;lastN:number;pop:number;heat:number;hatch:number;topoff:number;finale:boolean;finished:boolean;
  soldierX:number;walkPh:number;aim:number;fireCd:number;mag:number;flash:number;recoil:number;shake:number;hits:number;
  kills:number;skullPop:number;groanCd:number;alarmCd:number;
  zombies:Zombie[];particles:Particle[];bullets:Bullet[];ripples:{x:number;t:number}[];
@@ -51,7 +52,8 @@ const easeIn=(t:number)=>clamp(t)**2;
 const lerp=(a:number,b:number,t:number)=>a+(b-a)*t;
 const mix=(a:number[],b:number[],t:number)=>a.map((v,i)=>lerp(v,b[i],t));
 const rgba=(c:number[])=>`rgba(${c[0]|0},${c[1]|0},${c[2]|0},${c[3].toFixed(3)})`;
-const levelY=(fill:number)=>BOTTOM-fill*(BOTTOM-TOP+3);
+// a full bar leaves the zombies' heads just above the blood; once the hatch shuts the blood tops off
+const levelY=(s:{fill:number;topoff:number})=>BOTTOM-s.fill*(BOTTOM-TOP-6)-s.topoff*9;
 const mb=(bytes:number)=>(bytes/1048576).toFixed(1);
 
 // Pixel rows/columns of the capsule interior (rounded left end, squarer mouth on the right) and its outline pixels.
@@ -87,7 +89,7 @@ const simulateUpload:UploadFn=(file,onProgress,signal)=>new Promise((resolve,rej
 });
 
 const freshScene=():Scene=>({
- phase:'idle',time:0,phaseT:0,pool:0,fill:0,fillV:0,target:0,pct:0,loaded:0,total:0,shown:0,lastN:0,pop:0,heat:0,hatch:0,
+ phase:'idle',time:0,phaseT:0,pool:0,fill:0,fillV:0,target:0,pct:0,loaded:0,total:0,shown:0,lastN:0,pop:0,heat:0,hatch:0,topoff:0,finale:false,finished:false,
  soldierX:SOLDIER_START,walkPh:0,aim:0,fireCd:0,mag:MAG,flash:0,recoil:0,shake:0,hits:0,kills:0,skullPop:0,groanCd:1,alarmCd:0,
  zombies:[],particles:[],bullets:[],ripples:[],stains:[],drips:[],file:null,events:[],
 });
@@ -99,10 +101,11 @@ const spawnHorde=()=>[
 ];
 const limitFor=(z:Zombie)=>CAP.x1-(z.row?26:34);
 
-function zombieBox(z:Zombie,t:number){
+function zombieBox(z:Zombie,t:number,level:number){
  const up=easeOut(z.rise),sink=z.state==='dying'?easeIn(z.t)*44:0;
  const left=Math.round(z.x-9+Math.sin(t*1.3+z.seed*6)-z.flinch*2);
- const top=Math.round(TOP+(z.row?4:2)+(1-up)*40+sink);
+ // zombies wade up with the blood so their heads stay above it
+ const top=Math.round(Math.min(TOP+(z.row?4:2),level-(z.row?8:7))+(1-up)*40+sink);
  return {left,top,up,head:{x:left+9,y:top+7},chest:{x:left+9,y:top+18}};
 }
 
@@ -118,7 +121,7 @@ function spawnBlood(s:Scene,x:number,y:number,dx:number,dy:number,n:number){
 }
 
 function surfaceAt(s:Scene,x:number){
- let y=levelY(s.fill)+Math.sin(x*0.25+s.time*3)*0.8+Math.sin(x*0.09-s.time*1.7)*0.8;
+ let y=levelY(s)+Math.sin(x*0.25+s.time*3)*0.8+Math.sin(x*0.09-s.time*1.7)*0.8;
  for(const r of s.ripples){const d=Math.abs(x-r.x);if(d<16)y-=Math.cos(d*0.7-r.t*12)*1.6*Math.exp(-r.t*3)*(1-d/16)}
  return y;
 }
@@ -129,12 +132,14 @@ function step(s:Scene,dt:number){
  s.pop=Math.max(0,s.pop-dt*8);s.skullPop=Math.max(0,s.skullPop-dt*5);
  s.heat+=((s.phase==='drag'?1:0)-s.heat)*Math.min(1,dt*6);
  const open=s.phase==='uploading'||s.phase==='done'||s.phase==='error';
- s.hatch=clamp(s.hatch+(open?dt*2:-dt*2));
+ // the hatch slams shut again once the last zombie is down
+ s.hatch=clamp(s.hatch+(s.phase==='uploading'||s.phase==='error'?dt*2:-dt*2.4));
  // blood level glides toward what has actually been spilled
  const k=24,c=2*Math.sqrt(k);s.fillV+=((s.pool-s.fill)*k-s.fillV*c)*dt;s.fill=clamp(s.fill+s.fillV*dt);
- s.shown+=((s.phase==='done'?100:s.pool*100)-s.shown)*Math.min(1,dt*8);
- const n=Math.floor(s.shown+0.02);if(n!==s.lastN){s.lastN=n;s.pop=1}
- const busy=s.phase==='uploading',surface=levelY(s.fill);
+ s.shown+=(s.pool*100-s.shown)*Math.min(1,dt*8);
+ const n=Math.floor(s.shown+0.02);if(n>s.lastN){s.lastN=n;s.pop=1}
+ const busy=s.phase==='uploading',surface=levelY(s);
+ if(s.phase==='done'&&s.hatch<0.05)s.topoff=Math.min(1,s.topoff+dt*1.5);
  if(s.phase==='drag'){s.alarmCd-=dt;if(s.alarmCd<=0){s.alarmCd=0.75;s.events.push('alarm')}}
  if(s.file){s.file.t+=dt/0.6;if(s.file.t>=1){s.file=null;s.shake=3;s.events.push('splash');if(s.phase==='intake'){s.phase='uploading';s.phaseT=0}}}
  // soldier steps through the open hatch into the doorway
@@ -145,7 +150,8 @@ function step(s:Scene,dt:number){
   if(z.state==='rising'){z.rise+=dt*1.4;if(z.rise>=1){z.rise=1;z.state='alive'}}
   if((z.state==='alive'||z.state==='rising')&&z.rise>0&&busy)z.x=Math.min(limitFor(z),z.x+z.speed*dt);
   if(z.state==='dying'){z.t+=dt*1.3;if(z.t>=1)z.state='gone'}
-  if(z.state==='gone'&&busy){z.respawn+=dt;if(z.respawn>0.25+z.seed*0.45)Object.assign(z,makeZombie(z.row,56+Math.random()*60))}
+  // once the upload is done no more zombies come, unless the horde is wiped before the blood is full
+  if(z.state==='gone'&&busy&&(!s.finale||!s.zombies.some(o=>o.state==='alive'||o.state==='rising'))){z.respawn+=dt;if(z.respawn>0.25+z.seed*0.45)Object.assign(z,makeZombie(z.row,56+Math.random()*60))}
  }
  if(busy){s.groanCd-=dt;if(s.groanCd<=0){s.groanCd=0.5+Math.random()*1.1;s.events.push('groan')}}
  // aim + fire: the further the blood lags the upload, the harder he leans on the trigger
@@ -153,7 +159,7 @@ function step(s:Scene,dt:number){
  const alive=ready?s.zombies.filter(z=>(z.state==='alive'||(z.state==='rising'&&z.rise>0.45))&&z.hp>0).sort((a,b)=>b.x-a.x):[];
  const target=alive[Math.random()<0.75?0:Math.min(alive.length-1,1)];
  const piv=pivotOf(s);let want=s.phase==='done'?Math.PI/2:0,aimPt:Pt|null=null;
- if(target){const b=zombieBox(target,s.time);aimPt=Math.random()<0.6?b.head:b.chest;want=Math.atan2(piv.y-aimPt.y,piv.x-aimPt.x)}
+ if(target){const b=zombieBox(target,s.time,surface);aimPt=Math.random()<0.6?b.head:b.chest;want=Math.atan2(piv.y-aimPt.y,piv.x-aimPt.x)}
  s.aim+=(want-s.aim)*Math.min(1,dt*16);
  s.fireCd-=dt;
  const deficit=s.target-s.pool;
@@ -164,7 +170,7 @@ function step(s:Scene,dt:number){
   s.particles.push({x:piv.x+2,y:piv.y-2,vx:15+Math.random()*25,vy:-55-Math.random()*30,life:1.4,max:1.4,kind:'shell',size:1,caged:false});
   s.mag--;
   if(s.mag<=0){s.mag=MAG;s.fireCd=0.55;s.events.push('reload')}
-  else s.fireCd=deficit>0.04?FIRE_GAP*0.8:deficit>0.005?FIRE_GAP:FIRE_GAP*2.2;
+  else s.fireCd=s.finale?FIRE_GAP*0.7:deficit>0.04?FIRE_GAP*0.8:deficit>0.005?FIRE_GAP:FIRE_GAP*2.2;
  }
  for(const b of s.bullets){
   const before=b.t;b.t+=dt/0.05;
@@ -173,9 +179,15 @@ function step(s:Scene,dt:number){
    if(z.state==='alive'||z.state==='rising'){
     z.hp--;z.flinch=1;s.hits++;if(s.hits%2)s.events.push('hit');
     spawnBlood(s,b.x1,b.y1,b.x1-b.x0,b.y1-b.y0,8);
-    // every hit spills blood, but the pool never outruns the real upload
-    if(deficit>0)s.pool=Math.min(s.target,s.pool+Math.max(0.0035,deficit*0.22));
     if(z.hp<=0){z.state='dying';z.t=0;z.respawn=0;s.kills++;s.skullPop=1;s.events.push('kill');spawnBlood(s,b.x1,b.y1,0,-1,16)}
+    if(s.finale){
+     // split what's left of the bar across the horde's remaining hit points so the last kill lands exactly on 100%
+     const left=s.zombies.reduce((sum,o)=>sum+(o.state==='alive'||o.state==='rising'?Math.max(0,o.hp):0),0);
+     s.pool=left>0?s.pool+(1-s.pool)/(left+1):1;
+     if(s.pool>=1&&s.phase==='uploading'){s.shown=100;s.lastN=100;s.pop=1;s.shake=4;s.phase='done';s.phaseT=0;s.finished=true;s.bullets=[];s.events.push('win','hatch')}
+    }
+    // every hit spills blood, but the pool never outruns the real upload
+    else if(deficit>0)s.pool=Math.min(s.target,0.97,s.pool+Math.max(0.0035,deficit*0.22));
    }
   }
  }
@@ -265,7 +277,7 @@ function render(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
  ctx.save();ctx.beginPath();for(const r of SPANS)ctx.rect(r.xl,r.y,r.xr-r.xl,1);ctx.clip();
  const order=[...s.zombies].filter(z=>z.state!=='gone').sort((a,b)=>a.row-b.row||a.x-b.x);
  for(const z of order){
-  const b=zombieBox(z,t),bob=Math.round(Math.sin(t*5+z.seed*7)),reach=Math.round((1-b.up)*5);
+  const b=zombieBox(z,t,levelY(s)),bob=Math.round(Math.sin(t*5+z.seed*7)),reach=Math.round((1-b.up)*5);
   const base=(z.state==='dying'?clamp(1-easeIn(z.t)):1)*(z.row?1:0.62),body=Math.sin(t*4+z.seed*11)>0?sp.zOpen:sp.zShut;
   const parts:[Sprite,number,number][]=[[sp.zArmBack,b.left+16-reach,b.top+14-bob],[body,b.left,b.top],[sp.zArm,b.left+14-reach,b.top+16+bob]];
   for(const [part,x,y] of parts){ctx.globalAlpha=base;ctx.drawImage(part.img,x,y);if(z.flinch>0.4){ctx.globalAlpha=base*0.55*z.flinch;ctx.drawImage(part.flash,x,y)}}
@@ -278,7 +290,7 @@ function render(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
    const band=(from:number,to:number,color:string)=>{const a=Math.max(col.top,sy+from),b=Math.min(col.bottom,sy+to);if(b>a){ctx.fillStyle=color;ctx.fillRect(col.x,a,1,b-a)}};
    band(0,1,'#ff6b7a');band(1,3,'#f2223a');band(3,8,'#d00c25');band(8,16,'#a0061a');band(16,99,'#6a0411');
   }
-  ctx.fillStyle='#7c0315';const ly=levelY(s.fill);
+  ctx.fillStyle='#7c0315';const ly=levelY(s);
   for(let i=0;i<12;i++){const cx=Math.round(CAP.x0+6+((i*53+t*(4+i%3))%(CAP.x1-CAP.x0-12))),cy=Math.round(lerp(ly+3,BOTTOM-2,((i*37)%10)/10)+Math.sin(t+i));if(cy>ly+2&&inside(cx,cy))ctx.fillRect(cx,cy,i%2?3:2,1)}
   for(const p of s.particles)if(p.kind==='bubble'){ctx.fillStyle='#ff8c96';ctx.fillRect(Math.round(p.x),Math.round(p.y),1,1)}
  }
@@ -344,6 +356,8 @@ export default function ZombieCapsuleUpload({upload=simulateUpload,onComplete,ac
  const dragDepth=useRef(0);
  const beforeDrag=useRef<Phase>('idle');
  const abort=useRef<AbortController|null>(null);
+ const current=useRef<File|null>(null);
+ const onCompleteRef=useRef(onComplete);onCompleteRef.current=onComplete;
  const [phase,setPhase]=useState<Phase>('idle');
  const [status,setStatus]=useState('');
  const [sound,setSound]=useState(true);
@@ -368,6 +382,7 @@ export default function ZombieCapsuleUpload({upload=simulateUpload,onComplete,ac
    ctx.imageSmoothingEnabled=false;ctx.fillStyle='#08070a';ctx.fillRect(0,0,canvas.width,canvas.height);
    ctx.drawImage(low,shake?Math.round((Math.random()-0.5)*shake*2)*k:0,shake?Math.round((Math.random()-0.5)*shake*2)*k:0,canvas.width,canvas.height);
    for(const e of s.events.splice(0))audio.play(e);
+   if(s.finished){s.finished=false;setPhase('done');setStatus(`Upload complete. ${s.kills} zombies down.`);if(current.current)onCompleteRef.current?.(current.current)}
    const pct=s.lastN;if(pct!==lastPct&&s.phase==='uploading'&&pct%10===0){lastPct=pct;setStatus(`Uploading ${pct}%`)}
    raf=requestAnimationFrame(frame);
   };
@@ -382,20 +397,16 @@ export default function ZombieCapsuleUpload({upload=simulateUpload,onComplete,ac
   const total=Math.max(1,file.size);s.total=total;
   s.file={x:at?.x??COUNTER.cx,y:at?.y??LH-20,t:0};
   s.zombies=spawnHorde();
-  s.events.push('suck');
+  s.events.push('suck');current.current=file;
   go('intake');setStatus(`Uploading ${file.name}`);
   const ctl=new AbortController();abort.current=ctl;
   upload(file,loaded=>{if(ctl.signal.aborted)return;s.loaded=Math.min(total,loaded);s.pct=clamp(loaded/total);s.target=Math.max(s.target,s.pct*0.995)},ctl.signal)
    .then(()=>{
-    if(ctl.signal.aborted)return;s.loaded=total;s.pct=1;s.target=1;
-    // keep firing until the spilled blood catches up with the finished upload
-    const finish=()=>{if(ctl.signal.aborted)return;if(s.pool<0.999||s.fill<0.985){window.setTimeout(finish,80);return}
-     for(const z of s.zombies)if(z.state!=='gone'&&z.state!=='dying'){z.state='dying';z.t=0}
-     s.events.push('win');go('done');setStatus(`Upload complete. ${s.kills} zombies down.`);onComplete?.(file)};
-    finish();
+    // the upload is done: the soldier now clears the rest of the horde, and the last kill finishes the bar
+    if(ctl.signal.aborted)return;s.loaded=total;s.pct=1;s.target=1;s.finale=true;
    })
    .catch(()=>{if(ctl.signal.aborted)return;s.events.push('fail');go('error');setStatus('Upload failed.')});
- },[go,onComplete,upload]);
+ },[go,upload]);
 
  const toScene=(e:DragEvent):Pt=>{const r=canvasRef.current?.getBoundingClientRect();if(!r)return{x:LW/2,y:LH/2};return{x:(e.clientX-r.left)/r.width*LW,y:(e.clientY-r.top)/r.height*LH}};
  const busy=phase==='intake'||phase==='uploading';

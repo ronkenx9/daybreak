@@ -1,5 +1,5 @@
 /** Tiny WebAudio synth for the zombie capsule. Every sound is generated, so there are no audio files to ship. */
-export type SfxName='shot'|'hit'|'kill'|'groan'|'clink'|'suck'|'alarm'|'splash'|'win'|'fail'|'reload';
+export type SfxName='shot'|'hit'|'kill'|'groan'|'clink'|'suck'|'alarm'|'splash'|'win'|'fail'|'reload'|'hatch';
 
 export class Sfx{
  private ctx:AudioContext|null=null;
@@ -39,6 +39,7 @@ export class Sfx{
    case 'splash':noise(t,0.3,'lowpass',380*v(),0.22);break;
    case 'win':[523,659,784,1047].forEach((f,i)=>tone(t+i*0.09,'square',f,f,i===3?0.4:0.08,0.09));break;
    case 'reload':tone(t,'square',1400,1200,0.03,0.08);noise(t+0.18,0.05,'highpass',3000,0.12);tone(t+0.32,'square',900,800,0.04,0.1);break;
+   case 'hatch':noise(t,0.25,'lowpass',220,0.6);tone(t,'square',150,70,0.18,0.18);tone(t+0.02,'triangle',1100,900,0.12,0.06);break;
    case 'fail':tone(t,'sawtooth',320,70,0.7,0.16,0.01);break;
   }
  }
