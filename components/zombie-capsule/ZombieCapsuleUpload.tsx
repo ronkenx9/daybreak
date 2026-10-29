@@ -34,14 +34,16 @@ type Scene={
  file:{x:number;y:number;t:number}|null;events:SfxName[];
 };
 
-const LW=256,LH=110;
-const CAP={x0:16,x1:210,cy:44,r:18};
+const LW=320,LH=112;
+const CAP={x0:48,x1:214,cy:48,r:14};
 const TOP=CAP.cy-CAP.r,BOTTOM=CAP.cy+CAP.r;
 const DOOR={x:CAP.x1+4,w:12};
-const SOLDIER_X=CAP.x1-4,SOLDIER_START=LW+14;
-const FRONT_COUNT=8,BACK_COUNT=6;
+// the officer's ledge juts in from the right edge, leaving open space between him and the chamber
+const LEDGE={x:250,y:62};
+const SOLDIER_X=268,SOLDIER_START=LW+14;
+const FRONT_COUNT=7,BACK_COUNT=5;
 const MAG=40,FIRE_GAP=0.07;
-const COUNTER={cx:118,y:80};
+const COUNTER={cx:131,y:78};
 
 const clamp=(v:number,a=0,b=1)=>Math.min(b,Math.max(a,v));
 const easeOut=(t:number)=>1-(1-clamp(t))**3;
@@ -92,20 +94,20 @@ const freshScene=():Scene=>({
 
 const makeZombie=(row:0|1,x:number,delay=0):Zombie=>({x,row,seed:Math.random(),speed:2+Math.random()*4,rise:-delay,hp:2+Math.floor(Math.random()*3),state:'rising',t:0,flinch:0,respawn:0});
 const spawnHorde=()=>[
- ...Array.from({length:BACK_COUNT},(_,i)=>makeZombie(0,34+i*24+Math.random()*8,0.2+i*0.1)),
- ...Array.from({length:FRONT_COUNT},(_,i)=>makeZombie(1,28+i*19+Math.random()*6,0.3+i*0.08)),
+ ...Array.from({length:BACK_COUNT},(_,i)=>makeZombie(0,64+i*26+Math.random()*6,0.2+i*0.1)),
+ ...Array.from({length:FRONT_COUNT},(_,i)=>makeZombie(1,58+i*20+Math.random()*5,0.3+i*0.08)),
 ];
-const limitFor=(z:Zombie)=>CAP.x1-(z.row?32:40);
+const limitFor=(z:Zombie)=>CAP.x1-(z.row?26:34);
 
 function zombieBox(z:Zombie,t:number){
  const up=easeOut(z.rise),sink=z.state==='dying'?easeIn(z.t)*44:0;
  const left=Math.round(z.x-9+Math.sin(t*1.3+z.seed*6)-z.flinch*2);
- const top=Math.round(TOP+(z.row?6:3)+(1-up)*40+sink);
+ const top=Math.round(TOP+(z.row?4:2)+(1-up)*40+sink);
  return {left,top,up,head:{x:left+9,y:top+7},chest:{x:left+9,y:top+18}};
 }
 
 const counterLayout=(n:number)=>{const str=`${n}`,w=textWidth(str,3);return {str,x:Math.round(COUNTER.cx-w/2),w}};
-const soldierOrigin=(s:Scene,hop=0,bob=0)=>({x:Math.round(s.soldierX)-(SOLDIER_W>>1),y:BOTTOM+1-30-hop-bob});
+const soldierOrigin=(s:Scene,hop=0,bob=0)=>({x:Math.round(s.soldierX)-(SOLDIER_W>>1),y:LEDGE.y-30-hop-bob});
 const pivotOf=(s:Scene)=>{const o=soldierOrigin(s);return {x:o.x+SHOULDER.x,y:o.y+SHOULDER.y}};
 // The flipped gun points along -x; rotating by `aim` points it along (-cos, -sin).
 const muzzleOf=(s:Scene)=>{const p=pivotOf(s);return {x:p.x-Math.cos(s.aim)*BARREL,y:p.y-Math.sin(s.aim)*BARREL}};
@@ -143,7 +145,7 @@ function step(s:Scene,dt:number){
   if(z.state==='rising'){z.rise+=dt*1.4;if(z.rise>=1){z.rise=1;z.state='alive'}}
   if((z.state==='alive'||z.state==='rising')&&z.rise>0&&busy)z.x=Math.min(limitFor(z),z.x+z.speed*dt);
   if(z.state==='dying'){z.t+=dt*1.3;if(z.t>=1)z.state='gone'}
-  if(z.state==='gone'&&busy){z.respawn+=dt;if(z.respawn>0.25+z.seed*0.45)Object.assign(z,makeZombie(z.row,24+Math.random()*80))}
+  if(z.state==='gone'&&busy){z.respawn+=dt;if(z.respawn>0.25+z.seed*0.45)Object.assign(z,makeZombie(z.row,56+Math.random()*60))}
  }
  if(busy){s.groanCd-=dt;if(s.groanCd<=0){s.groanCd=0.5+Math.random()*1.1;s.events.push('groan')}}
  // aim + fire: the further the blood lags the upload, the harder he leans on the trigger
@@ -191,8 +193,8 @@ function step(s:Scene,dt:number){
    if(p.vy>0&&ny>=surfaceAt(s,nx)){p.life=0;if(Math.random()<0.15&&s.ripples.length<12)s.ripples.push({x:nx,t:0});continue}
   }
   p.x=nx;p.y=ny;
-  if(p.kind==='shell'&&p.y>BOTTOM+1){p.y=BOTTOM+1;p.vy*=-0.4;p.vx*=0.5;if(!p.bounced){p.bounced=true;if(Math.random()<0.3)s.events.push('clink')}}
-  if(p.kind==='drip'&&p.y>LH)p.life=0;
+  if(p.kind==='shell'&&p.x>=LEDGE.x&&p.y>LEDGE.y-1&&p.y<LEDGE.y+4){p.y=LEDGE.y-1;p.vy*=-0.4;p.vx*=0.5;if(!p.bounced){p.bounced=true;if(Math.random()<0.3)s.events.push('clink')}}
+  if((p.kind==='drip'||p.kind==='shell')&&p.y>LH)p.life=0;
  }
  s.particles=s.particles.filter(p=>p.life>0);
  if(s.fill>0.03&&Math.random()<dt*10)s.particles.push({x:CAP.x0+6+Math.random()*(CAP.x1-CAP.x0-12),y:BOTTOM-2,vx:0,vy:-8-Math.random()*8,life:3,max:3,kind:'bubble',size:1,caged:true});
@@ -211,8 +213,9 @@ function step(s:Scene,dt:number){
 function drawMouth(ctx:CanvasRenderingContext2D,s:Scene){
  const x=CAP.x1,t=s.time,hazard=s.phase!=='idle'||s.heat>0.05;
  // ledge the soldier walks in on
- for(let px=x+2;px<LW;px++){ctx.fillStyle='#6a6d74';ctx.fillRect(px,BOTTOM+2,1,1);ctx.fillStyle=px%3?'#2b2b2e':'#16161a';ctx.fillRect(px,BOTTOM+3,1,2)}
- for(let px=x+10;px<LW;px+=14){ctx.fillStyle='#2b2b2e';ctx.fillRect(px,BOTTOM+5,2,7);ctx.fillStyle='rgba(43,43,46,0.4)';ctx.fillRect(px,BOTTOM+12,2,4)}
+ for(let px=LEDGE.x;px<LW;px++){ctx.fillStyle=px<LEDGE.x+2?'#9a9da4':'#6a6d74';ctx.fillRect(px,LEDGE.y,1,1);ctx.fillStyle=px%3?'#2b2b2e':'#16161a';ctx.fillRect(px,LEDGE.y+1,1,2)}
+ for(let px=LEDGE.x;px<LEDGE.x+6;px++){ctx.fillStyle=((px>>1)&1)?'#ffcf1f':'#1a1a1a';ctx.fillRect(px,LEDGE.y+3,1,1)}
+ for(let i=0;i<34;i++){const sx=LEDGE.x+10+i*2,sy=LEDGE.y+3+i;if(sx>=LW||sy>=LH)break;ctx.fillStyle=`rgba(58,58,62,${1-i/40})`;ctx.fillRect(sx,sy,2,1)}
  // hatch door slides up out of the way once the file is in
  const lift=Math.round(easeOut(s.hatch)*(BOTTOM+4)),off=hazard?Math.floor(t*10):0;
  for(let y=TOP-2;y<BOTTOM+2;y++)for(let px=0;px<DOOR.w;px++){
@@ -233,7 +236,7 @@ function drawSoldier(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
  const walking=s.soldierX>SOLDIER_X;
  const hop=s.phase==='done'?Math.round(Math.abs(Math.sin(s.phaseT*6))*3*clamp(2-s.phaseT*0.5)):0;
  const o=soldierOrigin(s,hop,walking&&Math.floor(s.walkPh)%2?1:0);
- ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(o.x+2,BOTTOM+1,15,1);
+ ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(o.x+2,LEDGE.y-1,15,1);
  ctx.drawImage(walking&&Math.floor(s.walkPh)%2?sp.soldierB.img:sp.soldierA.img,o.x,o.y);
  const kick=Math.round(s.recoil*2);
  ctx.save();ctx.translate(o.x+SHOULDER.x+Math.cos(s.aim)*kick,o.y+SHOULDER.y+Math.sin(s.aim)*kick);ctx.rotate(s.aim);
@@ -280,7 +283,7 @@ function render(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
   for(const p of s.particles)if(p.kind==='bubble'){ctx.fillStyle='#ff8c96';ctx.fillRect(Math.round(p.x),Math.round(p.y),1,1)}
  }
  if(heat>0.02){
-  for(let i=0;i<4;i++){const k=Math.max(0,Math.sin(t*3.4+i*1.9));ctx.globalAlpha=heat*(0.2+0.5*k);ctx.drawImage(sp.hand.img,CAP.x0+30+i*42,CAP.cy-3+(i%2?4:-5))}
+  for(let i=0;i<4;i++){const k=Math.max(0,Math.sin(t*3.4+i*1.9));ctx.globalAlpha=heat*(0.2+0.5*k);ctx.drawImage(sp.hand.img,CAP.x0+26+i*38,CAP.cy-3+(i%2?4:-5))}
   ctx.globalAlpha=heat*(0.6+0.4*Math.sin(t*8));const msg='CONTAINMENT BREACH';drawText(ctx,msg,(CAP.x0+CAP.x1)/2-textWidth(msg)/2,CAP.cy-2,'#ff4657');ctx.globalAlpha=1;
  }
  for(const st of s.stains){ctx.fillStyle=`rgba(150,0,20,${clamp(st.life)})`;ctx.fillRect(st.x,st.y,1,1+Math.floor(st.len))}
@@ -290,7 +293,7 @@ function render(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
  if(glowRim>0.02){ctx.fillStyle=`rgba(255,40,60,${glowRim*0.45})`;for(const p of OUTLINE){ctx.fillRect(p.x-1,p.y,1,1);ctx.fillRect(p.x+1,p.y,1,1);ctx.fillRect(p.x,p.y-1,1,1);ctx.fillRect(p.x,p.y+1,1,1)}}
  ctx.fillStyle=rgba(rim);for(const p of OUTLINE)ctx.fillRect(p.x,p.y,1,1);
  ctx.fillStyle='rgba(255,255,255,0.4)';ctx.fillRect(SPANS[3].xl+3,TOP+3,CAP.x1-CAP.x0-30,1);ctx.fillRect(CAP.x0+CAP.r+4,BOTTOM-4,40,1);
- for(const cx of [CAP.x0+36,CAP.x0+110]){['#5a5d64','#c9ccd3','#8c8f96','#5a5d64'].forEach((col,i)=>{ctx.fillStyle=col;ctx.fillRect(cx+i,TOP-2,1,CAP.r*2+4)})}
+ for(const cx of [CAP.x0+30,CAP.x0+100]){['#5a5d64','#c9ccd3','#8c8f96','#5a5d64'].forEach((col,i)=>{ctx.fillStyle=col;ctx.fillRect(cx+i,TOP-2,1,CAP.r*2+4)})}
  drawMouth(ctx,s);
  for(const b of s.bullets){
   if(b.t>1.2)continue;const t1=clamp(b.t),t0=clamp(b.t-0.45),steps=Math.ceil(Math.hypot(b.x1-b.x0,b.y1-b.y0)*(t1-t0));
@@ -316,11 +319,11 @@ function render(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
 function drawHud(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
  const center=(text:string,y:number,color:string)=>drawText(ctx,text,COUNTER.cx-textWidth(text)/2,y,color);
  if(s.phase==='idle'||s.phase==='drag'){
-  if(s.heat>0.5){ctx.globalAlpha=0.6+0.4*Math.abs(Math.sin(s.time*6));center('RELEASE TO UNLEASH THE HORDE',86,'#ff4657');ctx.globalAlpha=1}
-  else center('DROP A FILE INTO THE CAPSULE',86,'#8d8486');
+  if(s.heat>0.5){ctx.globalAlpha=0.6+0.4*Math.abs(Math.sin(s.time*6));center('RELEASE TO UNLEASH THE HORDE',84,'#ff4657');ctx.globalAlpha=1}
+  else center('DROP A FILE INTO THE CAPSULE',84,'#8d8486');
   return;
  }
- if(s.phase==='error'){center('UPLOAD FAILED - THE HORDE GOT OUT',86,'#ffb020');return}
+ if(s.phase==='error'){center('UPLOAD FAILED - THE HORDE GOT OUT',84,'#ffb020');return}
  const {str,x,w}=counterLayout(s.lastN),lift=Math.round(s.pop*2);
  const shade=(row:number)=>row<2?'#ff4a5a':row<3?'#e0102a':'#9c0618';
  drawText(ctx,str,x+1,COUNTER.y+1-lift,'#2a0006',3);
@@ -328,7 +331,7 @@ function drawHud(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
  drawText(ctx,'%',x+w+3,COUNTER.y-lift,'#c9b8ba',1);
  for(const d of s.drips){ctx.fillStyle='#b00a1e';ctx.fillRect(d.x,d.y,1,Math.ceil(d.len));ctx.fillRect(d.x,d.y+Math.ceil(d.len)-1,2,1)}
  center(s.phase==='done'?'UPLOAD COMPLETE':`${mb(s.loaded)} OF ${mb(s.total)} MB`,COUNTER.y+19,s.phase==='done'?'#3dff7a':'#8d8486');
- const kx=170,ky=82,bump=Math.round(s.skullPop*2);
+ const kx=184,ky=80,bump=Math.round(s.skullPop*2);
  ctx.drawImage(sp.skull.img,kx,ky-bump);
  drawText(ctx,`×${s.kills}`,kx+10,ky-bump,'#f0ead8',2);
 }
