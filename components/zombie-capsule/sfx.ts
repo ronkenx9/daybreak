@@ -1,5 +1,5 @@
 /** Tiny WebAudio synth for the zombie capsule. Every sound is generated, so there are no audio files to ship. */
-export type SfxName='shot'|'hit'|'kill'|'groan'|'clink'|'suck'|'alarm'|'splash'|'win'|'fail';
+export type SfxName='shot'|'hit'|'kill'|'groan'|'clink'|'suck'|'alarm'|'splash'|'win'|'fail'|'reload';
 
 export class Sfx{
  private ctx:AudioContext|null=null;
@@ -29,7 +29,7 @@ export class Sfx{
   const tone=(start:number,type:OscillatorType,from:number,to:number,dur:number,peak:number,attack=0.005)=>{const o=ctx.createOscillator();o.type=type;o.frequency.setValueAtTime(from,start);o.frequency.exponentialRampToValueAtTime(Math.max(1,to),start+dur);env(o,start,attack,peak,dur);o.start(start);o.stop(start+attack+dur+0.05);return o};
   const v=()=>0.9+Math.random()*0.2;
   switch(name){
-   case 'shot':noise(t,0.11,'bandpass',1900*v(),0.55);tone(t,'square',170*v(),45,0.09,0.25);noise(t,0.22,'lowpass',500,0.2);break;
+   case 'shot':noise(t,0.07,'bandpass',2100*v(),0.32);tone(t,'square',180*v(),50,0.06,0.14);noise(t,0.12,'lowpass',520,0.12);break;
    case 'hit':noise(t,0.14,'lowpass',750*v(),0.45);tone(t,'sine',320*v(),110,0.12,0.22);break;
    case 'kill':noise(t,0.32,'lowpass',420,0.5);tone(t,'sawtooth',140*v(),40,0.45,0.18,0.02);break;
    case 'groan':{const f=60+Math.random()*45;const o=tone(t,'sawtooth',f,f*0.75,0.9,0.12,0.18);const lfo=ctx.createOscillator(),depth=ctx.createGain();lfo.frequency.value=5+Math.random()*3;depth.gain.value=f*0.08;lfo.connect(depth).connect(o.frequency);lfo.start(t);lfo.stop(t+1.2);break}
@@ -38,6 +38,7 @@ export class Sfx{
    case 'alarm':tone(t,'square',880,880,0.1,0.06);tone(t+0.14,'square',660,660,0.1,0.06);break;
    case 'splash':noise(t,0.3,'lowpass',380*v(),0.22);break;
    case 'win':[523,659,784,1047].forEach((f,i)=>tone(t+i*0.09,'square',f,f,i===3?0.4:0.08,0.09));break;
+   case 'reload':tone(t,'square',1400,1200,0.03,0.08);noise(t+0.18,0.05,'highpass',3000,0.12);tone(t+0.32,'square',900,800,0.04,0.1);break;
    case 'fail':tone(t,'sawtooth',320,70,0.7,0.16,0.01);break;
   }
  }

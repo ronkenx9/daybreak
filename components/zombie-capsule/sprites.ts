@@ -144,6 +144,12 @@ export function makeSprite(rows:string[],palette:Record<string,string>):Sprite{
  return {w,h,img,flash};
 }
 
+/** Mirror image of a sprite (characters are drawn facing one way and flipped as needed). */
+export function flipSprite(s:Sprite):Sprite{
+ const flip=(src:HTMLCanvasElement)=>{const c=document.createElement('canvas');c.width=s.w;c.height=s.h;const x=c.getContext('2d')!;x.translate(s.w,0);x.scale(-1,1);x.drawImage(src,0,0);return c};
+ return {w:s.w,h:s.h,img:flip(s.img),flash:flip(s.flash)};
+}
+
 /** 3×5 pixel font. */
 const FONT:Record<string,string>={
  '0':'111101101101111','1':'010110010010111','2':'111001111100111','3':'111001011001111','4':'101101111001001',

@@ -24,7 +24,7 @@
 .canvas {
   display: block;
   width: 100%;
-  aspect-ratio: 256 / 126;
+  aspect-ratio: 256 / 110;
   image-rendering: pixelated;
 }
 
