@@ -1,0 +1,91 @@
+.root {
+  position: relative;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  color: #f4e9e9;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  user-select: none;
+}
+
+.stage {
+  position: relative;
+  display: block;
+  width: 100%;
+  border-radius: 20px;
+  outline: none;
+  cursor: pointer;
+}
+
+.stage:focus-visible {
+  box-shadow: 0 0 0 2px #ff3b4e;
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 760 / 300;
+}
+
+.readout {
+  min-height: 64px;
+  margin-top: -8px;
+  text-align: center;
+}
+
+.percent {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 18px rgba(255, 40, 60, 0.55);
+}
+
+.percent sup {
+  margin-left: 2px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.sub {
+  margin-top: 6px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(244, 233, 233, 0.55);
+}
+
+.hint {
+  padding-top: 14px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(244, 233, 233, 0.5);
+}
+
+.hint.danger {
+  color: #ff4b5c;
+  text-shadow: 0 0 12px rgba(255, 40, 60, 0.6);
+}
+
+.again {
+  margin-top: 12px;
+  padding: 7px 14px;
+  border: 1px solid rgba(255, 75, 92, 0.45);
+  border-radius: 999px;
+  background: rgba(255, 40, 60, 0.08);
+  color: #ffb3bb;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.again:hover {
+  background: rgba(255, 40, 60, 0.18);
+}
+
+.input {
+  display: none;
+}
