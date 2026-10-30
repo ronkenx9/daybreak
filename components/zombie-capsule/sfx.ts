@@ -1,5 +1,5 @@
 /** Tiny WebAudio synth for the zombie capsule. Every sound is generated, so there are no audio files to ship. */
-export type SfxName='shot'|'hit'|'kill'|'groan'|'clink'|'suck'|'alarm'|'splash'|'win'|'fail'|'reload'|'hatch';
+export type SfxName='shot'|'hit'|'kill'|'groan'|'clink'|'suck'|'alarm'|'splash'|'win'|'fail'|'reload'|'hatch'|'slash'|'crackle';
 
 export class Sfx{
  private ctx:AudioContext|null=null;
@@ -19,7 +19,23 @@ export class Sfx{
   if(this.ctx.state==='suspended')void this.ctx.resume();
  }
  setEnabled(on:boolean){this.enabled=on;if(this.master)this.master.gain.value=on?0.45:0;if(on)this.unlock()}
- dispose(){void this.ctx?.close();this.ctx=null}
+ dispose(){this.hum=null;void this.ctx?.close();this.ctx=null}
+
+ private hum:{osc:OscillatorNode[];filter:BiquadFilterNode;gain:GainNode}|null=null;
+ /** A continuous charging hum; level 0 silences it, 1 is a full scream. */
+ setHum(level:number){
+  const ctx=this.ctx,out=this.master;if(!ctx||!out||ctx.state!=='running')return;
+  if(!this.hum){
+   if(level<=0)return;
+   const gain=ctx.createGain();gain.gain.value=0;const filter=ctx.createBiquadFilter();filter.type='lowpass';filter.Q.value=6;
+   const osc=[0,7].map(detune=>{const o=ctx.createOscillator();o.type='sawtooth';o.detune.value=detune*10;o.connect(filter);o.start();return o});
+   filter.connect(gain).connect(out);this.hum={osc,filter,gain};
+  }
+  const t=ctx.currentTime,{osc,filter,gain}=this.hum,l=Math.max(0,Math.min(1,level));
+  gain.gain.setTargetAtTime(l>0?0.015+l*0.09:0,t,0.05);
+  filter.frequency.setTargetAtTime(250+l*2600,t,0.05);
+  osc.forEach((o,i)=>o.frequency.setTargetAtTime((60+l*160)*(i?1.5:1),t,0.05));
+ }
 
  play(name:SfxName){
   const ctx=this.ctx,out=this.master;if(!this.enabled||!ctx||!out||ctx.state!=='running')return;
@@ -40,6 +56,8 @@ export class Sfx{
    case 'win':[523,659,784,1047].forEach((f,i)=>tone(t+i*0.09,'square',f,f,i===3?0.4:0.08,0.09));break;
    case 'reload':tone(t,'square',1400,1200,0.03,0.08);noise(t+0.18,0.05,'highpass',3000,0.12);tone(t+0.32,'square',900,800,0.04,0.1);break;
    case 'hatch':noise(t,0.25,'lowpass',220,0.6);tone(t,'square',150,70,0.18,0.18);tone(t+0.02,'triangle',1100,900,0.12,0.06);break;
+   case 'slash':{const n=noise(t,0.32,'bandpass',700,0.55,1.2);n.frequency.exponentialRampToValueAtTime(5200,t+0.25);tone(t,'sine',1900,880,0.7,0.09);tone(t,'square',110,35,0.3,0.3);noise(t+0.05,0.5,'lowpass',300,0.45);break}
+   case 'crackle':noise(t,0.025+Math.random()*0.03,'highpass',3500+Math.random()*3000,0.06+Math.random()*0.06);break;
    case 'fail':tone(t,'sawtooth',320,70,0.7,0.16,0.01);break;
   }
  }

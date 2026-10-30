@@ -3,7 +3,7 @@ import {useCallback,useEffect,useRef,useState,type DragEvent} from 'react';
 import styles from './ZombieCapsuleUpload.module.css';
 import {Sfx,type SfxName} from './sfx';
 import {
- ARMS_MUZZLE,ARMS_PIVOT,SKULL,SKULL_PALETTE,SOLDIER_A,SOLDIER_ARMS,SOLDIER_B,SOLDIER_PALETTE,SOLDIER_SHOULDER,
+ ARMS_MUZZLE,ARMS_PIVOT,KNIGHT,KNIGHT_HAND,KNIGHT_PALETTE,SKULL,SWORD,SWORD_PALETTE,SWORD_PIVOT,SKULL_PALETTE,SOLDIER_A,SOLDIER_ARMS,SOLDIER_B,SOLDIER_PALETTE,SOLDIER_SHOULDER,
  ZOMBIE_ARM,ZOMBIE_ARM_BACK,ZOMBIE_OPEN,ZOMBIE_PALETTE,ZOMBIE_SHUT,drawText,flipSprite,glyphCells,makeSprite,textWidth,type Sprite,
 } from './sprites';
 
@@ -15,17 +15,21 @@ import {
  * soldier shoots faster when the blood lags the real upload, and the blood is
  * never allowed to get ahead of it. Once the upload finishes the horde stops
  * respawning and the last kill lands exactly on 100%, then the hatch shuts.
+ * The knight variant charges his sword instead: it glows and shakes harder as the
+ * upload advances, one slash at 50% floods the tube half-full and a final slash
+ * when the upload finishes kills everything and fills it.
  * Everything is drawn on a low-res canvas and scaled up with nearest-neighbour.
  */
 export type UploadFn=(file:File,onProgress:(loaded:number)=>void,signal:AbortSignal)=>Promise<void>;
 type Phase='idle'|'drag'|'intake'|'uploading'|'done'|'error';
+export type Hero='soldier'|'knight';
 
 type Pt={x:number;y:number};
 type Zombie={x:number;row:0|1;seed:number;speed:number;rise:number;hp:number;state:'rising'|'alive'|'dying'|'gone';t:number;flinch:number;respawn:number};
-type Particle={x:number;y:number;vx:number;vy:number;life:number;max:number;kind:'blood'|'shell'|'spark'|'bubble'|'drip';size:number;caged:boolean;bounced?:boolean};
+type Particle={x:number;y:number;vx:number;vy:number;life:number;max:number;kind:'blood'|'shell'|'spark'|'bubble'|'drip'|'ember';size:number;caged:boolean;bounced?:boolean};
 type Bullet={x0:number;y0:number;x1:number;y1:number;t:number;target:Zombie};
 type Scene={
- phase:Phase;time:number;phaseT:number;
+ hero:Hero;phase:Phase;time:number;phaseT:number;
  pool:number;fill:number;fillV:number;target:number;pct:number;loaded:number;total:number;
  shown:number;lastN:number;pop:number;heat:number;hatch:number;topoff:number;finale:boolean;finished:boolean;
  soldierX:number;walkPh:number;aim:number;fireCd:number;mag:number;flash:number;recoil:number;shake:number;hits:number;
@@ -33,6 +37,8 @@ type Scene={
  zombies:Zombie[];particles:Particle[];bullets:Bullet[];ripples:{x:number;t:number}[];
  stains:{x:number;y:number;life:number;len:number}[];drips:{x:number;y:number;len:number;max:number;speed:number}[];
  file:{x:number;y:number;t:number}|null;events:SfxName[];
+ // knight only: which half is charging, how charged the blade is, the swing and the slash wave it throws
+ stage:0|1|2;charge:number;slash:{t:number;stage:1|2;launched:boolean}|null;wave:{x:number;stage:1|2}|null;sinceSlash:number;whiteout:number;flood:number;crackleCd:number;
 };
 
 const LW=320,LH=112;
@@ -70,9 +76,12 @@ const COLS=Array.from({length:CAP.x1-CAP.x0},(_,i)=>{const x=CAP.x0+i,rows=SPANS
 const OUTLINE:Pt[]=SPANS.flatMap(({y,xl,xr})=>{const out:Pt[]=[];for(let x=xl;x<xr;x++)if(!inside(x-1,y)||!inside(x+1,y)||!inside(x,y-1)||!inside(x,y+1))out.push({x,y});return out});
 const HANDPRINT=['..r.r.r','.rr.r.r','.rrrrrr','rrrrrrr','.rrrrr.','..rrr..'];
 
-type Sprites={soldierA:Sprite;soldierB:Sprite;arms:Sprite;zOpen:Sprite;zShut:Sprite;zArm:Sprite;zArmBack:Sprite;skull:Sprite;hand:Sprite};
+type Sprites={knight:Sprite;knightGlow:Sprite;sword:Sprite;swordGlow:Sprite;soldierA:Sprite;soldierB:Sprite;arms:Sprite;zOpen:Sprite;zShut:Sprite;zArm:Sprite;zArmBack:Sprite;skull:Sprite;hand:Sprite};
 // Source art faces the soldier right / zombies left; here the soldier faces left into the capsule and the zombies face him.
+const RED='#ff2a3d';
 const buildSprites=():Sprites=>({
+ knight:flipSprite(makeSprite(KNIGHT,KNIGHT_PALETTE)),knightGlow:flipSprite(makeSprite(KNIGHT,Object.fromEntries(Object.keys(KNIGHT_PALETTE).map(k=>[k,RED])))),
+ sword:flipSprite(makeSprite(SWORD,SWORD_PALETTE)),swordGlow:flipSprite(makeSprite(SWORD,{w:RED,W:RED})),
  soldierA:flipSprite(makeSprite(SOLDIER_A,SOLDIER_PALETTE)),soldierB:flipSprite(makeSprite(SOLDIER_B,SOLDIER_PALETTE)),arms:flipSprite(makeSprite(SOLDIER_ARMS,SOLDIER_PALETTE)),
  zOpen:flipSprite(makeSprite(ZOMBIE_OPEN,ZOMBIE_PALETTE)),zShut:flipSprite(makeSprite(ZOMBIE_SHUT,ZOMBIE_PALETTE)),zArm:flipSprite(makeSprite(ZOMBIE_ARM,ZOMBIE_PALETTE)),zArmBack:flipSprite(makeSprite(ZOMBIE_ARM_BACK,ZOMBIE_PALETTE)),
  skull:makeSprite(SKULL,SKULL_PALETTE),hand:makeSprite(HANDPRINT,{r:'#c8001e'}),
@@ -81,6 +90,11 @@ const SOLDIER_W=Math.max(...SOLDIER_A.map(r=>r.length)),ARMS_W=Math.max(...SOLDI
 const SHOULDER={x:SOLDIER_W-1-SOLDIER_SHOULDER.x,y:SOLDIER_SHOULDER.y};
 const PIVOT={x:ARMS_W-1-ARMS_PIVOT.x,y:ARMS_PIVOT.y};
 const BARREL=ARMS_MUZZLE.x-ARMS_PIVOT.x;
+const KNIGHT_W=Math.max(...KNIGHT.map(r=>r.length)),SWORD_W=Math.max(...SWORD.map(r=>r.length));
+const KHAND={x:KNIGHT_W-1-KNIGHT_HAND.x,y:KNIGHT_HAND.y};
+const SPIV={x:SWORD_W-1-SWORD_PIVOT.x,y:SWORD_PIVOT.y};
+// sword angles (the flipped blade points along (-cos, -sin)): low guard while charging, raised for the windup, follow-through, planted when done
+const GUARD=-0.93,RAISED=2.1,FOLLOW=-0.6,PLANTED=-1.28;
 
 const simulateUpload:UploadFn=(file,onProgress,signal)=>new Promise((resolve,reject)=>{
  const total=Math.max(1,file.size),duration=8000+Math.random()*2000;let loaded=0,last=performance.now();
@@ -88,10 +102,11 @@ const simulateUpload:UploadFn=(file,onProgress,signal)=>new Promise((resolve,rej
  signal.addEventListener('abort',()=>{window.clearInterval(id);reject(new DOMException('Aborted','AbortError'))});
 });
 
-const freshScene=():Scene=>({
- phase:'idle',time:0,phaseT:0,pool:0,fill:0,fillV:0,target:0,pct:0,loaded:0,total:0,shown:0,lastN:0,pop:0,heat:0,hatch:0,topoff:0,finale:false,finished:false,
+const freshScene=(hero:Hero='soldier'):Scene=>({
+ hero,phase:'idle',time:0,phaseT:0,pool:0,fill:0,fillV:0,target:0,pct:0,loaded:0,total:0,shown:0,lastN:0,pop:0,heat:0,hatch:0,topoff:0,finale:false,finished:false,
  soldierX:SOLDIER_START,walkPh:0,aim:0,fireCd:0,mag:MAG,flash:0,recoil:0,shake:0,hits:0,kills:0,skullPop:0,groanCd:1,alarmCd:0,
  zombies:[],particles:[],bullets:[],ripples:[],stains:[],drips:[],file:null,events:[],
+ stage:0,charge:0,slash:null,wave:null,sinceSlash:9,whiteout:0,flood:0,crackleCd:0,
 });
 
 const makeZombie=(row:0|1,x:number,delay=0):Zombie=>({x,row,seed:Math.random(),speed:2+Math.random()*4,rise:-delay,hp:2+Math.floor(Math.random()*3),state:'rising',t:0,flinch:0,respawn:0});
@@ -113,6 +128,8 @@ const counterLayout=(n:number)=>{const str=`${n}`,w=textWidth(str,3);return {str
 const soldierOrigin=(s:Scene,hop=0,bob=0)=>({x:Math.round(s.soldierX)-(SOLDIER_W>>1),y:LEDGE.y-30-hop-bob});
 const pivotOf=(s:Scene)=>{const o=soldierOrigin(s);return {x:o.x+SHOULDER.x,y:o.y+SHOULDER.y}};
 // The flipped gun points along -x; rotating by `aim` points it along (-cos, -sin).
+const knightOrigin=(s:Scene,bob=0)=>({x:Math.round(s.soldierX)-(KNIGHT_W>>1),y:LEDGE.y-30-bob});
+const knightHand=(s:Scene)=>{const o=knightOrigin(s);return {x:o.x+KHAND.x,y:o.y+KHAND.y}};
 const muzzleOf=(s:Scene)=>{const p=pivotOf(s);return {x:p.x-Math.cos(s.aim)*BARREL,y:p.y-Math.sin(s.aim)*BARREL}};
 
 function spawnBlood(s:Scene,x:number,y:number,dx:number,dy:number,n:number){
@@ -129,14 +146,17 @@ function surfaceAt(s:Scene,x:number){
 function step(s:Scene,dt:number){
  s.time+=dt;s.phaseT+=dt;
  s.flash=Math.max(0,s.flash-dt*20);s.recoil=Math.max(0,s.recoil-dt*16);s.shake=Math.max(0,s.shake-dt*14);
+ s.whiteout=Math.max(0,s.whiteout-dt*2.5);s.flood=Math.max(0,s.flood-dt);
  s.pop=Math.max(0,s.pop-dt*8);s.skullPop=Math.max(0,s.skullPop-dt*5);
  s.heat+=((s.phase==='drag'?1:0)-s.heat)*Math.min(1,dt*6);
  const open=s.phase==='uploading'||s.phase==='done'||s.phase==='error';
  // the hatch slams shut again once the last zombie is down
  s.hatch=clamp(s.hatch+(s.phase==='uploading'||s.phase==='error'?dt*2:-dt*2.4));
  // blood level glides toward what has actually been spilled
- const k=24,c=2*Math.sqrt(k);s.fillV+=((s.pool-s.fill)*k-s.fillV*c)*dt;s.fill=clamp(s.fill+s.fillV*dt);
- s.shown+=(s.pool*100-s.shown)*Math.min(1,dt*8);
+ const k=s.flood>0?110:24,c=2*Math.sqrt(k);s.fillV+=((s.pool-s.fill)*k-s.fillV*c)*dt;s.fill=clamp(s.fill+s.fillV*dt);
+ // the knight's counter follows the upload but holds at 49 and 98 until each slash lands
+ const wantShown=s.hero==='knight'?(s.phase==='done'?100:Math.min(s.pct*100,s.stage===0?49:98)):s.pool*100;
+ s.shown+=(wantShown-s.shown)*Math.min(1,dt*8);
  const n=Math.floor(s.shown+0.02);if(n>s.lastN){s.lastN=n;s.pop=1}
  const busy=s.phase==='uploading',surface=levelY(s);
  if(s.phase==='done'&&s.hatch<0.05)s.topoff=Math.min(1,s.topoff+dt*1.5);
@@ -151,9 +171,11 @@ function step(s:Scene,dt:number){
   if((z.state==='alive'||z.state==='rising')&&z.rise>0&&busy)z.x=Math.min(limitFor(z),z.x+z.speed*dt);
   if(z.state==='dying'){z.t+=dt*1.3;if(z.t>=1)z.state='gone'}
   // once the upload is done no more zombies come, unless the horde is wiped before the blood is full
-  if(z.state==='gone'&&busy&&(!s.finale||!s.zombies.some(o=>o.state==='alive'||o.state==='rising'))){z.respawn+=dt;if(z.respawn>0.25+z.seed*0.45)Object.assign(z,makeZombie(z.row,56+Math.random()*60))}
+  if(z.state==='gone'&&busy&&(s.hero==='knight'?s.stage<2&&!s.wave:!s.finale||!s.zombies.some(o=>o.state==='alive'||o.state==='rising'))){z.respawn+=dt;if(z.respawn>0.25+z.seed*0.45)Object.assign(z,makeZombie(z.row,56+Math.random()*60))}
  }
  if(busy){s.groanCd-=dt;if(s.groanCd<=0){s.groanCd=0.5+Math.random()*1.1;s.events.push('groan')}}
+ if(s.hero==='knight')stepKnight(s,dt);
+ else{
  // aim + fire: the further the blood lags the upload, the harder he leans on the trigger
  const ready=busy&&s.soldierX<=SOLDIER_X;
  const alive=ready?s.zombies.filter(z=>(z.state==='alive'||(z.state==='rising'&&z.rise>0.45))&&z.hp>0).sort((a,b)=>b.x-a.x):[];
@@ -192,6 +214,7 @@ function step(s:Scene,dt:number){
   }
  }
  s.bullets=s.bullets.filter(b=>b.t<1.5);
+ }
  for(const r of s.ripples)r.t+=dt;s.ripples=s.ripples.filter(r=>r.t<1.2);
  for(const st of s.stains){st.life-=dt*0.2;st.len=Math.min(4,st.len+dt*0.8)}s.stains=s.stains.filter(st=>st.life>0);
  // particles
@@ -199,6 +222,7 @@ function step(s:Scene,dt:number){
   p.life-=dt;
   if(p.kind==='bubble'){p.y+=p.vy*dt;if(p.y<surface+1)p.life=0;continue}
   if(p.kind==='spark'){p.y+=p.vy*dt;continue}
+  if(p.kind==='ember'){p.x+=p.vx*dt;p.y+=p.vy*dt;continue}
   p.vy+=260*dt;const nx=p.x+p.vx*dt,ny=p.y+p.vy*dt;p.vx*=1-dt*1.2;
   if(p.kind==='blood'&&p.caged){
    if(!inside(nx,ny)){p.life=0;if(s.stains.length<70)s.stains.push({x:Math.round(clamp(nx,CAP.x0,CAP.x1-1)),y:Math.round(clamp(ny,TOP,BOTTOM-1)),life:1+Math.random(),len:0});continue}
@@ -220,6 +244,86 @@ function step(s:Scene,dt:number){
  }
  for(const d of s.drips){d.len+=d.speed*dt;if(d.len>=d.max)s.particles.push({x:d.x,y:d.y+d.len,vx:0,vy:10,life:2,max:2,kind:'drip',size:1,caged:false})}
  s.drips=s.drips.filter(d=>d.len<d.max);
+}
+
+function stepKnight(s:Scene,dt:number){
+ const ready=s.phase==='uploading'&&s.soldierX<=SOLDIER_X;
+ const want=s.stage===0?clamp(s.pct/0.5):clamp((s.pct-0.5)/0.5);
+ if(!s.slash)s.charge+=(want-s.charge)*Math.min(1,dt*4);
+ s.sinceSlash+=dt;
+ // red sparks get pulled into the blade, faster and denser as it charges
+ if(ready&&!s.slash&&s.charge>0.04){
+  const h=knightHand(s),mid={x:h.x-Math.cos(s.aim)*12,y:h.y-Math.sin(s.aim)*12};
+  for(let i=0;i<3;i++)if(Math.random()<dt*(4+s.charge*45)){const a=Math.random()*Math.PI*2,r=7+Math.random()*(6+s.charge*10),x=mid.x+Math.cos(a)*r,y=mid.y+Math.sin(a)*r;s.particles.push({x,y,vx:(mid.x-x)*3.2,vy:(mid.y-y)*3.2,life:0.3,max:0.3,kind:'ember',size:Math.random()<0.25?2:1,caged:false})}
+  s.crackleCd-=dt;if(s.crackleCd<=0){s.crackleCd=0.45-s.charge*0.38+Math.random()*0.08;s.events.push('crackle')}
+ }
+ if(!s.slash)s.aim+=((s.phase==='done'?PLANTED:GUARD)-s.aim)*Math.min(1,dt*8);
+ if(ready&&!s.slash&&!s.wave&&s.charge>0.93){
+  if(s.stage===0&&s.pct>=0.5)s.slash={t:0,stage:1,launched:false};
+  else if(s.stage===1&&s.finale&&s.sinceSlash>0.6)s.slash={t:0,stage:2,launched:false};
+ }
+ if(s.slash){
+  const sl=s.slash;sl.t+=dt;const t=sl.t;
+  s.aim=t<0.18?lerp(GUARD,RAISED,easeOut(t/0.18)):t<0.28?lerp(RAISED,FOLLOW,easeIn((t-0.18)/0.1)):t<0.7?FOLLOW:lerp(FOLLOW,GUARD,easeOut((t-0.7)/0.2));
+  if(!sl.launched&&t>=0.22){
+   sl.launched=true;const h=knightHand(s);
+   s.wave={x:h.x-16,stage:sl.stage};s.events.push('slash');s.whiteout=0.8;s.shake=5;s.charge=0;
+   // the slash floods the tube in one sweep: half-full at 50%, full at the end
+   s.pool=sl.stage===1?0.5:1;s.flood=0.9;
+  }
+  if(t>=0.9){s.slash=null;s.sinceSlash=0}
+ }
+ if(s.wave){
+  const w=s.wave;w.x-=dt*560;
+  for(const z of s.zombies)if((z.state==='alive'||z.state==='rising')&&z.rise>0&&w.x<z.x){
+   z.state='dying';z.t=0;z.respawn=0;z.flinch=1;s.kills++;s.skullPop=1;
+   const b=zombieBox(z,s.time,levelY(s));spawnBlood(s,b.head.x,b.head.y,-1,-0.6,22);if(s.kills%2)s.events.push('kill');
+  }
+  if(w.x<CAP.x0-14){
+   s.wave=null;
+   if(w.stage===1)s.stage=1;
+   else{
+    s.stage=2;for(const z of s.zombies)if(z.state!=='gone'&&z.state!=='dying'){z.state='dying';z.t=0}
+    if(s.phase==='uploading'){s.shown=100;s.lastN=100;s.pop=1;s.phase='done';s.phaseT=0;s.finished=true;s.events.push('win','hatch')}
+   }
+  }
+ }
+}
+
+function drawKnight(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
+ const walking=s.soldierX>SOLDIER_X,charging=s.phase==='uploading'&&!walking&&!s.slash;
+ // he trembles with the charge
+ const amp=charging?s.charge*1.6:0,jx=amp?Math.round((Math.random()-0.5)*2*amp):0,jy=amp?Math.round((Math.random()-0.5)*amp):0;
+ const crouch=s.slash&&s.slash.t<0.32?1:0;
+ const o=knightOrigin(s,(walking&&Math.floor(s.walkPh)%2?1:0)-crouch),ox=o.x+jx,oy=o.y+jy;
+ ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(o.x+3,LEDGE.y-1,16,1);
+ if(charging&&s.charge>0.3){ctx.globalAlpha=(s.charge-0.3)*0.55*(0.7+0.3*Math.sin(s.time*30));for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]])ctx.drawImage(sp.knightGlow.img,ox+dx,oy+dy);ctx.globalAlpha=1}
+ ctx.drawImage(sp.knight.img,ox,oy);
+ const glow=charging?s.charge:s.slash?1-clamp((s.slash.t-0.3)/0.4):0;
+ ctx.save();ctx.translate(ox+KHAND.x,oy+KHAND.y);ctx.rotate(s.aim);
+ if(glow>0){ctx.globalAlpha=glow*0.55;for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1],[-2,0]])ctx.drawImage(sp.swordGlow.img,-SPIV.x+dx,-SPIV.y+dy)}
+ ctx.globalAlpha=1;ctx.drawImage(sp.sword.img,-SPIV.x,-SPIV.y);
+ if(glow>0){ctx.globalAlpha=glow*0.8;ctx.drawImage(sp.swordGlow.img,-SPIV.x,-SPIV.y);if(glow>0.92&&Math.sin(s.time*40)>0){ctx.globalAlpha=0.6;ctx.drawImage(sp.sword.flash,-SPIV.x,-SPIV.y)}}
+ ctx.restore();ctx.globalAlpha=1;
+ // arc trail behind the swing
+ if(s.slash&&s.slash.t>0.17&&s.slash.t<0.45){
+  const a=clamp(1-(s.slash.t-0.22)/0.23),hx=ox+KHAND.x,hy=oy+KHAND.y;
+  for(let an=FOLLOW;an<=RAISED;an+=0.04)for(let r=16;r<=23;r++){
+   const d=Math.abs(r-20);ctx.fillStyle=d<1?`rgba(255,240,240,${a})`:`rgba(255,42,61,${a*(1-d/4)})`;
+   ctx.fillRect(Math.round(hx-Math.cos(an)*r),Math.round(hy-Math.sin(an)*r),1,1);
+  }
+ }
+}
+
+function drawWave(ctx:CanvasRenderingContext2D,s:Scene){
+ const w=s.wave;if(!w)return;
+ for(let y=TOP-6;y<=BOTTOM+6;y++){
+  const dy=(y-CAP.cy)/(CAP.r+6),x=Math.round(w.x-(1-dy*dy)*8);
+  ctx.fillStyle='rgba(255,42,61,0.18)';ctx.fillRect(x-2,y,16,1);
+  ctx.fillStyle='#fff3f3';ctx.fillRect(x,y,2,1);
+  ctx.fillStyle='#ff2a3d';ctx.fillRect(x+2,y,3,1);
+  ctx.fillStyle='rgba(180,0,20,0.55)';ctx.fillRect(x+5,y,6,1);
+ }
 }
 
 function drawMouth(ctx:CanvasRenderingContext2D,s:Scene){
@@ -316,15 +420,18 @@ function render(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
   if(p.kind==='blood'){ctx.fillStyle=`rgba(214,12,34,${a})`;ctx.fillRect(x,y,p.size,p.size)}
   else if(p.kind==='drip'){ctx.fillStyle='#b00a1e';ctx.fillRect(x,y,1,2)}
   else if(p.kind==='shell'){ctx.fillStyle=`rgba(230,186,72,${a})`;ctx.fillRect(x,y,2,1)}
+  else if(p.kind==='ember'){ctx.fillStyle=p.life>0.15?'#ff3b4e':'#ffd0d4';ctx.fillRect(x,y,p.size,p.size)}
   else if(p.kind==='spark'){ctx.fillStyle=`rgba(255,150,160,${a})`;ctx.fillRect(x-1,y,3,1);ctx.fillRect(x,y-1,1,3)}
  }
- if(s.soldierX<LW+10)drawSoldier(ctx,s,sp);
+ drawWave(ctx,s);
+ if(s.soldierX<LW+10){if(s.hero==='knight')drawKnight(ctx,s,sp);else drawSoldier(ctx,s,sp)}
  if(s.file){
   const k=easeIn(s.file.t),x=Math.round(lerp(s.file.x,DOOR.x+DOOR.w/2,k)),y=Math.round(lerp(s.file.y,CAP.cy,k)-Math.sin(k*Math.PI)*16);
   const w=Math.max(3,Math.round(12*(1-k*0.8))),h=Math.max(4,Math.round(15*(1-k*0.8)));
   ctx.fillStyle='#1e1a16';ctx.fillRect(x-(w>>1)-1,y-(h>>1)-1,w+2,h+2);ctx.fillStyle='#f2f2f2';ctx.fillRect(x-(w>>1),y-(h>>1),w,h);
   ctx.fillStyle='#d10a22';ctx.fillRect(x-(w>>1)+1,y,Math.max(1,w-2),Math.max(1,h>>2));
  }
+ if(s.whiteout>0){ctx.fillStyle=`rgba(255,225,228,${s.whiteout*0.55})`;ctx.fillRect(0,0,LW,LH)}
  drawHud(ctx,s,sp);
 }
 
@@ -348,10 +455,11 @@ function drawHud(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
  drawText(ctx,`×${s.kills}`,kx+10,ky-bump,'#f0ead8',2);
 }
 
-export default function ZombieCapsuleUpload({upload=simulateUpload,onComplete,accept}:{upload?:UploadFn;onComplete?:(file:File)=>void;accept?:string}){
+export default function ZombieCapsuleUpload({upload=simulateUpload,onComplete,accept,hero='soldier'}:{upload?:UploadFn;onComplete?:(file:File)=>void;accept?:string;hero?:Hero}){
  const canvasRef=useRef<HTMLCanvasElement>(null);
  const inputRef=useRef<HTMLInputElement>(null);
- const scene=useRef<Scene>(freshScene());
+ const scene=useRef<Scene>(freshScene(hero));
+ const heroRef=useRef(hero);heroRef.current=hero;
  const sfx=useRef<Sfx|null>(null);
  const dragDepth=useRef(0);
  const beforeDrag=useRef<Phase>('idle');
@@ -382,6 +490,7 @@ export default function ZombieCapsuleUpload({upload=simulateUpload,onComplete,ac
    ctx.imageSmoothingEnabled=false;ctx.fillStyle='#000000';ctx.fillRect(0,0,canvas.width,canvas.height);
    ctx.drawImage(low,shake?Math.round((Math.random()-0.5)*shake*2)*k:0,shake?Math.round((Math.random()-0.5)*shake*2)*k:0,canvas.width,canvas.height);
    for(const e of s.events.splice(0))audio.play(e);
+   audio.setHum(s.hero==='knight'&&s.phase==='uploading'&&s.soldierX<=SOLDIER_X&&!s.slash?s.charge:0);
    if(s.finished){s.finished=false;setPhase('done');setStatus(`Upload complete. ${s.kills} zombies down.`);if(current.current)onCompleteRef.current?.(current.current)}
    const pct=s.lastN;if(pct!==lastPct&&s.phase==='uploading'&&pct%10===0){lastPct=pct;setStatus(`Uploading ${pct}%`)}
    raf=requestAnimationFrame(frame);
@@ -393,7 +502,7 @@ export default function ZombieCapsuleUpload({upload=simulateUpload,onComplete,ac
  const start=useCallback((file:File,at?:Pt)=>{
   const s=scene.current;if(s.phase==='intake'||s.phase==='uploading')return;
   abort.current?.abort();
-  Object.assign(s,freshScene());
+  Object.assign(s,freshScene(heroRef.current));
   const total=Math.max(1,file.size);s.total=total;
   s.file={x:at?.x??COUNTER.cx,y:at?.y??LH-20,t:0};
   s.zombies=spawnHorde();
@@ -402,7 +511,7 @@ export default function ZombieCapsuleUpload({upload=simulateUpload,onComplete,ac
   const ctl=new AbortController();abort.current=ctl;
   upload(file,loaded=>{if(ctl.signal.aborted)return;s.loaded=Math.min(total,loaded);s.pct=clamp(loaded/total);s.target=Math.max(s.target,s.pct*0.995)},ctl.signal)
    .then(()=>{
-    // the upload is done: the soldier now clears the rest of the horde, and the last kill finishes the bar
+    // the upload is done: the soldier clears the rest of the horde (or the knight makes his final slash), finishing the bar
     if(ctl.signal.aborted)return;s.loaded=total;s.pct=1;s.target=1;s.finale=true;
    })
    .catch(()=>{if(ctl.signal.aborted)return;s.events.push('fail');go('error');setStatus('Upload failed.')});
@@ -414,7 +523,7 @@ export default function ZombieCapsuleUpload({upload=simulateUpload,onComplete,ac
  const onDragLeave=(e:DragEvent)=>{e.preventDefault();if(busy)return;dragDepth.current=Math.max(0,dragDepth.current-1);if(dragDepth.current===0&&scene.current.phase==='drag')go(beforeDrag.current)};
  const onDrop=(e:DragEvent)=>{e.preventDefault();unlock();dragDepth.current=0;const file=e.dataTransfer.files?.[0];if(file&&!busy)start(file,toScene(e));else if(scene.current.phase==='drag')go(beforeDrag.current)};
  const browse=()=>{unlock();if(!busy)inputRef.current?.click()};
- const reset=()=>{abort.current?.abort();Object.assign(scene.current,freshScene());setStatus('');go('idle')};
+ const reset=()=>{abort.current?.abort();Object.assign(scene.current,freshScene(heroRef.current));setStatus('');go('idle')};
  const toggleSound=()=>{const on=!sound;setSound(on);sfx.current?.setEnabled(on);try{window.localStorage.setItem('zombie-capsule-sfx',on?'on':'off')}catch{}};
 
  return <div className={styles.root} onPointerDown={unlock}>

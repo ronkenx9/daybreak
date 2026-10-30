@@ -124,6 +124,60 @@ export const ZOMBIE_ARM_BACK=[
  'kkkkkkkkk.',
 ];
 
+export const KNIGHT_PALETTE:Record<string,string>={
+ k:'#1a1622',a:'#dfe4f4',b:'#aab3d2',c:'#6f7699',v:'#2a2438',e:'#e040ff',
+ r:'#d6192c',R:'#8c1020',s:'#7a5a3a',S:'#c2a477',n:'#2a2630',
+};
+
+/** Knight facing right: steel plate, red plume, scarf and cape. The sword is a separate sprite. */
+export const KNIGHT=[
+ '....RRr...............',
+ '..RRrrrR.kkkkk........',
+ '.RrrRrrRkaaaabk.......',
+ 'Rrr.Rrrkaaaaaabbk.....',
+ 'Rr..Rrkaaaaaaabbck....',
+ 'R...Rrkaabaaaabbck....',
+ '....Rrkvvvvvvevvck....',
+ '.....Rkaaabbbbbbck....',
+ '......kabkbkbkbbck....',
+ '......kkabbbbbcckk....',
+ '.....kRrrrrrrrrRk.....',
+ '...kkkRRrrrrrrRRkkk...',
+ '..kaabkRRrrrRRkbaabk..',
+ '..kabbbkaaaaabkbbbck..',
+ '.Rkbbcckaaaaabkkbcck..',
+ '.RRkkckaaabaabkckkRr..',
+ '.RrkaakbaaabbbkaakRr..',
+ '.RrkaakbbabbbbkaakRr..',
+ '.RrkbbkkbbbbbkkbbkRr..',
+ '.Rrkbbkssssssskbbk.Rr.',
+ 'RRrkaakssSSsssk.aak.Rr',
+ 'RrrkkkknnnnnnnkkkkRRr.',
+ 'Rr..Rkannnnnnaak.Rrr..',
+ 'Rr.Rrkaabk.kaabkRRr...',
+ 'R..Rrkabbk.kabbk.Rr...',
+ '..RRrkbbck.kbbck.RRr..',
+ '.RRr.kaabk.kaabk..RR..',
+ '.R...kabck.kabck...R..',
+ '....kaabbk.kaabbk.....',
+ '....kkkkkk.kkkkkk.....',
+];
+/** Where the sword hand sits in the knight sprite. */
+export const KNIGHT_HAND={x:16,y:19};
+
+export const SWORD_PALETTE:Record<string,string>={k:'#1a1622',g:'#e3b51e',G:'#9a7a18',n:'#5a3a22',c:'#4de0ff',w:'#f3f6ff',W:'#b4bdd8'};
+/** Sword pointing right. Grip pivot at (3,3). */
+export const SWORD=[
+ '......kk................',
+ 'kkk..kgGk...............',
+ 'kgnnnkgckkkkkkkkkkkkkkk.',
+ 'kgnnnkgckwwwwwwwwwwwwwwk',
+ 'kkk..kgckWWWWWWWWWWWWWk.',
+ '......kGgkkkkkkkkkkkkkk.',
+ '.......kk...............',
+];
+export const SWORD_PIVOT={x:3,y:3};
+
 export const SKULL=[
  '.kkkkk.',
  'kwwwwwk',
