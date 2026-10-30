@@ -1,5 +1,5 @@
 /** Tiny WebAudio synth for the zombie capsule. Every sound is generated, so there are no audio files to ship. */
-export type SfxName='shot'|'hit'|'kill'|'groan'|'clink'|'suck'|'alarm'|'splash'|'win'|'fail'|'reload'|'hatch'|'slash'|'crackle';
+export type SfxName='shot'|'hit'|'kill'|'groan'|'clink'|'suck'|'alarm'|'splash'|'win'|'fail'|'reload'|'hatch'|'slash'|'crackle'|'land'|'beam'|'bigbeam'|'powerup'|'boom'|'shatter';
 
 export class Sfx{
  private ctx:AudioContext|null=null;
@@ -58,6 +58,12 @@ export class Sfx{
    case 'hatch':noise(t,0.25,'lowpass',220,0.6);tone(t,'square',150,70,0.18,0.18);tone(t+0.02,'triangle',1100,900,0.12,0.06);break;
    case 'slash':{const n=noise(t,0.32,'bandpass',700,0.55,1.2);n.frequency.exponentialRampToValueAtTime(5200,t+0.25);tone(t,'sine',1900,880,0.7,0.09);tone(t,'square',110,35,0.3,0.3);noise(t+0.05,0.5,'lowpass',300,0.45);break}
    case 'crackle':noise(t,0.025+Math.random()*0.03,'highpass',3500+Math.random()*3000,0.06+Math.random()*0.06);break;
+   case 'land':noise(t,0.35,'lowpass',200,0.7);tone(t,'sine',95,35,0.3,0.5);break;
+   case 'beam':noise(t,1.0,'bandpass',900,0.5,0.5);tone(t,'sawtooth',220,520,0.9,0.12,0.04);tone(t,'square',110,140,0.9,0.08,0.04);break;
+   case 'bigbeam':noise(t,1.4,'bandpass',700,0.65,0.4);noise(t,1.2,'lowpass',260,0.5);tone(t,'sawtooth',160,620,1.3,0.16,0.05);tone(t,'square',80,120,1.3,0.12,0.05);break;
+   case 'powerup':tone(t,'sawtooth',110,950,1.2,0.15,0.3);tone(t,'square',220,1400,1.2,0.05,0.4);noise(t,1.1,'highpass',1800,0.14);break;
+   case 'boom':noise(t,0.8,'lowpass',320,0.8);tone(t,'sine',70,28,0.7,0.6);break;
+   case 'shatter':for(let i=0;i<9;i++)tone(t+Math.random()*0.35,'triangle',2400+Math.random()*3000,1800,0.08,0.06);noise(t,0.45,'highpass',2600,0.25);break;
    case 'fail':tone(t,'sawtooth',320,70,0.7,0.16,0.01);break;
   }
  }

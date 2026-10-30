@@ -178,6 +178,48 @@ export const SWORD=[
 ];
 export const SWORD_PIVOT={x:3,y:3};
 
+const GOKU_BODY:Record<string,string>={k:'#101018',s:'#f2c08e',S:'#c98a5c',o:'#f26a10',O:'#b8420a',b:'#2a3fa8',B:'#18246a',w:'#e0203a',y:'#f0c020'};
+export const GOKU_PALETTE:Record<string,string>={...GOKU_BODY,h:'#1c1c24',H:'#44445a',e:'#2a1a10'};
+export const GOKU_SSJ_PALETTE:Record<string,string>={...GOKU_BODY,h:'#f7d64a',H:'#fff6c0',e:'#2ee0c8'};
+
+/** Spiky-haired martial artist in an orange gi, facing right, arms drawn separately. Hair and eyes swap palette when he transforms. */
+export const GOKU=[
+ '...........k............',
+ '..........khk...kk......',
+ '.....k...khhk..khk......',
+ '.....kk.khhhk.khhk......',
+ '......khkhhhhkhhhk......',
+ '...kkkhhhhhhhhhhhhkk....',
+ '....khhhhHhhhhhHhhhhk...',
+ 'kkkhhhhhhhhHhhhhhhhhhk..',
+ '.kkhhhhhhhhhhhhhhhhhk...',
+ '...khhhhhhhhhhhhhhhhhk..',
+ '....kkhhhhhhshhshhhkk...',
+ '....khhhhhsssshsshhk....',
+ '.....khhkssskekssshk....',
+ '......kkkSsssssssk......',
+ '........kSssssSsk.......',
+ '........kkSSSSkk........',
+ '.......kookSSkook.......',
+ '......kooobkkbooook.....',
+ '.....koooobbbbooook.....',
+ '.....kOoooobbooooOk.....',
+ '.....kOooooooooooOk.....',
+ '......kbbbbbbbbbbk......',
+ '......kooooOooooook.....',
+ '.....kooooOkOoooook.....',
+ '.....kOoooOkOooooOk.....',
+ '.....kOoooOk.kOoooOk....',
+ '.....kOOooOk.kOoooOk....',
+ '......kOOOk...kOOOk.....',
+ '......kbbbk...kbbbk.....',
+ '.....kbwbbk...kbbwbk....',
+ '....kbyyybk..kbyyybk....',
+ '....kkkkkkk..kkkkkkk....',
+];
+/** Shoulders in the right-facing sprite: [back, front]. */
+export const GOKU_SHOULDERS=[{x:6,y:17},{x:17,y:17}];
+
 export const SKULL=[
  '.kkkkk.',
  'kwwwwwk',

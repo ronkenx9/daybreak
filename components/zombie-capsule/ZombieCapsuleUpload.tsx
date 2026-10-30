@@ -3,7 +3,7 @@ import {useCallback,useEffect,useRef,useState,type DragEvent} from 'react';
 import styles from './ZombieCapsuleUpload.module.css';
 import {Sfx,type SfxName} from './sfx';
 import {
- ARMS_MUZZLE,ARMS_PIVOT,KNIGHT,KNIGHT_HAND,KNIGHT_PALETTE,SKULL,SWORD,SWORD_PALETTE,SWORD_PIVOT,SKULL_PALETTE,SOLDIER_A,SOLDIER_ARMS,SOLDIER_B,SOLDIER_PALETTE,SOLDIER_SHOULDER,
+ ARMS_MUZZLE,ARMS_PIVOT,GOKU,GOKU_PALETTE,GOKU_SHOULDERS,GOKU_SSJ_PALETTE,KNIGHT,KNIGHT_HAND,KNIGHT_PALETTE,SKULL,SWORD,SWORD_PALETTE,SWORD_PIVOT,SKULL_PALETTE,SOLDIER_A,SOLDIER_ARMS,SOLDIER_B,SOLDIER_PALETTE,SOLDIER_SHOULDER,
  ZOMBIE_ARM,ZOMBIE_ARM_BACK,ZOMBIE_OPEN,ZOMBIE_PALETTE,ZOMBIE_SHUT,drawText,flipSprite,glyphCells,makeSprite,textWidth,type Sprite,
 } from './sprites';
 
@@ -17,16 +17,18 @@ import {
  * respawning and the last kill lands exactly on 100%, then the hatch shuts.
  * The knight variant charges his sword instead: it glows and shakes harder as the
  * upload advances, one slash at 50% floods the tube half-full and a final slash
- * when the upload finishes kills everything and fills it.
+ * when the upload finishes kills everything and fills it. The goku variant drops
+ * onto the ledge, fires a Kamehameha at 50%, transforms at 99% and the final beam
+ * floods the tube and cracks the glass all over.
  * Everything is drawn on a low-res canvas and scaled up with nearest-neighbour.
  */
 export type UploadFn=(file:File,onProgress:(loaded:number)=>void,signal:AbortSignal)=>Promise<void>;
 type Phase='idle'|'drag'|'intake'|'uploading'|'done'|'error';
-export type Hero='soldier'|'knight';
+export type Hero='soldier'|'knight'|'goku';
 
 type Pt={x:number;y:number};
 type Zombie={x:number;row:0|1;seed:number;speed:number;rise:number;hp:number;state:'rising'|'alive'|'dying'|'gone';t:number;flinch:number;respawn:number};
-type Particle={x:number;y:number;vx:number;vy:number;life:number;max:number;kind:'blood'|'shell'|'spark'|'bubble'|'drip'|'ember';size:number;caged:boolean;bounced?:boolean};
+type Particle={x:number;y:number;vx:number;vy:number;life:number;max:number;kind:'blood'|'shell'|'spark'|'bubble'|'drip'|'ember'|'shard';size:number;color?:string;caged:boolean;bounced?:boolean};
 type Bullet={x0:number;y0:number;x1:number;y1:number;t:number;target:Zombie};
 type Scene={
  hero:Hero;phase:Phase;time:number;phaseT:number;
@@ -39,6 +41,10 @@ type Scene={
  file:{x:number;y:number;t:number}|null;events:SfxName[];
  // knight only: which half is charging, how charged the blade is, the swing and the slash wave it throws
  stage:0|1|2;charge:number;slash:{t:number;stage:1|2;launched:boolean}|null;wave:{x:number;stage:1|2}|null;sinceSlash:number;whiteout:number;flood:number;crackleCd:number;
+ // goku only: the drop onto the ledge, his beam, the transformation and the cracks it leaves in the glass
+ gy:number;gv:number;falling:boolean;landed:boolean;landT:number;beam:{t:number;stage:1|2;front:number}|null;ssj:boolean;transformT:number|null;cracks:{x:number;y:number;o:number}[];crackT:number;
+ // goku body physics: lean (bx) and knee bend (cr) on springs, hands chasing their pose on springs, blink timer
+ gk:{bx:number;bxv:number;cr:number;crv:number;hands:{x:number;y:number;vx:number;vy:number}[];blink:number};
 };
 
 const LW=320,LH=112;
@@ -76,10 +82,11 @@ const COLS=Array.from({length:CAP.x1-CAP.x0},(_,i)=>{const x=CAP.x0+i,rows=SPANS
 const OUTLINE:Pt[]=SPANS.flatMap(({y,xl,xr})=>{const out:Pt[]=[];for(let x=xl;x<xr;x++)if(!inside(x-1,y)||!inside(x+1,y)||!inside(x,y-1)||!inside(x,y+1))out.push({x,y});return out});
 const HANDPRINT=['..r.r.r','.rr.r.r','.rrrrrr','rrrrrrr','.rrrrr.','..rrr..'];
 
-type Sprites={knight:Sprite;knightGlow:Sprite;sword:Sprite;swordGlow:Sprite;soldierA:Sprite;soldierB:Sprite;arms:Sprite;zOpen:Sprite;zShut:Sprite;zArm:Sprite;zArmBack:Sprite;skull:Sprite;hand:Sprite};
+type Sprites={goku:Sprite;gokuSsj:Sprite;gokuAura:Sprite;knight:Sprite;knightGlow:Sprite;sword:Sprite;swordGlow:Sprite;soldierA:Sprite;soldierB:Sprite;arms:Sprite;zOpen:Sprite;zShut:Sprite;zArm:Sprite;zArmBack:Sprite;skull:Sprite;hand:Sprite};
 // Source art faces the soldier right / zombies left; here the soldier faces left into the capsule and the zombies face him.
 const RED='#ff2a3d';
 const buildSprites=():Sprites=>({
+ goku:flipSprite(makeSprite(GOKU,GOKU_PALETTE)),gokuSsj:flipSprite(makeSprite(GOKU,GOKU_SSJ_PALETTE)),gokuAura:flipSprite(makeSprite(GOKU,Object.fromEntries(Object.keys(GOKU_PALETTE).map(k=>[k,'#ffd23f'])))),
  knight:flipSprite(makeSprite(KNIGHT,KNIGHT_PALETTE)),knightGlow:flipSprite(makeSprite(KNIGHT,Object.fromEntries(Object.keys(KNIGHT_PALETTE).map(k=>[k,RED])))),
  sword:flipSprite(makeSprite(SWORD,SWORD_PALETTE)),swordGlow:flipSprite(makeSprite(SWORD,{w:RED,W:RED})),
  soldierA:flipSprite(makeSprite(SOLDIER_A,SOLDIER_PALETTE)),soldierB:flipSprite(makeSprite(SOLDIER_B,SOLDIER_PALETTE)),arms:flipSprite(makeSprite(SOLDIER_ARMS,SOLDIER_PALETTE)),
@@ -94,6 +101,8 @@ const KNIGHT_W=Math.max(...KNIGHT.map(r=>r.length)),SWORD_W=Math.max(...SWORD.ma
 const KHAND={x:KNIGHT_W-1-KNIGHT_HAND.x,y:KNIGHT_HAND.y};
 const SPIV={x:SWORD_W-1-SWORD_PIVOT.x,y:SWORD_PIVOT.y};
 // sword angles (the flipped blade points along (-cos, -sin)): low guard while charging, raised for the windup, follow-through, planted when done
+const GOKU_W=Math.max(...GOKU.map(r=>r.length));
+const GSHOULDER=GOKU_SHOULDERS.map(p=>({x:GOKU_W-1-p.x,y:p.y}));
 const GUARD=-0.93,RAISED=2.1,FOLLOW=-0.6,PLANTED=-1.28;
 
 const simulateUpload:UploadFn=(file,onProgress,signal)=>new Promise((resolve,reject)=>{
@@ -107,6 +116,8 @@ const freshScene=(hero:Hero='soldier'):Scene=>({
  soldierX:SOLDIER_START,walkPh:0,aim:0,fireCd:0,mag:MAG,flash:0,recoil:0,shake:0,hits:0,kills:0,skullPop:0,groanCd:1,alarmCd:0,
  zombies:[],particles:[],bullets:[],ripples:[],stains:[],drips:[],file:null,events:[],
  stage:0,charge:0,slash:null,wave:null,sinceSlash:9,whiteout:0,flood:0,crackleCd:0,
+ gy:-120,gv:0,falling:false,landed:false,landT:0,beam:null,ssj:false,transformT:null,cracks:[],crackT:0,
+ gk:{bx:0,bxv:0,cr:0,crv:0,hands:[{x:20,y:8,vx:0,vy:0},{x:3,y:10,vx:0,vy:0}],blink:2},
 });
 
 const makeZombie=(row:0|1,x:number,delay=0):Zombie=>({x,row,seed:Math.random(),speed:2+Math.random()*4,rise:-delay,hp:2+Math.floor(Math.random()*3),state:'rising',t:0,flinch:0,respawn:0});
@@ -151,11 +162,12 @@ function step(s:Scene,dt:number){
  s.heat+=((s.phase==='drag'?1:0)-s.heat)*Math.min(1,dt*6);
  const open=s.phase==='uploading'||s.phase==='done'||s.phase==='error';
  // the hatch slams shut again once the last zombie is down
- s.hatch=clamp(s.hatch+(s.phase==='uploading'||s.phase==='error'?dt*2:-dt*2.4));
+ // (the goku beam blows the tube apart, so his hatch stays open)
+ s.hatch=clamp(s.hatch+(s.phase==='uploading'||s.phase==='error'||(s.phase==='done'&&s.hero==='goku')?dt*2:-dt*2.4));
  // blood level glides toward what has actually been spilled
  const k=s.flood>0?110:24,c=2*Math.sqrt(k);s.fillV+=((s.pool-s.fill)*k-s.fillV*c)*dt;s.fill=clamp(s.fill+s.fillV*dt);
  // the knight's counter follows the upload but holds at 49 and 98 until each slash lands
- const wantShown=s.hero==='knight'?(s.phase==='done'?100:Math.min(s.pct*100,s.stage===0?49:98)):s.pool*100;
+ const wantShown=s.hero!=='soldier'?(s.phase==='done'?100:Math.min(s.pct*100,s.stage===0?49:s.hero==='goku'?99:98)):s.pool*100;
  s.shown+=(wantShown-s.shown)*Math.min(1,dt*8);
  const n=Math.floor(s.shown+0.02);if(n>s.lastN){s.lastN=n;s.pop=1}
  const busy=s.phase==='uploading',surface=levelY(s);
@@ -171,10 +183,11 @@ function step(s:Scene,dt:number){
   if((z.state==='alive'||z.state==='rising')&&z.rise>0&&busy)z.x=Math.min(limitFor(z),z.x+z.speed*dt);
   if(z.state==='dying'){z.t+=dt*1.3;if(z.t>=1)z.state='gone'}
   // once the upload is done no more zombies come, unless the horde is wiped before the blood is full
-  if(z.state==='gone'&&busy&&(s.hero==='knight'?s.stage<2&&!s.wave:!s.finale||!s.zombies.some(o=>o.state==='alive'||o.state==='rising'))){z.respawn+=dt;if(z.respawn>0.25+z.seed*0.45)Object.assign(z,makeZombie(z.row,56+Math.random()*60))}
+  if(z.state==='gone'&&busy&&(s.hero==='knight'?s.stage<2&&!s.wave:s.hero==='goku'?s.stage<2&&!s.beam:!s.finale||!s.zombies.some(o=>o.state==='alive'||o.state==='rising'))){z.respawn+=dt;if(z.respawn>0.25+z.seed*0.45)Object.assign(z,makeZombie(z.row,56+Math.random()*60))}
  }
  if(busy){s.groanCd-=dt;if(s.groanCd<=0){s.groanCd=0.5+Math.random()*1.1;s.events.push('groan')}}
  if(s.hero==='knight')stepKnight(s,dt);
+ else if(s.hero==='goku')stepGoku(s,dt);
  else{
  // aim + fire: the further the blood lags the upload, the harder he leans on the trigger
  const ready=busy&&s.soldierX<=SOLDIER_X;
@@ -223,6 +236,7 @@ function step(s:Scene,dt:number){
   if(p.kind==='bubble'){p.y+=p.vy*dt;if(p.y<surface+1)p.life=0;continue}
   if(p.kind==='spark'){p.y+=p.vy*dt;continue}
   if(p.kind==='ember'){p.x+=p.vx*dt;p.y+=p.vy*dt;continue}
+  if(p.kind==='shard'){p.vy+=300*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.y>LH)p.life=0;continue}
   p.vy+=260*dt;const nx=p.x+p.vx*dt,ny=p.y+p.vy*dt;p.vx*=1-dt*1.2;
   if(p.kind==='blood'&&p.caged){
    if(!inside(nx,ny)){p.life=0;if(s.stains.length<70)s.stains.push({x:Math.round(clamp(nx,CAP.x0,CAP.x1-1)),y:Math.round(clamp(ny,TOP,BOTTOM-1)),life:1+Math.random(),len:0});continue}
@@ -288,6 +302,190 @@ function stepKnight(s:Scene,dt:number){
    }
   }
  }
+}
+
+const gokuOrigin=(s:Scene)=>({x:Math.round(SOLDIER_X)-(GOKU_W>>1),y:LEDGE.y-32+Math.round(s.gy)});
+/** The energy gathers between his hands, so it follows them wherever the springs carry them. */
+const gokuBall=(s:Scene)=>{const o=gokuOrigin(s),[a,b]=s.gk.hands,mx=(a.x+b.x)/2,my=(a.y+b.y)/2;return {x:Math.round(o.x+mx+(s.beam?-3:2)),y:Math.round(o.y+my-1)}};
+const spring=(v:number,vel:number,target:number,k:number,zeta:number,dt:number)=>{const a=(target-v)*k-vel*2*Math.sqrt(k)*zeta;vel+=a*dt;return [v+vel*dt,vel]};
+
+/** Where each hand wants to be (relative to his origin) for what he is doing right now. */
+function gokuHandTargets(s:Scene){
+ const {bx,cr}=s.gk,t=s.time;
+ if(s.falling)return [{x:21+Math.sin(t*20)*1.5,y:7},{x:2+Math.sin(t*20+2)*1.5,y:9}];
+ if(s.beam)return [{x:-3+bx,y:18+cr},{x:-4+bx,y:19+cr}];
+ if(s.transformT!==null)return [{x:19+bx,y:24+cr+Math.random()},{x:4+bx,y:24+cr+Math.random()}];
+ if(s.phase==='uploading'&&s.landed)return [{x:20+bx,y:21+cr},{x:19+bx,y:22+cr}];
+ // at rest: fists by his hips, like the reference pose
+ return [{x:17+bx,y:23+cr},{x:6+bx,y:23+cr}];
+}
+
+/** Random branching fractures over the whole tube; `o` orders them so they can spread outward from the impact points. */
+function makeCracks(){
+ const out:{x:number;y:number;o:number}[]=[];
+ for(let i=0;i<9;i++){
+  const sx=CAP.x0+10+i*(CAP.x1-CAP.x0-20)/8+(Math.random()-0.5)*10,sy=CAP.cy+(Math.random()-0.5)*CAP.r*1.4;
+  for(let b=0;b<4;b++){
+   let x=sx,y=sy,a=Math.random()*Math.PI*2;
+   for(let n=0;n<14+Math.random()*16;n++){a+=(Math.random()-0.5)*0.9;x+=Math.cos(a)*1.3;y+=Math.sin(a)*1.3;if(!inside(x,y))break;out.push({x:Math.round(x),y:Math.round(y),o:n/30})}
+  }
+ }
+ return out;
+}
+
+function stepGoku(s:Scene,dt:number){
+ const open=s.phase==='uploading';
+ s.landT=Math.max(0,s.landT-dt);
+ // he drops in from above the frame once the hatch is up, accelerating under gravity
+ if(open&&s.hatch>0.5&&!s.landed){
+  s.falling=true;s.gv+=640*dt;s.gy+=s.gv*dt;
+  if(s.gy>=0){
+   s.gy=0;s.gv=0;s.landed=true;s.falling=false;s.landT=0.28;s.shake=4;s.events.push('land');
+   for(let i=0;i<14;i++){const d=i%2?1:-1;s.particles.push({x:SOLDIER_X+d*(4+Math.random()*6),y:LEDGE.y-1,vx:d*(20+Math.random()*40),vy:-10-Math.random()*25,life:0.5,max:0.5,kind:'ember',size:1,caged:false,color:'#8d8486'})}
+   // the impact drives his knees down; the spring brings him back up with a little bounce
+   s.gk.crv+=110;
+  }
+ }
+ // body physics: lean back with the charge, get shoved back by the beam, sink into a deep stance to power up
+ const g=s.gk;
+ const leanT=s.beam?2.5:s.transformT!==null?0:s.phase==='uploading'&&s.landed?s.charge*1.2:0;
+ const crT=s.falling?0:s.beam?1.5:s.transformT!==null?2.5:s.phase==='uploading'&&s.landed?0.8+s.charge*1.2:0;
+ [g.bx,g.bxv]=spring(g.bx,g.bxv,leanT,120,0.45,dt);[g.cr,g.crv]=spring(g.cr,g.crv,crT,170,0.4,dt);g.cr=Math.max(-1,g.cr);
+ const targets=gokuHandTargets(s);
+ g.hands.forEach((h,i)=>{[h.x,h.vx]=spring(h.x,h.vx,targets[i].x,s.beam?420:220,0.55,dt);[h.y,h.vy]=spring(h.y,h.vy,targets[i].y,s.beam?420:220,0.55,dt)});
+ g.blink-=dt;if(g.blink<-0.12)g.blink=1.8+Math.random()*2.5;
+ if(s.beam&&Math.random()<dt*30){const o=gokuOrigin(s);s.particles.push({x:o.x+8+Math.random()*10,y:LEDGE.y-1,vx:20+Math.random()*40,vy:-5-Math.random()*15,life:0.4,max:0.4,kind:'ember',size:1,caged:false,color:'#8d8486'})}
+ if(s.transformT!==null&&Math.random()<dt*18)s.particles.push({x:LEDGE.x+4+Math.random()*60,y:LEDGE.y-1,vx:(Math.random()-0.5)*6,vy:-12-Math.random()*20,life:1.4,max:1.4,kind:'ember',size:Math.random()<0.3?2:1,caged:false,color:Math.random()<0.5?'#6a6d74':'#4a3a2a'})
+ const ready=open&&s.landed&&s.landT<=0;
+ const want=s.stage===0?clamp(s.pct/0.5):clamp((s.pct-0.5)/0.49);
+ if(!s.beam)s.charge+=(want-s.charge)*Math.min(1,dt*4);
+ // energy gets pulled into his cupped hands
+ if(ready&&!s.beam&&s.charge>0.04){
+  const c=gokuBall(s);
+  for(let i=0;i<3;i++)if(Math.random()<dt*(5+s.charge*45)){const a=Math.random()*Math.PI*2,r=6+Math.random()*(6+s.charge*10),x=c.x+Math.cos(a)*r,y=c.y+Math.sin(a)*r;s.particles.push({x,y,vx:(c.x-x)*3.4,vy:(c.y-y)*3.4,life:0.3,max:0.3,kind:'ember',size:Math.random()<0.25?2:1,caged:false,color:Math.random()<0.5?'#7fd0ff':'#ffffff'})}
+  s.crackleCd-=dt;if(s.crackleCd<=0){s.crackleCd=0.45-s.charge*0.38+Math.random()*0.08;s.events.push('crackle')}
+ }
+ if(s.ssj&&Math.random()<dt*14){const o=gokuOrigin(s);s.particles.push({x:o.x+4+Math.random()*16,y:o.y+8+Math.random()*22,vx:0,vy:-25-Math.random()*25,life:0.5,max:0.5,kind:'ember',size:1,caged:false,color:Math.random()<0.5?'#ffd23f':'#fff6c0'})}
+ // at 99% he transforms
+ if(ready&&s.stage===1&&!s.ssj&&s.transformT===null&&!s.beam&&(s.pct>=0.99||s.finale)){s.transformT=0;s.events.push('powerup')}
+ if(s.transformT!==null){
+  const before=s.transformT;s.transformT+=dt;s.shake=Math.max(s.shake,2+s.transformT*2);
+  if(before<1&&s.transformT>=1){s.ssj=true;s.whiteout=0.9;s.shake=6;s.events.push('boom')}
+  if(s.transformT>=1.5)s.transformT=null;
+ }
+ // fire: at 50%, and once he has transformed and the upload is finished
+ if(ready&&!s.beam&&s.transformT===null&&s.charge>0.92){
+  if(s.stage===0&&s.pct>=0.5)fireBeam(s,1);
+  else if(s.stage===1&&s.ssj&&s.finale)fireBeam(s,2);
+ }
+ if(s.beam){
+  const b=s.beam;b.t+=dt;b.front=Math.max(CAP.x0-8,b.front-dt*720);
+  if(b.stage===2)s.shake=Math.max(s.shake,2.5);
+  for(const z of s.zombies)if((z.state==='alive'||z.state==='rising')&&z.rise>0&&b.front<z.x){
+   z.state='dying';z.t=0;z.respawn=0;z.flinch=1;s.kills++;s.skullPop=1;
+   const bx=zombieBox(z,s.time,levelY(s));spawnBlood(s,bx.head.x,bx.head.y,-1,-0.6,22);if(s.kills%2)s.events.push('kill');
+  }
+  if(b.stage===2&&b.front<=CAP.x0-8&&s.cracks.length===0){s.cracks=makeCracks();s.events.push('shatter')}
+  if(b.t>=(b.stage===2?1.5:1.05)){
+   s.beam=null;
+   if(b.stage===1)s.stage=1;
+   else{
+    s.stage=2;for(const z of s.zombies)if(z.state!=='gone'&&z.state!=='dying'){z.state='dying';z.t=0}
+    if(s.phase==='uploading'){s.shown=100;s.lastN=100;s.pop=1;s.phase='done';s.phaseT=0;s.finished=true;s.events.push('win')}
+   }
+  }
+ }
+ // the cracks spread across the glass, throwing shards, then blood seeps out of them
+ if(s.cracks.length){
+  const before=s.crackT;s.crackT=Math.min(1,s.crackT+dt*1.4);
+  if(before<1)for(let i=0;i<6;i++)if(Math.random()<0.7){const p=s.cracks[Math.floor(Math.random()*s.cracks.length)];s.particles.push({x:p.x,y:p.y,vx:(Math.random()-0.5)*70,vy:-30-Math.random()*60,life:1.2,max:1.2,kind:'shard',size:Math.random()<0.3?2:1,caged:false})}
+  if(s.crackT>=1&&Math.random()<dt*6)s.particles.push({x:CAP.x0+CAP.r+Math.random()*(CAP.x1-CAP.x0-CAP.r*2),y:BOTTOM,vx:0,vy:8,life:2,max:2,kind:'drip',size:1,caged:false});
+ }
+}
+
+function fireBeam(s:Scene,stage:1|2){
+ const c=gokuBall(s);
+ s.beam={t:0,stage,front:c.x-5};s.charge=0;s.gk.bxv+=stage===2?90:60;s.gk.crv+=40;s.whiteout=stage===2?0.9:0.5;s.shake=stage===2?6:4;
+ s.events.push(stage===2?'bigbeam':'beam');
+ // the beam floods the tube: half-full at 50%, full with the final blast
+ s.pool=stage===1?0.5:1;s.flood=1.1;
+}
+
+function drawLimb(ctx:CanvasRenderingContext2D,a:Pt,b:Pt){
+ const n=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.y-a.y)));
+ const at=(i:number)=>({x:Math.round(lerp(a.x,b.x,i/n)),y:Math.round(lerp(a.y,b.y,i/n))});
+ ctx.fillStyle='#101018';for(let i=0;i<=n;i++){const p=at(i);ctx.fillRect(p.x-1,p.y-1,4,4)}
+ ctx.fillStyle='#f2c08e';for(let i=0;i<=n;i++){const p=at(i);ctx.fillRect(p.x,p.y,2,2)}
+ ctx.fillStyle='#2a3fa8';for(let i=Math.round(n*0.7);i<=Math.round(n*0.82);i++){const p=at(i);ctx.fillRect(p.x,p.y,2,2)}
+}
+
+// sprite bands that move independently: spiky hair, head and torso, legs
+const HAIR_ROWS=10,TORSO_END=21;
+/** Draws the sprite in three bands so his hair, torso and legs can each move on their own. */
+function drawGokuBands(ctx:CanvasRenderingContext2D,img:HTMLCanvasElement,ox:number,oy:number,body:Pt,hair:Pt,legs:Pt){
+ const h=img.height,w=img.width;
+ ctx.drawImage(img,0,TORSO_END,w,h-TORSO_END,ox+legs.x,oy+TORSO_END+legs.y,w,h-TORSO_END);
+ ctx.drawImage(img,0,HAIR_ROWS,w,TORSO_END-HAIR_ROWS,ox+body.x,oy+HAIR_ROWS+body.y,w,TORSO_END-HAIR_ROWS);
+ ctx.drawImage(img,0,0,w,HAIR_ROWS,ox+hair.x,oy+hair.y,w,HAIR_ROWS);
+}
+
+function drawGoku(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
+ if(!s.falling&&!s.landed)return;
+ const g=s.gk,o=gokuOrigin(s),t=s.time,charging=s.phase==='uploading'&&s.landed&&!s.beam;
+ const flick=s.transformT!==null&&s.transformT>0.25&&Math.floor(s.transformT*14)%2===0,gold=s.ssj||flick;
+ // trembling with power while charging and while he transforms
+ const amp=s.transformT!==null?1.4:charging?s.charge*1.1:0,jx=amp?Math.round((Math.random()-0.5)*2*amp):0,jy=amp>1?Math.round((Math.random()-0.5)*amp):0;
+ const ox=o.x+jx,oy=o.y+jy;
+ // breathing: slow at rest, quick and shallow while he strains
+ const breath=Math.round((Math.sin(t*(charging?6:2.4))+1)/2*(charging?0.6:1));
+ const bx=Math.round(g.bx),cr=Math.round(g.cr);
+ const power=s.transformT!==null?Math.min(1,s.transformT):charging?s.charge:s.ssj?0.6:0;
+ // hair streams up while he falls, sways at rest, and lifts with his power
+ const hairY=s.falling?-2:-Math.round(power*1.6);
+ const hairX=s.falling?0:Math.round(Math.sin(t*2.2)*0.6+(s.beam?1:0));
+ const body={x:bx,y:cr+breath},hair={x:bx+hairX,y:cr+breath+hairY},legs={x:Math.round(bx*0.3),y:s.falling&&s.gv>200?1:0};
+ if(s.falling){ctx.fillStyle='rgba(255,255,255,0.35)';for(let i=0;i<4;i++)ctx.fillRect(ox+4+i*5,oy-14-((i*7)%10),1,10+(i%2)*4)}
+ else{ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(o.x+3-cr,LEDGE.y-1,18+cr*2,1)}
+ if(s.falling&&s.gy>-40){const k=clamp(1+s.gy/40);ctx.fillStyle=`rgba(0,0,0,${0.5*k})`;ctx.fillRect(o.x+8,LEDGE.y-1,Math.round(8*k),1)}
+ // aura: gold flames once he has transformed, a faint blue shimmer while charging
+ if(gold||(charging&&s.charge>0.55)){
+  ctx.globalAlpha=gold?0.45+0.25*Math.sin(t*28):(s.charge-0.55)*0.6;
+  const img=gold?sp.gokuAura.img:sp.gokuAura.flash;
+  for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,-2],[-1,-1],[1,-1]])drawGokuBands(ctx,img,ox+dx,oy+dy,body,{x:hair.x,y:hair.y-(gold?1+Math.round(Math.random()):0)},legs);
+  ctx.globalAlpha=1;
+ }
+ const sh=GSHOULDER.map(p=>({x:ox+p.x+body.x,y:oy+p.y+body.y}));
+ const hands=g.hands.map(h=>({x:ox+h.x,y:oy+h.y+breath}));
+ drawLimb(ctx,sh[0],hands[0]);
+ drawGokuBands(ctx,gold?sp.gokuSsj.img:sp.goku.img,ox,oy,body,hair,legs);
+ // blink, or squeeze the eyes shut while he screams through the transformation
+ if(g.blink<0||(s.transformT!==null&&s.transformT<1)){ctx.fillStyle='#c98a5c';ctx.fillRect(ox+10+body.x,oy+12+body.y,1,1)}
+ drawLimb(ctx,sh[1],hands[1]);
+ const ball=gokuBall(s),r=s.beam?0:charging||s.transformT!==null?1+s.charge*(s.ssj?6:4):0;
+ if(r>0){
+  const bx2=ball.x+jx,by=ball.y+jy+breath,flk=0.8+0.2*Math.sin(t*40);
+  // round, dithered halo so the glow reads as light rather than a box
+  const R2=Math.ceil(r*2);for(let y=-R2;y<=R2;y++)for(let x=-R2;x<=R2;x++){const d=Math.hypot(x,y);if(d<=r||d>r*2)continue;if((x+y)&1&&d>r*1.5)continue;ctx.fillStyle=`rgba(63,169,255,${0.4*flk*(1-(d-r)/r)})`;ctx.fillRect(Math.round(bx2+x),Math.round(by+y),1,1)}
+  for(let y=-Math.ceil(r);y<=Math.ceil(r);y++)for(let x=-Math.ceil(r);x<=Math.ceil(r);x++){const d=Math.hypot(x,y);if(d>r)continue;ctx.fillStyle=d<r*0.45?'#ffffff':d<r*0.8?'#9fdcff':'#3fa9ff';ctx.fillRect(Math.round(bx2+x),Math.round(by+y),1,1)}
+ }
+ if(s.ssj&&Math.random()<0.35){ctx.fillStyle='#cff6ff';let x=ox+4+Math.random()*16,y=oy+4+Math.random()*20;for(let i=0;i<4;i++){ctx.fillRect(Math.round(x),Math.round(y),1,1);x+=(Math.random()-0.5)*4;y+=1+Math.random()*2}}
+}
+
+function drawBeam(ctx:CanvasRenderingContext2D,s:Scene){
+ const b=s.beam;if(!b)return;
+ const c=gokuBall(s),big=b.stage===2,end=b.stage===2?1.5:1.05;
+ const fade=b.t>end-0.3?clamp((end-b.t)/0.3):1,flk=0.85+0.15*Math.sin(s.time*50);
+ const half=(big?6:4)*fade*flk,x0=Math.round(b.front),x1=c.x+3;
+ const band=(h:number,color:string)=>{if(h<0.5)return;const hh=Math.round(h);ctx.fillStyle=color;ctx.fillRect(x0,c.y-hh,x1-x0,hh*2+1)};
+ band(half+3,'rgba(63,169,255,0.25)');band(half+1,'#3fa9ff');band(half*0.65,'#9fdcff');band(half*0.3,'#ffffff');
+ // the head of the beam and the glow in his hands
+ const r=Math.round(half+3);ctx.fillStyle='#9fdcff';ctx.fillRect(x0-r,c.y-r,r,r*2+1);ctx.fillStyle='#ffffff';ctx.fillRect(x0-Math.round(r*0.6),c.y-Math.round(r*0.5),Math.round(r*0.6),Math.round(r)+1);
+ ctx.fillStyle='rgba(159,220,255,0.6)';ctx.fillRect(x1-3,c.y-r,6,r*2+1);
+}
+
+function drawCracks(ctx:CanvasRenderingContext2D,s:Scene){
+ if(!s.cracks.length)return;
+ for(const p of s.cracks){if(p.o>s.crackT)continue;ctx.fillStyle='rgba(20,20,30,0.7)';ctx.fillRect(p.x+1,p.y+1,1,1);ctx.fillStyle='#eef4ff';ctx.fillRect(p.x,p.y,1,1)}
 }
 
 function drawKnight(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
@@ -410,6 +608,7 @@ function render(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
  ctx.fillStyle=rgba(rim);for(const p of OUTLINE)ctx.fillRect(p.x,p.y,1,1);
  ctx.fillStyle='rgba(255,255,255,0.4)';ctx.fillRect(SPANS[3].xl+3,TOP+3,CAP.x1-CAP.x0-30,1);ctx.fillRect(CAP.x0+CAP.r+4,BOTTOM-4,40,1);
  for(const cx of [CAP.x0+30,CAP.x0+100]){['#5a5d64','#c9ccd3','#8c8f96','#5a5d64'].forEach((col,i)=>{ctx.fillStyle=col;ctx.fillRect(cx+i,TOP-2,1,CAP.r*2+4)})}
+ drawCracks(ctx,s);
  drawMouth(ctx,s);
  for(const b of s.bullets){
   if(b.t>1.2)continue;const t1=clamp(b.t),t0=clamp(b.t-0.45),steps=Math.ceil(Math.hypot(b.x1-b.x0,b.y1-b.y0)*(t1-t0));
@@ -420,11 +619,13 @@ function render(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
   if(p.kind==='blood'){ctx.fillStyle=`rgba(214,12,34,${a})`;ctx.fillRect(x,y,p.size,p.size)}
   else if(p.kind==='drip'){ctx.fillStyle='#b00a1e';ctx.fillRect(x,y,1,2)}
   else if(p.kind==='shell'){ctx.fillStyle=`rgba(230,186,72,${a})`;ctx.fillRect(x,y,2,1)}
-  else if(p.kind==='ember'){ctx.fillStyle=p.life>0.15?'#ff3b4e':'#ffd0d4';ctx.fillRect(x,y,p.size,p.size)}
+  else if(p.kind==='ember'){ctx.fillStyle=p.color??(p.life>0.15?'#ff3b4e':'#ffd0d4');ctx.fillRect(x,y,p.size,p.size)}
+  else if(p.kind==='shard'){ctx.fillStyle=`rgba(225,236,255,${a})`;ctx.fillRect(x,y,p.size,p.size)}
   else if(p.kind==='spark'){ctx.fillStyle=`rgba(255,150,160,${a})`;ctx.fillRect(x-1,y,3,1);ctx.fillRect(x,y-1,1,3)}
  }
- drawWave(ctx,s);
- if(s.soldierX<LW+10){if(s.hero==='knight')drawKnight(ctx,s,sp);else drawSoldier(ctx,s,sp)}
+ drawWave(ctx,s);drawBeam(ctx,s);
+ if(s.hero==='goku')drawGoku(ctx,s,sp);
+ else if(s.soldierX<LW+10){if(s.hero==='knight')drawKnight(ctx,s,sp);else drawSoldier(ctx,s,sp)}
  if(s.file){
   const k=easeIn(s.file.t),x=Math.round(lerp(s.file.x,DOOR.x+DOOR.w/2,k)),y=Math.round(lerp(s.file.y,CAP.cy,k)-Math.sin(k*Math.PI)*16);
   const w=Math.max(3,Math.round(12*(1-k*0.8))),h=Math.max(4,Math.round(15*(1-k*0.8)));
@@ -490,7 +691,7 @@ export default function ZombieCapsuleUpload({upload=simulateUpload,onComplete,ac
    ctx.imageSmoothingEnabled=false;ctx.fillStyle='#000000';ctx.fillRect(0,0,canvas.width,canvas.height);
    ctx.drawImage(low,shake?Math.round((Math.random()-0.5)*shake*2)*k:0,shake?Math.round((Math.random()-0.5)*shake*2)*k:0,canvas.width,canvas.height);
    for(const e of s.events.splice(0))audio.play(e);
-   audio.setHum(s.hero==='knight'&&s.phase==='uploading'&&s.soldierX<=SOLDIER_X&&!s.slash?s.charge:0);
+   audio.setHum(s.phase!=='uploading'?0:s.hero==='knight'&&s.soldierX<=SOLDIER_X&&!s.slash?s.charge:s.hero==='goku'&&s.landed&&!s.beam?Math.max(s.charge,s.transformT!==null?1:0):0);
    if(s.finished){s.finished=false;setPhase('done');setStatus(`Upload complete. ${s.kills} zombies down.`);if(current.current)onCompleteRef.current?.(current.current)}
    const pct=s.lastN;if(pct!==lastPct&&s.phase==='uploading'&&pct%10===0){lastPct=pct;setStatus(`Uploading ${pct}%`)}
    raf=requestAnimationFrame(frame);
