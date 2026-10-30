@@ -3,7 +3,7 @@ import {useCallback,useEffect,useRef,useState,type DragEvent} from 'react';
 import styles from './ZombieCapsuleUpload.module.css';
 import {Sfx,type SfxName} from './sfx';
 import {
- ARMS_MUZZLE,ARMS_PIVOT,GOKU,GOKU_PALETTE,GOKU_SHOULDERS,GOKU_SSJ_PALETTE,KNIGHT,KNIGHT_HAND,KNIGHT_PALETTE,SKULL,SWORD,SWORD_PALETTE,SWORD_PIVOT,SKULL_PALETTE,SOLDIER_A,SOLDIER_ARMS,SOLDIER_B,SOLDIER_PALETTE,SOLDIER_SHOULDER,
+ ARMS_MUZZLE,ARMS_PIVOT,GOKU,GOKU_ARMLESS,GOKU_PALETTE,GOKU_RIG,GOKU_SSJ,GOKU_SSJ_ARMLESS,GOKU_SSJ_PALETTE,KNIGHT,KNIGHT_HAND,KNIGHT_PALETTE,SKULL,SWORD,SWORD_PALETTE,SWORD_PIVOT,SKULL_PALETTE,SOLDIER_A,SOLDIER_ARMS,SOLDIER_B,SOLDIER_PALETTE,SOLDIER_SHOULDER,
  ZOMBIE_ARM,ZOMBIE_ARM_BACK,ZOMBIE_OPEN,ZOMBIE_PALETTE,ZOMBIE_SHUT,drawText,flipSprite,glyphCells,makeSprite,textWidth,type Sprite,
 } from './sprites';
 
@@ -82,11 +82,20 @@ const COLS=Array.from({length:CAP.x1-CAP.x0},(_,i)=>{const x=CAP.x0+i,rows=SPANS
 const OUTLINE:Pt[]=SPANS.flatMap(({y,xl,xr})=>{const out:Pt[]=[];for(let x=xl;x<xr;x++)if(!inside(x-1,y)||!inside(x+1,y)||!inside(x,y-1)||!inside(x,y+1))out.push({x,y});return out});
 const HANDPRINT=['..r.r.r','.rr.r.r','.rrrrrr','rrrrrrr','.rrrrr.','..rrr..'];
 
-type Sprites={goku:Sprite;gokuSsj:Sprite;gokuAura:Sprite;knight:Sprite;knightGlow:Sprite;sword:Sprite;swordGlow:Sprite;soldierA:Sprite;soldierB:Sprite;arms:Sprite;zOpen:Sprite;zShut:Sprite;zArm:Sprite;zArmBack:Sprite;skull:Sprite;hand:Sprite};
+type GokuForm={full:Sprite;armless:Sprite;auraFull:Sprite;auraArmless:Sprite;w:number;h:number;centre:number;hairEnd:number;torsoEnd:number;shoulders:Pt[];fists:Pt[];skin:string;shade:string;band:string};
+type Sprites={goku:GokuForm;gokuSsj:GokuForm;knight:Sprite;knightGlow:Sprite;sword:Sprite;swordGlow:Sprite;soldierA:Sprite;soldierB:Sprite;arms:Sprite;zOpen:Sprite;zShut:Sprite;zArm:Sprite;zArmBack:Sprite;skull:Sprite;hand:Sprite};
 // Source art faces the soldier right / zombies left; here the soldier faces left into the capsule and the zombies face him.
 const RED='#ff2a3d';
+/** Builds one Goku form from the traced art, mirrored to face left, with its rig points mirrored too. */
+function gokuForm(full:string[],armless:string[],palette:Record<string,string>,rig:typeof GOKU_RIG.base,colors:{skin:string;shade:string;band:string}):GokuForm{
+ const w=Math.max(...full.map(r=>r.length)),h=full.length,flipX=(p:Pt)=>({x:w-1-p.x,y:p.y});
+ const gold=Object.fromEntries(Object.keys(palette).map(k=>[k,'#ffd23f']));
+ return {full:flipSprite(makeSprite(full,palette)),armless:flipSprite(makeSprite(armless,palette)),auraFull:flipSprite(makeSprite(full,gold)),auraArmless:flipSprite(makeSprite(armless,gold)),
+  w,h,centre:w-1-rig.centre,hairEnd:rig.hairEnd,torsoEnd:rig.torsoEnd,shoulders:rig.shoulders.map(flipX),fists:rig.fists.map(flipX),...colors};
+}
 const buildSprites=():Sprites=>({
- goku:flipSprite(makeSprite(GOKU,GOKU_PALETTE)),gokuSsj:flipSprite(makeSprite(GOKU,GOKU_SSJ_PALETTE)),gokuAura:flipSprite(makeSprite(GOKU,Object.fromEntries(Object.keys(GOKU_PALETTE).map(k=>[k,'#ffd23f'])))),
+ goku:gokuForm(GOKU,GOKU_ARMLESS,GOKU_PALETTE,GOKU_RIG.base,{skin:'#f6c8a6',shade:'#d98762',band:'#1f4494'}),
+ gokuSsj:gokuForm(GOKU_SSJ,GOKU_SSJ_ARMLESS,GOKU_SSJ_PALETTE,GOKU_RIG.ssj,{skin:'#fed5b9',shade:'#e18d71',band:'#7f74ee'}),
  knight:flipSprite(makeSprite(KNIGHT,KNIGHT_PALETTE)),knightGlow:flipSprite(makeSprite(KNIGHT,Object.fromEntries(Object.keys(KNIGHT_PALETTE).map(k=>[k,RED])))),
  sword:flipSprite(makeSprite(SWORD,SWORD_PALETTE)),swordGlow:flipSprite(makeSprite(SWORD,{w:RED,W:RED})),
  soldierA:flipSprite(makeSprite(SOLDIER_A,SOLDIER_PALETTE)),soldierB:flipSprite(makeSprite(SOLDIER_B,SOLDIER_PALETTE)),arms:flipSprite(makeSprite(SOLDIER_ARMS,SOLDIER_PALETTE)),
@@ -101,8 +110,6 @@ const KNIGHT_W=Math.max(...KNIGHT.map(r=>r.length)),SWORD_W=Math.max(...SWORD.ma
 const KHAND={x:KNIGHT_W-1-KNIGHT_HAND.x,y:KNIGHT_HAND.y};
 const SPIV={x:SWORD_W-1-SWORD_PIVOT.x,y:SWORD_PIVOT.y};
 // sword angles (the flipped blade points along (-cos, -sin)): low guard while charging, raised for the windup, follow-through, planted when done
-const GOKU_W=Math.max(...GOKU.map(r=>r.length));
-const GSHOULDER=GOKU_SHOULDERS.map(p=>({x:GOKU_W-1-p.x,y:p.y}));
 const GUARD=-0.93,RAISED=2.1,FOLLOW=-0.6,PLANTED=-1.28;
 
 const simulateUpload:UploadFn=(file,onProgress,signal)=>new Promise((resolve,reject)=>{
@@ -117,7 +124,7 @@ const freshScene=(hero:Hero='soldier'):Scene=>({
  zombies:[],particles:[],bullets:[],ripples:[],stains:[],drips:[],file:null,events:[],
  stage:0,charge:0,slash:null,wave:null,sinceSlash:9,whiteout:0,flood:0,crackleCd:0,
  gy:-120,gv:0,falling:false,landed:false,landT:0,beam:null,ssj:false,transformT:null,cracks:[],crackT:0,
- gk:{bx:0,bxv:0,cr:0,crv:0,hands:[{x:20,y:8,vx:0,vy:0},{x:3,y:10,vx:0,vy:0}],blink:2},
+ gk:{bx:0,bxv:0,cr:0,crv:0,hands:[{x:25,y:36,vx:0,vy:0},{x:7,y:36,vx:0,vy:0}],blink:2},
 });
 
 const makeZombie=(row:0|1,x:number,delay=0):Zombie=>({x,row,seed:Math.random(),speed:2+Math.random()*4,rise:-delay,hp:2+Math.floor(Math.random()*3),state:'rising',t:0,flinch:0,respawn:0});
@@ -304,20 +311,26 @@ function stepKnight(s:Scene,dt:number){
  }
 }
 
-const gokuOrigin=(s:Scene)=>({x:Math.round(SOLDIER_X)-(GOKU_W>>1),y:LEDGE.y-32+Math.round(s.gy)});
+// rig numbers mirrored to face left, so step() can place hands without the sprite canvases
+const GRIG=(['base','ssj'] as const).map(k=>{const src=k==='base'?GOKU:GOKU_SSJ,w=Math.max(...src.map(r=>r.length)),r=GOKU_RIG[k],f=(p:Pt)=>({x:w-1-p.x,y:p.y});return {w,h:src.length,centre:w-1-r.centre,shoulders:r.shoulders.map(f),fists:r.fists.map(f)}});
+const gokuGold=(s:Scene)=>s.ssj||(s.transformT!==null&&s.transformT>0.25&&Math.floor(s.transformT*14)%2===0);
+const gokuRig=(s:Scene)=>GRIG[gokuGold(s)?1:0];
+/** Arms are posed (and the arms-removed sprite used) only for the Kamehameha; otherwise the art is drawn as-is. */
+const gokuPosing=(s:Scene)=>!!s.beam||(s.phase==='uploading'&&s.landed&&s.transformT===null);
+const gokuOrigin=(s:Scene)=>{const r=gokuRig(s);return {x:Math.round(SOLDIER_X)-r.centre,y:LEDGE.y-r.h+Math.round(s.gy)}};
 /** The energy gathers between his hands, so it follows them wherever the springs carry them. */
 const gokuBall=(s:Scene)=>{const o=gokuOrigin(s),[a,b]=s.gk.hands,mx=(a.x+b.x)/2,my=(a.y+b.y)/2;return {x:Math.round(o.x+mx+(s.beam?-3:2)),y:Math.round(o.y+my-1)}};
 const spring=(v:number,vel:number,target:number,k:number,zeta:number,dt:number)=>{const a=(target-v)*k-vel*2*Math.sqrt(k)*zeta;vel+=a*dt;return [v+vel*dt,vel]};
 
 /** Where each hand wants to be (relative to his origin) for what he is doing right now. */
 function gokuHandTargets(s:Scene){
- const {bx,cr}=s.gk,t=s.time;
- if(s.falling)return [{x:21+Math.sin(t*20)*1.5,y:7},{x:2+Math.sin(t*20+2)*1.5,y:9}];
- if(s.beam)return [{x:-3+bx,y:18+cr},{x:-4+bx,y:19+cr}];
- if(s.transformT!==null)return [{x:19+bx,y:24+cr+Math.random()},{x:4+bx,y:24+cr+Math.random()}];
- if(s.phase==='uploading'&&s.landed)return [{x:20+bx,y:21+cr},{x:19+bx,y:22+cr}];
- // at rest: fists by his hips, like the reference pose
- return [{x:17+bx,y:23+cr},{x:6+bx,y:23+cr}];
+ const {bx,cr}=s.gk,r=gokuRig(s),[back,front]=r.fists,sh=r.shoulders[1];
+ // thrust forward at chest height to fire
+ if(s.beam)return [{x:-3+bx,y:sh.y+5+cr},{x:-4+bx,y:sh.y+6+cr}];
+ // cupped together at the back hip while charging
+ if(gokuPosing(s))return [{x:back.x+bx,y:back.y-1+cr},{x:back.x-1+bx,y:back.y+cr}];
+ // otherwise his own fists from the art
+ return [{x:back.x+bx,y:back.y+cr},{x:front.x+bx,y:front.y+cr}];
 }
 
 /** Random branching fractures over the whole tube; `o` orders them so they can spread outward from the impact points. */
@@ -353,8 +366,7 @@ function stepGoku(s:Scene,dt:number){
  [g.bx,g.bxv]=spring(g.bx,g.bxv,leanT,120,0.45,dt);[g.cr,g.crv]=spring(g.cr,g.crv,crT,170,0.4,dt);g.cr=Math.max(-1,g.cr);
  const targets=gokuHandTargets(s);
  g.hands.forEach((h,i)=>{[h.x,h.vx]=spring(h.x,h.vx,targets[i].x,s.beam?420:220,0.55,dt);[h.y,h.vy]=spring(h.y,h.vy,targets[i].y,s.beam?420:220,0.55,dt)});
- g.blink-=dt;if(g.blink<-0.12)g.blink=1.8+Math.random()*2.5;
- if(s.beam&&Math.random()<dt*30){const o=gokuOrigin(s);s.particles.push({x:o.x+8+Math.random()*10,y:LEDGE.y-1,vx:20+Math.random()*40,vy:-5-Math.random()*15,life:0.4,max:0.4,kind:'ember',size:1,caged:false,color:'#8d8486'})}
+ if(s.beam&&Math.random()<dt*30){const o=gokuOrigin(s);s.particles.push({x:o.x+8+Math.random()*14,y:LEDGE.y-1,vx:20+Math.random()*40,vy:-5-Math.random()*15,life:0.4,max:0.4,kind:'ember',size:1,caged:false,color:'#8d8486'})}
  if(s.transformT!==null&&Math.random()<dt*18)s.particles.push({x:LEDGE.x+4+Math.random()*60,y:LEDGE.y-1,vx:(Math.random()-0.5)*6,vy:-12-Math.random()*20,life:1.4,max:1.4,kind:'ember',size:Math.random()<0.3?2:1,caged:false,color:Math.random()<0.5?'#6a6d74':'#4a3a2a'})
  const ready=open&&s.landed&&s.landT<=0;
  const want=s.stage===0?clamp(s.pct/0.5):clamp((s.pct-0.5)/0.49);
@@ -365,7 +377,7 @@ function stepGoku(s:Scene,dt:number){
   for(let i=0;i<3;i++)if(Math.random()<dt*(5+s.charge*45)){const a=Math.random()*Math.PI*2,r=6+Math.random()*(6+s.charge*10),x=c.x+Math.cos(a)*r,y=c.y+Math.sin(a)*r;s.particles.push({x,y,vx:(c.x-x)*3.4,vy:(c.y-y)*3.4,life:0.3,max:0.3,kind:'ember',size:Math.random()<0.25?2:1,caged:false,color:Math.random()<0.5?'#7fd0ff':'#ffffff'})}
   s.crackleCd-=dt;if(s.crackleCd<=0){s.crackleCd=0.45-s.charge*0.38+Math.random()*0.08;s.events.push('crackle')}
  }
- if(s.ssj&&Math.random()<dt*14){const o=gokuOrigin(s);s.particles.push({x:o.x+4+Math.random()*16,y:o.y+8+Math.random()*22,vx:0,vy:-25-Math.random()*25,life:0.5,max:0.5,kind:'ember',size:1,caged:false,color:Math.random()<0.5?'#ffd23f':'#fff6c0'})}
+ if(s.ssj&&Math.random()<dt*14){const o=gokuOrigin(s),r=gokuRig(s);s.particles.push({x:o.x+3+Math.random()*(r.w-6),y:o.y+6+Math.random()*(r.h-12),vx:0,vy:-25-Math.random()*25,life:0.5,max:0.5,kind:'ember',size:1,caged:false,color:Math.random()<0.5?'#ffd23f':'#fff6c0'})}
  // at 99% he transforms
  if(ready&&s.stage===1&&!s.ssj&&s.transformT===null&&!s.beam&&(s.pct>=0.99||s.finale)){s.transformT=0;s.events.push('powerup')}
  if(s.transformT!==null){
@@ -411,28 +423,30 @@ function fireBeam(s:Scene,stage:1|2){
  s.pool=stage===1?0.5:1;s.flood=1.1;
 }
 
-function drawLimb(ctx:CanvasRenderingContext2D,a:Pt,b:Pt){
+/** A posed arm in the art's own colours: outlined skin, a wristband near the end and a fist. */
+function drawLimb(ctx:CanvasRenderingContext2D,a:Pt,b:Pt,f:GokuForm){
  const n=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.y-a.y)));
  const at=(i:number)=>({x:Math.round(lerp(a.x,b.x,i/n)),y:Math.round(lerp(a.y,b.y,i/n))});
- ctx.fillStyle='#101018';for(let i=0;i<=n;i++){const p=at(i);ctx.fillRect(p.x-1,p.y-1,4,4)}
- ctx.fillStyle='#f2c08e';for(let i=0;i<=n;i++){const p=at(i);ctx.fillRect(p.x,p.y,2,2)}
- ctx.fillStyle='#2a3fa8';for(let i=Math.round(n*0.7);i<=Math.round(n*0.82);i++){const p=at(i);ctx.fillRect(p.x,p.y,2,2)}
+ ctx.fillStyle='#000106';for(let i=0;i<=n;i++){const p=at(i);ctx.fillRect(p.x-2,p.y-2,5,5)}
+ ctx.fillStyle=f.skin;for(let i=0;i<=n;i++){const p=at(i);ctx.fillRect(p.x-1,p.y-1,3,3)}
+ ctx.fillStyle=f.shade;for(let i=0;i<=n;i++){const p=at(i);ctx.fillRect(p.x-1,p.y+1,3,1)}
+ ctx.fillStyle=f.band;for(let i=Math.round(n*0.62);i<=Math.round(n*0.8);i++){const p=at(i);ctx.fillRect(p.x-1,p.y-1,3,3)}
+ const e=at(n);ctx.fillStyle='#000106';ctx.fillRect(e.x-3,e.y-3,6,6);ctx.fillStyle=f.skin;ctx.fillRect(e.x-2,e.y-2,4,4);ctx.fillStyle=f.shade;ctx.fillRect(e.x-2,e.y+1,4,1);
 }
 
 // sprite bands that move independently: spiky hair, head and torso, legs
-const HAIR_ROWS=10,TORSO_END=21;
-/** Draws the sprite in three bands so his hair, torso and legs can each move on their own. */
-function drawGokuBands(ctx:CanvasRenderingContext2D,img:HTMLCanvasElement,ox:number,oy:number,body:Pt,hair:Pt,legs:Pt){
- const h=img.height,w=img.width;
- ctx.drawImage(img,0,TORSO_END,w,h-TORSO_END,ox+legs.x,oy+TORSO_END+legs.y,w,h-TORSO_END);
- ctx.drawImage(img,0,HAIR_ROWS,w,TORSO_END-HAIR_ROWS,ox+body.x,oy+HAIR_ROWS+body.y,w,TORSO_END-HAIR_ROWS);
- ctx.drawImage(img,0,0,w,HAIR_ROWS,ox+hair.x,oy+hair.y,w,HAIR_ROWS);
+/** Draws the sprite in three bands so his hair, torso and legs can each move on their own. The torso band starts a few rows into the hair so lifting the hair never opens a gap. */
+function drawGokuBands(ctx:CanvasRenderingContext2D,img:HTMLCanvasElement,f:GokuForm,ox:number,oy:number,body:Pt,hair:Pt,legs:Pt){
+ const w=img.width,h=img.height,t0=f.hairEnd-3,t1=f.torsoEnd;
+ ctx.drawImage(img,0,t1,w,h-t1,ox+legs.x,oy+t1+legs.y,w,h-t1);
+ ctx.drawImage(img,0,t0,w,t1-t0,ox+body.x,oy+t0+body.y,w,t1-t0);
+ ctx.drawImage(img,0,0,w,f.hairEnd,ox+hair.x,oy+hair.y,w,f.hairEnd);
 }
 
 function drawGoku(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
  if(!s.falling&&!s.landed)return;
  const g=s.gk,o=gokuOrigin(s),t=s.time,charging=s.phase==='uploading'&&s.landed&&!s.beam;
- const flick=s.transformT!==null&&s.transformT>0.25&&Math.floor(s.transformT*14)%2===0,gold=s.ssj||flick;
+ const gold=gokuGold(s),form=gold?sp.gokuSsj:sp.goku,posing=gokuPosing(s);
  // trembling with power while charging and while he transforms
  const amp=s.transformT!==null?1.4:charging?s.charge*1.1:0,jx=amp?Math.round((Math.random()-0.5)*2*amp):0,jy=amp>1?Math.round((Math.random()-0.5)*amp):0;
  const ox=o.x+jx,oy=o.y+jy;
@@ -450,25 +464,24 @@ function drawGoku(ctx:CanvasRenderingContext2D,s:Scene,sp:Sprites){
  // aura: gold flames once he has transformed, a faint blue shimmer while charging
  if(gold||(charging&&s.charge>0.55)){
   ctx.globalAlpha=gold?0.45+0.25*Math.sin(t*28):(s.charge-0.55)*0.6;
-  const img=gold?sp.gokuAura.img:sp.gokuAura.flash;
-  for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,-2],[-1,-1],[1,-1]])drawGokuBands(ctx,img,ox+dx,oy+dy,body,{x:hair.x,y:hair.y-(gold?1+Math.round(Math.random()):0)},legs);
+  const src=posing?(gold?form.auraArmless:form.armless):(gold?form.auraFull:form.full),img=gold?src.img:src.flash;
+  for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,-2],[-1,-1],[1,-1]])drawGokuBands(ctx,img,form,ox+dx,oy+dy,body,{x:hair.x,y:hair.y-(gold?1+Math.round(Math.random()):0)},legs);
   ctx.globalAlpha=1;
  }
- const sh=GSHOULDER.map(p=>({x:ox+p.x+body.x,y:oy+p.y+body.y}));
+ const sh=form.shoulders.map(p=>({x:ox+p.x+body.x,y:oy+p.y+body.y}));
  const hands=g.hands.map(h=>({x:ox+h.x,y:oy+h.y+breath}));
- drawLimb(ctx,sh[0],hands[0]);
- drawGokuBands(ctx,gold?sp.gokuSsj.img:sp.goku.img,ox,oy,body,hair,legs);
- // blink, or squeeze the eyes shut while he screams through the transformation
- if(g.blink<0||(s.transformT!==null&&s.transformT<1)){ctx.fillStyle='#c98a5c';ctx.fillRect(ox+10+body.x,oy+12+body.y,1,1)}
- drawLimb(ctx,sh[1],hands[1]);
- const ball=gokuBall(s),r=s.beam?0:charging||s.transformT!==null?1+s.charge*(s.ssj?6:4):0;
+ if(posing)drawLimb(ctx,sh[0],hands[0],form);
+ drawGokuBands(ctx,posing?form.armless.img:form.full.img,form,ox,oy,body,hair,legs);
+ if(posing)drawLimb(ctx,sh[1],hands[1],form);
+ // the ball only exists while his hands are cupped; during the transformation his fists are clenched at his sides
+ const ball=gokuBall(s),r=s.beam||!posing?0:1+s.charge*(s.ssj?6:4);
  if(r>0){
   const bx2=ball.x+jx,by=ball.y+jy+breath,flk=0.8+0.2*Math.sin(t*40);
   // round, dithered halo so the glow reads as light rather than a box
   const R2=Math.ceil(r*2);for(let y=-R2;y<=R2;y++)for(let x=-R2;x<=R2;x++){const d=Math.hypot(x,y);if(d<=r||d>r*2)continue;if((x+y)&1&&d>r*1.5)continue;ctx.fillStyle=`rgba(63,169,255,${0.4*flk*(1-(d-r)/r)})`;ctx.fillRect(Math.round(bx2+x),Math.round(by+y),1,1)}
   for(let y=-Math.ceil(r);y<=Math.ceil(r);y++)for(let x=-Math.ceil(r);x<=Math.ceil(r);x++){const d=Math.hypot(x,y);if(d>r)continue;ctx.fillStyle=d<r*0.45?'#ffffff':d<r*0.8?'#9fdcff':'#3fa9ff';ctx.fillRect(Math.round(bx2+x),Math.round(by+y),1,1)}
  }
- if(s.ssj&&Math.random()<0.35){ctx.fillStyle='#cff6ff';let x=ox+4+Math.random()*16,y=oy+4+Math.random()*20;for(let i=0;i<4;i++){ctx.fillRect(Math.round(x),Math.round(y),1,1);x+=(Math.random()-0.5)*4;y+=1+Math.random()*2}}
+ if(s.ssj&&Math.random()<0.35){ctx.fillStyle='#cff6ff';let x=ox+3+Math.random()*(form.w-6),y=oy+8+Math.random()*(form.h-16);for(let i=0;i<4;i++){ctx.fillRect(Math.round(x),Math.round(y),1,1);x+=(Math.random()-0.5)*4;y+=1+Math.random()*2}}
 }
 
 function drawBeam(ctx:CanvasRenderingContext2D,s:Scene){
